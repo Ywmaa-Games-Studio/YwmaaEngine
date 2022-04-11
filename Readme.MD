@@ -2,7 +2,7 @@
 
 made by c++ 
 
-makefile is the build tool
+premake generates project files
 
 # why AMRT as a name 
 

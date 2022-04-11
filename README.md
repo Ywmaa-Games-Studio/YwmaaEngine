@@ -1,2 +1,0 @@
-# YwmaaEngine
-Ywmaa Game Engine

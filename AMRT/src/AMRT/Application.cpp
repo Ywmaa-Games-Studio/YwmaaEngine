@@ -2,7 +2,7 @@
 
 
 
-namespace Ywmaa {
+namespace AMRT {
 	Application::Application() {
 
 	}

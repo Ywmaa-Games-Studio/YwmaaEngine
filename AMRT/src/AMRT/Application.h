@@ -1,9 +1,9 @@
 #pragma once
 #include "Core.h"
 
-namespace Ywmaa {
+namespace AMRT {
 
-class YWMAA_API Application
+class AMRT_API Application
 {
 public:
 	Application();

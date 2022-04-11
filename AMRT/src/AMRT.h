@@ -2,11 +2,11 @@
 // For use by Ywmaa Applications
 
 #include <stdio.h>
-#include "Ywmaa/Application.h"
+#include "AMRT/Application.h"
 
 
 // ------------ Entry Point ---------------
 
-#include "Ywmaa/EntryPoint.h"
+#include "AMRT/EntryPoint.h"
 
 // ---------------------------

@@ -9,4 +9,4 @@
 
 #else
 	#error AMRT only supports Windows!
-#endif // YM_PLATFORM_WINDOWS
+#endif // AMRT_PLATFORM_WINDOWS

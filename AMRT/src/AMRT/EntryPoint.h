@@ -6,7 +6,7 @@ extern AMRT::Application* AMRT::CreateApplication();
 
 
 int main(int argc, char** argv) {
-	printf("Ywmaa Engine is Ready!");
+	printf("AMRT Engine is Ready!");
 	auto app = AMRT::CreateApplication();
 	app->Run();
 	delete app;

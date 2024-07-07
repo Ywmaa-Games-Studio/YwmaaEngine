@@ -2,8 +2,7 @@
 
 #include <entry.h>
 
-// TODO: Remove this
-#include <platform/platform.h>
+#include "core/ymemory.h"
 
 // Define the function to create a game
 b8 create_game(GAME* out_game) {
@@ -19,7 +18,8 @@ b8 create_game(GAME* out_game) {
     out_game->on_resize = game_on_resize;
 
     // Create the game state.
-    out_game->state = platform_allocate(sizeof(GAME_STATE), FALSE);
+    out_game->state = yallocate(sizeof(GAME_STATE), MEMORY_TAG_GAME);
+    //PRINT_INFO(get_memory_usage_str());
 
     return TRUE;
 }

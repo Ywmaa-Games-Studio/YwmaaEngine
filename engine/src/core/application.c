@@ -4,7 +4,7 @@
 #include "logger.h"
 
 #include "platform/platform.h"
-
+#include "core/ymemory.h"
 typedef struct APPLICATION_STATE {
     GAME* game_instance;
     b8 is_running;

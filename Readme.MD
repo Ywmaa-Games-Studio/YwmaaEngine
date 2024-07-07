@@ -16,3 +16,14 @@ and actually its letters stand for :
 ت : تطبيقات (Apps)
 
 also AMRT is the brand name, while in code you will find the engine is named "YWMAA", and its API is prefixed with the letter "Y".
+
+# Building
+
+## Windows
+
+TO-DO
+
+## Linux
+
+have clang installed, check the required dependecies for linux in shell.nix, then run the build-all.sh
+

@@ -1,4 +1,4 @@
-# AMRT Engine
+# AMRT Engine/ YWMAA Engine
 
 made by C
 
@@ -14,3 +14,5 @@ and actually its letters stand for :
 ر : روبوتات (Robotics)
 
 ت : تطبيقات (Apps)
+
+also AMRT is the brand name, while in code you will find the engine is named "YWMAA", and its API is prefixed with the letter "Y".

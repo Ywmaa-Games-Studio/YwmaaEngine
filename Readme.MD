@@ -1,8 +1,6 @@
 # AMRT Engine
 
-made by c++ 
-
-premake generates project files
+made by C
 
 # why AMRT as a name 
 

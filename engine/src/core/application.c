@@ -5,6 +5,8 @@
 
 #include "platform/platform.h"
 #include "core/ymemory.h"
+#include "core/event.h"
+#include "input/input.h"
 typedef struct APPLICATION_STATE {
     GAME* game_instance;
     b8 is_running;
@@ -28,9 +30,15 @@ b8 application_create(GAME* game_instance) {
 
     // Initialize subsystems.
     init_logging();
+    input_init();
 
     app_state.is_running = TRUE;
     app_state.is_suspended = FALSE;
+
+    if(!event_init()) {
+        PRINT_ERROR("Event system failed initialization. Application cannot continue.");
+        return FALSE;
+    }
 
     if (!platform_startup(
             &app_state.platform,
@@ -74,6 +82,14 @@ b8 application_run() {
                 app_state.is_running = FALSE;
                 break;
             }
+
+
+            // NOTE: Input update/state copying should always be handled
+            // after any input should be recorded; I.E. before this line.
+            // As a safety, input is the last thing to be updated before
+            // this frame ends.
+            input_update(0);
+
         }
     }
 

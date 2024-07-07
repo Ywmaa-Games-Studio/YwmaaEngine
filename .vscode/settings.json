@@ -4,6 +4,8 @@
         "cstdlib": "c",
         "darray.h": "c",
         "logger.h": "c",
-        "event.h": "c"
+        "event.h": "c",
+        "input.h": "c",
+        "string.h": "c"
     }
 }

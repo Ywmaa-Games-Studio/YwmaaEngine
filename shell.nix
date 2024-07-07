@@ -22,9 +22,9 @@ with pkgs;
     clang
     clang-tools
 
-    libxkbcommon
-    xorg.libX11
-    xorg.libxcb
+    libxkbcommon.dev
+    xorg.libX11.dev
+    xorg.libxcb.dev
   ];
 
   LD_LIBRARY_PATH="${glfw}/lib:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";

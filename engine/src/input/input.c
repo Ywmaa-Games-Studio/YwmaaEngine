@@ -62,7 +62,6 @@ void input_process_button(BUTTONS button, b8 pressed) {
     // If the state changed, fire an event.
     if (state.mouse_current.buttons[button] != pressed) {
         state.mouse_current.buttons[button] = pressed;
-
         // Fire the event.
         EVENT_CONTEXT context;
         context.data.u16[0] = button;
@@ -74,7 +73,7 @@ void input_process_mouse_move(i16 x, i16 y) {
     // Only process if actually different
     if (state.mouse_current.x != x || state.mouse_current.y != y) {
         // NOTE: Enable this if debugging.
-        //KDEBUG("Mouse pos: %i, %i!", x, y);
+        // PRINT_DEBUG("Mouse pos: %i, %i!", x, y);
 
         // Update internal state.
         state.mouse_current.x = x;

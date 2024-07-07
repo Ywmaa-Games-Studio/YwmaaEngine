@@ -20,6 +20,10 @@ typedef struct APPLICATION_STATE {
 static b8 initialized = FALSE;
 static APPLICATION_STATE app_state;
 
+// Event handlers
+b8 application_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context);
+b8 application_on_key(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context);
+
 b8 application_create(GAME* game_instance) {
     if (initialized) {
         PRINT_ERROR("application_create called more than once.");
@@ -39,6 +43,10 @@ b8 application_create(GAME* game_instance) {
         PRINT_ERROR("Event system failed initialization. Application cannot continue.");
         return FALSE;
     }
+
+    event_register(EVENT_CODE_APPLICATION_QUIT, 0, application_on_event);
+    event_register(EVENT_CODE_KEY_PRESSED, 0, application_on_key);
+    event_register(EVENT_CODE_KEY_RELEASED, 0, application_on_key);
 
     if (!platform_startup(
             &app_state.platform,
@@ -95,7 +103,55 @@ b8 application_run() {
 
     app_state.is_running = FALSE;
 
+    // Shutdown event system.
+    event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, application_on_event);
+    event_unregister(EVENT_CODE_KEY_PRESSED, 0, application_on_key);
+    event_unregister(EVENT_CODE_KEY_RELEASED, 0, application_on_key);
+    event_shutdown();
+    input_shutdown();
+
     platform_shutdown(&app_state.platform);
 
     return TRUE;
+}
+
+
+b8 application_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context) {
+    switch (code) {
+        case EVENT_CODE_APPLICATION_QUIT: {
+            PRINT_INFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
+            app_state.is_running = FALSE;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+b8 application_on_key(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context) {
+    if (code == EVENT_CODE_KEY_PRESSED) {
+        u16 key_code = context.data.u16[0];
+        if (key_code == KEY_ESCAPE) {
+            // NOTE: Technically firing an event to itself, but there may be other listeners.
+            EVENT_CONTEXT data = {};
+            event_fire(EVENT_CODE_APPLICATION_QUIT, 0, data);
+
+            // Block anything else from processing this.
+            return TRUE;
+        } else if (key_code == KEY_A) {
+            // Example on checking for a key
+            PRINT_DEBUG("Explicit - A key pressed!");
+        } else {
+            PRINT_DEBUG("'%c' key pressed in window.", key_code);
+        }
+    } else if (code == EVENT_CODE_KEY_RELEASED) {
+        u16 key_code = context.data.u16[0];
+        if (key_code == KEY_B) {
+            // Example on checking for a key
+            PRINT_DEBUG("Explicit - B key released!");
+        } else {
+            PRINT_DEBUG("'%c' key released in window.", key_code);
+        }
+    }
+    return FALSE;
 }

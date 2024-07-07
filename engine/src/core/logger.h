@@ -29,11 +29,11 @@ YAPI void log_output(LOG_LEVEL level, const char* message, ...);
 #define PRINT_ERROR(message, ...) log_output(LOG_LEVEL_ERROR, message, ##__VA_ARGS__);
 #endif
 
-#if LOG_WARN_ENABLED == 1
+#if LOG_WARNING_ENABLED == 1
 // Logs a warning-level message.
 #define PRINT_WARNING(message, ...) log_output(LOG_LEVEL_WARNING, message, ##__VA_ARGS__);
 #else
-// Does nothing when LOG_WARN_ENABLED != 1
+// Does nothing when LOG_WARNING_ENABLED != 1
 #define PRINT_WARNING(message, ...)
 #endif
 

@@ -9,6 +9,7 @@ int main(void) {
     PRINT_INFO("current file %s", __FILE__);
     PRINT_INFO("current line %i", __LINE__);
     PRINT_INFO("size of integer %i", sizeof(f32));
+    PRINT_WARNING("sizes of integer %i", sizeof(f32));
     YASSERT(1==1);
 
     PLATFORM_STATE platform_state;
@@ -18,6 +19,6 @@ int main(void) {
         }
     }
     platform_shutdown(&platform_state);
-    
+
     return 0;
 }

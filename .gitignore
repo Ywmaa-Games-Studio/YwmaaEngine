@@ -6,3 +6,4 @@ bin-Intermediate/
 # Files
 
 *.user
+.direnv/

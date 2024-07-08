@@ -57,6 +57,9 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 
 // Linux OS
 #define YPLATFORM_LINUX 1
+//#if defined(WAYLAND_DISPLAY)
+//#define WAYLAND_ENABLED 1
+//#endif
 #if defined(__ANDROID__)
 #define YPLATFORM_ANDROID 1
 #endif

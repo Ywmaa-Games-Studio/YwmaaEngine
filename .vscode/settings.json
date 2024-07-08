@@ -6,6 +6,12 @@
         "logger.h": "c",
         "event.h": "c",
         "input.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "typeinfo": "c",
+        "stdlib.h": "c",
+        "xdg-shell-client-protocol.h": "c",
+        "time.h": "c",
+        "unistd.h": "c",
+        "vulkan_wayland.h": "c"
     }
 }

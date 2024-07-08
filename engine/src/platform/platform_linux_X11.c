@@ -1,7 +1,7 @@
 #include "platform.h"
 
 // Linux platform layer.
-#if YPLATFORM_LINUX
+#if defined(YPLATFORM_LINUX) && !defined(WAYLAND_ENABLED)
 
 #include "core/logger.h"
 #include "core/event.h"
@@ -52,7 +52,7 @@ b8 platform_startup(
 
     // Turn off key repeats.
     XAutoRepeatOff(state->display);
-
+    XAutoRepeatOn(state->display);
     // Retrieve the connection from the display.
     state->connection = XGetXCBConnection(state->display);
 
@@ -573,4 +573,4 @@ KEYS translate_keycode(u32 x_keycode) {
     }
 }
 
-#endif // YPLATFORM_LINUX
+#endif // defined(YPLATFORM_LINUX) && !defined(WAYLAND_ENABLED)

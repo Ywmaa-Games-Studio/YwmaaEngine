@@ -3,7 +3,7 @@
 with pkgs;
   mkShell {
   packages = [
-    glfw
+    #glfw
     freetype
     vulkan-headers
     vulkan-loader
@@ -17,17 +17,25 @@ with pkgs;
   ];
 
   buildInputs = with pkgs; [
-    glfw
+    #glfw
     freetype
     clang
     clang-tools
 
     libxkbcommon.dev
+
+    #X11
     xorg.libX11.dev
     xorg.libxcb.dev
+
+    #Wayland
+    wayland #libwayland-client
+    wayland-scanner
+    wayland-protocols
+    libdecor
   ];
 
-  LD_LIBRARY_PATH="${glfw}/lib:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
+  LD_LIBRARY_PATH="${pkgs.wayland}/${pkgs.wayland-protocols}/${glfw}/lib:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
   VULKAN_SDK = "${vulkan-headers}";
   VK_LAYER_PATH = "${vulkan-validation-layers}/share/vulkan/explicit_layer.d";
 }

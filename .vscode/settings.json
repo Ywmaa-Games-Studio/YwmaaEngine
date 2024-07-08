@@ -12,6 +12,14 @@
         "xdg-shell-client-protocol.h": "c",
         "time.h": "c",
         "unistd.h": "c",
-        "vulkan_wayland.h": "c"
+        "vulkan_wayland.h": "c",
+        "*.tcc": "cpp",
+        "compare": "cpp",
+        "concepts": "cpp",
+        "cwchar": "cpp",
+        "string": "cpp",
+        "type_traits": "cpp",
+        "new": "cpp",
+        "stdexcept": "cpp"
     }
 }

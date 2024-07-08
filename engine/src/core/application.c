@@ -8,6 +8,8 @@
 #include "core/event.h"
 #include "input/input.h"
 #include "core/clock.h"
+
+#include "renderer/renderer_frontend.h"
 typedef struct APPLICATION_STATE {
     GAME* game_instance;
     b8 is_running;
@@ -50,6 +52,7 @@ b8 application_create(GAME* game_instance) {
     event_register(EVENT_CODE_KEY_PRESSED, 0, application_on_key);
     event_register(EVENT_CODE_KEY_RELEASED, 0, application_on_key);
 
+    // Platform startup
     if (!platform_startup(
             &app_state.platform,
             game_instance->app_config.name,
@@ -57,6 +60,12 @@ b8 application_create(GAME* game_instance) {
             game_instance->app_config.start_pos_y,
             game_instance->app_config.start_width,
             game_instance->app_config.start_height)) {
+        return FALSE;
+    }
+
+    // Renderer startup
+    if (!renderer_init(game_instance->app_config.name, &app_state.platform)) {
+        PRINT_ERROR("Failed to initialize renderer. Aborting application.");
         return FALSE;
     }
 
@@ -107,6 +116,11 @@ b8 application_run() {
                 break;
             }
 
+            // TODO: refactor packet creation
+            RENDER_PACKET packet;
+            packet.delta_time = delta;
+            renderer_draw_frame(&packet);
+
             // Figure out how long the frame took and, if below
             f64 frame_end_time = platform_get_absolute_time();
             f64 frame_elapsed_time = frame_end_time - frame_start_time;
@@ -144,6 +158,8 @@ b8 application_run() {
     event_unregister(EVENT_CODE_KEY_RELEASED, 0, application_on_key);
     event_shutdown();
     input_shutdown();
+
+    renderer_shutdown();
 
     platform_shutdown(&app_state.platform);
 

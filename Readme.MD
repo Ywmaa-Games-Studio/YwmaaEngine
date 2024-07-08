@@ -44,6 +44,41 @@ and run ```./build-all.sh```
 
 # Contributing Guide
 
+### Naming Conventions
+
+##### Variables
+variables must/should be named snake_case.
+
+examples:
+```
+u64 this_is_a_long_int;
+f64 this_is_a_double;
+b8 this_is_a_bool;
+```
+##### Functions
+functions must/should be named snake_case.
+
+examples:
+```
+void function_name(args);
+```
+
+##### Structs & Enums
+any struct or enum must be named all upper case.
+
+examples:
+```
+typedef enum RENDERER_BACKEND_API {
+    RENDERER_BACKEND_API_VULKAN,
+    RENDERER_BACKEND_API_OPENGL,
+    RENDERER_BACKEND_API_DIRECTX
+} RENDERER_BACKEND_API;
+
+typedef struct RENDERER_BACKEND {
+    struct PLATFORM_STATE* platform_state;  
+} RENDERER_BACKEND;
+```
+Why ? This helps differentiating the struct name from the struct type, the name is in all snake_case, and the type is UPPER_CASE
 ### Commenting
 
 It is encouraged to provide good commenting to the contributed code, also it is adviced to have the idea of encapsulating code blocks in comments that shows the start and the end, like:

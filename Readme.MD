@@ -19,43 +19,46 @@ also AMRT is the brand name, while in code you will find the engine is named "YW
 
 # Building
 
-## Windows
+Build : ```zig build --summary all```
+
+Build & Run : ```zig build run --summary all```
+
+You can find the binaries in zig-out : ```zig build run --summary all```
+
+## Dependencies
+
+### Windows
 
 TO-DO
 
-## Linux
+### Linux
 
 Install these via package manager:
- - `clang`
+ - `zig`
  - `libx11-dev`
  - `libxkbcommon-x11-dev`
  - `libx11-xcb-dev`
 
 You can also check the required dependecies for linux in shell.nix
 
-and run ```./build-all.sh```
-
-### Nix OS
+#### Nix OS
 
 use the provided shell.nix
-
-and run ```./build-all.sh```
-
 
 # Contributing Guide
 
 ### Naming Conventions
 
-##### Variables
+#### Variables
 variables must/should be named snake_case.
 
 examples:
 ```
-u64 this_is_a_long_int;
-f64 this_is_a_double;
-b8 this_is_a_bool;
+u64 this_is_a_long_int = 42;
+f64 this_is_a_double = 3.14159265359f;
+b8 this_is_a_bool = True;
 ```
-##### Functions
+#### Functions
 functions must/should be named snake_case.
 
 examples:
@@ -63,7 +66,7 @@ examples:
 void function_name(args);
 ```
 
-##### Structs & Enums
+#### Structs & Enums
 any struct or enum must be named all upper case.
 
 examples:

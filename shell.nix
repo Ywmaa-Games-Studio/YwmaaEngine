@@ -19,7 +19,7 @@ with pkgs;
   buildInputs = with pkgs; [
     #glfw
     freetype
-    clang
+    zig
     clang-tools
 
     libxkbcommon.dev

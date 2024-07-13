@@ -1,9 +1,12 @@
 # Directories
 .vs/
-bin/
-bin-Intermediate/
+
 
 # Files
 
 *.user
 .direnv/
+
+#Zig Compiler folders
+zig-cache/*
+zig-out/*

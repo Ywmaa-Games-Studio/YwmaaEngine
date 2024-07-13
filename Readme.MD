@@ -19,12 +19,45 @@ also AMRT is the brand name, while in code you will find the engine is named "YW
 
 # Building
 
+<<<<<<< HEAD
+=======
+Full-Recommended command to build ```zig build --summary all -Doptimize=ReleaseFast```
+
+>>>>>>> 5c5e9cf (Zig as the compiler)
 Build : ```zig build --summary all```
 
 Build & Run : ```zig build run --summary all```
 
 You can find the binaries in zig-out : ```zig build run --summary all```
 
+<<<<<<< HEAD
+=======
+For Build info add ```--summary all``` ex: ```zig build --summary all```
+
+### Build Modes
+
+it is adviced to use ```-Doptimize=ReleaseFast```, as personally I think for a game engine we should look for best runtime performance.
+
+extracted from https://ziglang.org/documentation/master/#Build-Mode
+
+```-Doptimize=Debug```
+
+    Optimizations off and safety on (default)
+
+```-Doptimize=ReleaseSafe```
+
+    Optimizations on and safety on
+
+```-Doptimize=ReleaseFast```
+
+    Optimizations on and safety off
+
+```-Doptimize=ReleaseSmall```
+
+    Size optimizations on and safety off
+
+
+>>>>>>> 5c5e9cf (Zig as the compiler)
 ## Dependencies
 
 ### Windows

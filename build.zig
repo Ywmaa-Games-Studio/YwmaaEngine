@@ -6,18 +6,12 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const flags = [_][]const u8{
-        "-g",
-        "-D_DEBUG",
-        if (target.result.os.tag == .linux) "-fdeclspec" else "",
-        if (target.result.os.tag == .linux) "-fPIC" else "",
-        if (target.result.os.tag == .windows) "-Wvarargs" else "",
-        if (target.result.os.tag == .windows) "-Wall" else "",
-        if (target.result.os.tag == .windows) "-Werror" else "",
+        "",
     };
     // Engine Flag -DYEXPORT
     // Testbed Flag -DYIMPORT
 
-    const libengine = b.addSharedLibrary(.{ //addStaticLibrary/addSharedLibrary
+    const libengine = b.addStaticLibrary(.{ //addStaticLibrary/addSharedLibrary
         .name = "engine",
         .target = target,
         .optimize = optimize,
@@ -39,7 +33,6 @@ pub fn build(b: *std.Build) !void {
                     break true;
             } else false;
             if (include_file) {
-                // we have to clone the path as walker.next() or walker.deinit() will override/kill it
                 std.debug.print("Engine: Found C file to compile: '{s}'. path: '{s}'\n", .{ entry.basename, entry.path });
                 libengine.addCSourceFile(.{ .file = .{ .path = b.pathJoin(&.{ "engine/src", entry.path }) }, .flags = &flags });
             }
@@ -88,17 +81,15 @@ pub fn build(b: *std.Build) !void {
                     break true;
             } else false;
             if (include_file) {
-                // we have to clone the path as walker.next() or walker.deinit() will override/kill it
                 std.debug.print("Testbed: Found C file to compile: '{s}'. path: '{s}'\n", .{ entry.basename, entry.path });
                 exe.addCSourceFile(.{ .file = .{ .path = b.pathJoin(&.{ "testbed/src", entry.path }) }, .flags = &flags });
             }
         }
     }
 
-    //exe.linkLibC();
     exe.linkLibrary(libengine);
 
-    b.installArtifact(libengine);
+    //b.installArtifact(libengine); use this when the engine is compiled as a shared library
 
     b.installArtifact(exe);
 

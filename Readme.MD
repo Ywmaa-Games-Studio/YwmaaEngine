@@ -21,11 +21,11 @@ also AMRT is the brand name, while in code you will find the engine is named "YW
 
 Full-Recommended command to build ```zig build --summary all -Doptimize=ReleaseFast```
 
-Build : ```zig build --summary all```
+Build : ```zig build```
 
-Build & Run : ```zig build run --summary all```
+Build & Run : ```zig build run```
 
-You can find the binaries in zig-out : ```zig build run --summary all```
+You can find the binaries in zig-out : ```zig-out/bin/ & zig-out/lib/```
 
 For Build info add ```--summary all``` ex: ```zig build --summary all```
 

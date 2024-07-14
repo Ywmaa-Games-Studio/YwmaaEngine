@@ -23,7 +23,7 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     // TODO: custom allocator.
     context.allocator = 0;
 
-    // Setup Vulkan instance.
+    //START Setup Vulkan instance.
     VkApplicationInfo app_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
     app_info.apiVersion = VK_API_VERSION_1_3;
     app_info.pApplicationName = application_name;
@@ -35,7 +35,72 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     create_info.pApplicationInfo = &app_info;
 
 
-    // Obtain a list of required extensions
+    vulkan_setup_extensions(&create_info);
+
+    if (vulkan_setup_validation_layers(&create_info) == FALSE) return FALSE;
+
+    VK_CHECK(vkCreateInstance(&create_info, context.allocator, &context.instance));
+    PRINT_INFO("Vulkan Instance created.");
+    //END Setup Vulkan instance.
+
+    vulkan_setup_debugger();
+
+    // TODO: Report Vulkan Version dynamically
+    PRINT_INFO("Vulkan v%i.%i renderer initialized successfully.", 1, 3);
+    return TRUE;
+}
+
+void vulkan_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
+    PRINT_DEBUG("Destroying Vulkan debugger...");
+#if defined(_DEBUG)
+    if (context.debug_messenger) {
+        PFN_vkDestroyDebugUtilsMessengerEXT func =
+            (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(context.instance, "vkDestroyDebugUtilsMessengerEXT");
+        func(context.instance, context.debug_messenger, context.allocator);
+    }
+#endif
+    PRINT_DEBUG("Destroying Vulkan instance...");
+    vkDestroyInstance(context.instance, context.allocator);
+}
+
+void vulkan_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u16 height) {
+}
+
+b8 vulkan_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+    return TRUE;
+}
+
+b8 vulkan_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+    return TRUE;
+}
+
+VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+    VkDebugUtilsMessageTypeFlagsEXT message_types,
+    const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
+    void* user_data) {
+    switch (message_severity) {
+        default:
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+            PRINT_ERROR(callback_data->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+            PRINT_WARNING(callback_data->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+            PRINT_INFO(callback_data->pMessage);
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+            PRINT_INFO(callback_data->pMessage);
+            break;
+    }
+    return VK_FALSE;
+}
+
+
+
+void vulkan_setup_extensions(VkInstanceCreateInfo* create_info){
+    //START Obtain a list of required extensions
     const char** required_extensions = darray_create(const char*);
     darray_push(required_extensions, &VK_KHR_SURFACE_EXTENSION_NAME);  // Generic surface extension
     platform_get_required_extension_names(&required_extensions);       // Platform-specific extension(s)
@@ -49,10 +114,14 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     }
 #endif
 
-    create_info.enabledExtensionCount = darray_length(required_extensions);
-    create_info.ppEnabledExtensionNames = required_extensions;
+    create_info->enabledExtensionCount = darray_length(required_extensions);
+    create_info->ppEnabledExtensionNames = required_extensions;
+    //END Obtain a list of required extensions
+}
 
-    // Validation layers.
+
+b8 vulkan_setup_validation_layers(VkInstanceCreateInfo* create_info){
+    //START Validation layers.
     const char** required_validation_layer_names = 0;
     u32 required_validation_layer_count = 0;
 
@@ -92,12 +161,14 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     PRINT_INFO("All required validation layers are present.");
 #endif
 
-    create_info.enabledLayerCount = required_validation_layer_count;
-    create_info.ppEnabledLayerNames = required_validation_layer_names;
+    create_info->enabledLayerCount = required_validation_layer_count;
+    create_info->ppEnabledLayerNames = required_validation_layer_names;
+    //END Validation layers.
+    return TRUE;
+}
 
-    VK_CHECK(vkCreateInstance(&create_info, context.allocator, &context.instance));
-    PRINT_INFO("Vulkan Instance created.");
 
+void vulkan_setup_debugger(){
     // Debugger
 #if defined(_DEBUG)
     PRINT_DEBUG("Creating Vulkan debugger...");
@@ -117,55 +188,4 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     VK_CHECK(func(context.instance, &debug_create_info, context.allocator, &context.debug_messenger));
     PRINT_DEBUG("Vulkan debugger created.");
 #endif
-    //end Setup Vulkan instance.
-
-    // TODO: Report Vulkan Version dynamically
-    PRINT_INFO("Vulkan v%i.%i renderer initialized successfully.", 1, 3);
-    return TRUE;
-}
-
-void vulkan_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
-    PRINT_DEBUG("Destroying Vulkan debugger...");
-    if (context.debug_messenger) {
-        PFN_vkDestroyDebugUtilsMessengerEXT func =
-            (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(context.instance, "vkDestroyDebugUtilsMessengerEXT");
-        func(context.instance, context.debug_messenger, context.allocator);
-    }
-
-    PRINT_DEBUG("Destroying Vulkan instance...");
-    vkDestroyInstance(context.instance, context.allocator);
-}
-
-void vulkan_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u16 height) {
-}
-
-b8 vulkan_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time) {
-    return TRUE;
-}
-
-b8 vulkan_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
-    return TRUE;
-}
-
-VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-    VkDebugUtilsMessageTypeFlagsEXT message_types,
-    const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
-    void* user_data) {
-    switch (message_severity) {
-        default:
-        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-            PRINT_ERROR(callback_data->pMessage);
-            break;
-        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-            PRINT_WARNING(callback_data->pMessage);
-            break;
-        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-            PRINT_INFO(callback_data->pMessage);
-            break;
-        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-            PRINT_INFO(callback_data->pMessage);
-            break;
-    }
-    return VK_FALSE;
 }

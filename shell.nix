@@ -1,4 +1,7 @@
 # This nix file was made for Nix OS because I use it as my main, but it can be a guide for the required dependecies.
+let
+  unstable = import (fetchTarball https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz) { };
+in
 { pkgs ? (import <nixpkgs> {}) }:
 with pkgs;
   mkShell {
@@ -19,7 +22,7 @@ with pkgs;
   buildInputs = with pkgs; [
     #glfw
     freetype
-    zig
+    unstable.zig
     clang-tools
 
     libxkbcommon.dev

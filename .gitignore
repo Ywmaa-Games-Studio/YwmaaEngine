@@ -8,5 +8,5 @@
 .direnv/
 
 #Zig Compiler folders
-zig-cache/*
+.zig-cache/*
 zig-out/*

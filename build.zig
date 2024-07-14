@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) !void {
             } else false;
             if (include_file) {
                 std.debug.print("Engine: Found C file to compile: '{s}'. path: '{s}'\n", .{ entry.basename, entry.path });
-                libengine.addCSourceFile(.{ .file = .{ .path = b.pathJoin(&.{ "engine/src", entry.path }) }, .flags = &flags });
+                libengine.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "engine/src", entry.path })), .flags = &flags });
             }
         }
     }
@@ -82,7 +82,7 @@ pub fn build(b: *std.Build) !void {
             } else false;
             if (include_file) {
                 std.debug.print("Testbed: Found C file to compile: '{s}'. path: '{s}'\n", .{ entry.basename, entry.path });
-                exe.addCSourceFile(.{ .file = .{ .path = b.pathJoin(&.{ "testbed/src", entry.path }) }, .flags = &flags });
+                exe.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "testbed/src", entry.path })), .flags = &flags });
             }
         }
     }

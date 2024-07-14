@@ -1,6 +1,6 @@
 # AMRT Engine / YWMAA Engine
 
-made by C
+Made with C & Zig
 
 # why AMRT as a name 
 
@@ -19,19 +19,14 @@ also AMRT is the brand name, while in code you will find the engine is named "YW
 
 # Building
 
-<<<<<<< HEAD
-=======
 Full-Recommended command to build ```zig build --summary all -Doptimize=ReleaseFast```
 
->>>>>>> 5c5e9cf (Zig as the compiler)
 Build : ```zig build --summary all```
 
 Build & Run : ```zig build run --summary all```
 
 You can find the binaries in zig-out : ```zig build run --summary all```
 
-<<<<<<< HEAD
-=======
 For Build info add ```--summary all``` ex: ```zig build --summary all```
 
 ### Build Modes
@@ -57,7 +52,6 @@ extracted from https://ziglang.org/documentation/master/#Build-Mode
     Size optimizations on and safety off
 
 
->>>>>>> 5c5e9cf (Zig as the compiler)
 ## Dependencies
 
 ### Windows

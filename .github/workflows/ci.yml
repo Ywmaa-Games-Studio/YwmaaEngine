@@ -64,7 +64,7 @@ jobs:
           $ProgressPreference = 'SilentlyContinue'
           Invoke-WebRequest -Uri 'https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe' -OutFile 'C:\vulkan-sdk.exe'
           cd C:\
-          vulkan-sdk.exe --accept-licenses --default-answer --confirm-command install
+          .\vulkan-sdk.exe --accept-licenses --default-answer --confirm-command install
       - name: Build
         run: zig build
 #  x86_64-macos: #Engine doesn't support mac, yet.

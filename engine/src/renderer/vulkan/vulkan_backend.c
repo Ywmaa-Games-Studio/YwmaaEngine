@@ -1,6 +1,6 @@
 #include "vulkan_backend.h"
 #include "vulkan_platform.h"
-
+#include "vulkan_device.h"
 #include "vulkan_types.inl"
 
 #include "core/logger.h"
@@ -9,6 +9,11 @@
 #include "variants/darray.h"
 
 #include "platform/platform.h"
+
+// Since these are just for clean code, I put/declare them in .c file
+void vulkan_setup_extensions(VkInstanceCreateInfo* create_info);
+b8 vulkan_setup_validation_layers(VkInstanceCreateInfo* create_info);
+void vulkan_setup_debugger();
 
 // static Vulkan context
 static VULKAN_CONTEXT context;
@@ -45,20 +50,36 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
 
     vulkan_setup_debugger();
 
-    // TODO: Report Vulkan Version dynamically
-    PRINT_INFO("Vulkan v%i.%i renderer initialized successfully.", 1, 3);
+    //START Surface
+    PRINT_DEBUG("Creating Vulkan surface...");
+    if (!platform_create_vulkan_surface(platform_state, &context)) {
+        PRINT_ERROR("Failed to create platform surface!");
+        return FALSE;
+    }
+    PRINT_DEBUG("Vulkan surface created.");
+    //END
+
+    //START Device creation
+    if (!vulkan_device_create(&context)) {
+        PRINT_ERROR("Failed to create device!");
+        return FALSE;
+    }
+    //END
+
+    PRINT_INFO("Vulkan renderer initialized successfully.");
     return TRUE;
 }
 
 void vulkan_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
-    PRINT_DEBUG("Destroying Vulkan debugger...");
 #if defined(_DEBUG)
+    PRINT_DEBUG("Destroying Vulkan debugger...");
     if (context.debug_messenger) {
         PFN_vkDestroyDebugUtilsMessengerEXT func =
             (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(context.instance, "vkDestroyDebugUtilsMessengerEXT");
         func(context.instance, context.debug_messenger, context.allocator);
     }
 #endif
+
     PRINT_DEBUG("Destroying Vulkan instance...");
     vkDestroyInstance(context.instance, context.allocator);
 }

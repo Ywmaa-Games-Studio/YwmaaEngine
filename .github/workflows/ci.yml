@@ -25,6 +25,15 @@ jobs:
         run: |
           sudo apt install xz-utils
           sudo sh -c 'wget -c https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
+      - name: Install Engine Dependencies
+        run: |
+          sudo apt install -y libx11-dev libxkbcommon-x11-dev libx11-xcb-dev
+      - name: Install Vulkan Dependencies
+        run: |
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list http://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt update
+          sudo apt install vulkan-sdk
       - name: x86_64-linux
         run: zig build
       #- name: x86_64-linux -> x86_64-linux-musl

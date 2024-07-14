@@ -45,7 +45,7 @@ void input_update(f64 delta_time) {
     ycopy_memory(&state.mouse_previous, &state.mouse_current, sizeof(MOUSE_STATE));
 }
 
-void input_process_key(KEYS key, b8 pressed) {
+void input_process_key(E_KEYS key, b8 pressed) {
     // Only handle this if the state actually changed.
     if (state.keyboard_current.keys[key] != pressed) {
         // Update internal state.
@@ -58,7 +58,7 @@ void input_process_key(KEYS key, b8 pressed) {
     }
 }
 
-void input_process_button(BUTTONS button, b8 pressed) {
+void input_process_button(E_BUTTONS button, b8 pressed) {
     // If the state changed, fire an event.
     if (state.mouse_current.buttons[button] != pressed) {
         state.mouse_current.buttons[button] = pressed;
@@ -96,28 +96,28 @@ void input_process_mouse_wheel(i8 z_delta) {
     event_fire(EVENT_CODE_MOUSE_WHEEL, 0, context);
 }
 
-b8 input_is_key_down(KEYS key) {
+b8 input_is_key_down(E_KEYS key) {
     if (!initialized) {
         return FALSE;
     }
     return state.keyboard_current.keys[key] == TRUE;
 }
 
-b8 input_is_key_up(KEYS key) {
+b8 input_is_key_up(E_KEYS key) {
     if (!initialized) {
         return TRUE;
     }
     return state.keyboard_current.keys[key] == FALSE;
 }
 
-b8 input_was_key_down(KEYS key) {
+b8 input_was_key_down(E_KEYS key) {
     if (!initialized) {
         return FALSE;
     }
     return state.keyboard_previous.keys[key] == TRUE;
 }
 
-b8 input_was_key_up(KEYS key) {
+b8 input_was_key_up(E_KEYS key) {
     if (!initialized) {
         return TRUE;
     }
@@ -125,28 +125,28 @@ b8 input_was_key_up(KEYS key) {
 }
 
 // mouse input
-b8 input_is_button_down(BUTTONS button) {
+b8 input_is_button_down(E_BUTTONS button) {
     if (!initialized) {
         return FALSE;
     }
     return state.mouse_current.buttons[button] == TRUE;
 }
 
-b8 input_is_button_up(BUTTONS button) {
+b8 input_is_button_up(E_BUTTONS button) {
     if (!initialized) {
         return TRUE;
     }
     return state.mouse_current.buttons[button] == FALSE;
 }
 
-b8 input_was_button_down(BUTTONS button) {
+b8 input_was_button_down(E_BUTTONS button) {
     if (!initialized) {
         return FALSE;
     }
     return state.mouse_previous.buttons[button] == TRUE;
 }
 
-b8 input_was_button_up(BUTTONS button) {
+b8 input_was_button_up(E_BUTTONS button) {
     if (!initialized) {
         return TRUE;
     }

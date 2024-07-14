@@ -60,7 +60,7 @@ YAPI b8 event_unregister(u16 code, void* listener, PFN_on_event on_event);
 YAPI b8 event_fire(u16 code, void* sender, EVENT_CONTEXT context);
 
 // System internal event codes. Application should use codes beyond 255.
-typedef enum SYSTEM_EVENT_CODE {
+typedef enum E_SYSTEM_EVENT_CODE {
     // Shuts the application down on the next frame.
     EVENT_CODE_APPLICATION_QUIT = 0x01,
 
@@ -109,4 +109,4 @@ typedef enum SYSTEM_EVENT_CODE {
     EVENT_CODE_RESIZED = 0x08,
 
     MAX_EVENT_CODE = 0xFF
-} SYSTEM_EVENT_CODE;
+} E_SYSTEM_EVENT_CODE;

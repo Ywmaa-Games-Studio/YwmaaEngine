@@ -10,18 +10,18 @@
 #define LOG_DEBUG_ENABLED 0
 #endif
 
-typedef enum LOG_LEVEL {
+typedef enum E_LOG_LEVEL {
     LOG_LEVEL_ERROR = 0,
     LOG_LEVEL_WARNING = 1,
     LOG_LEVEL_INFO = 2,
     LOG_LEVEL_DEBUG = 3
-} LOG_LEVEL;
+} E_LOG_LEVEL;
 
 
 b8 init_logging();
 void shutdown_logging();
 
-YAPI void log_output(LOG_LEVEL level, const char* message, ...);
+YAPI void log_output(E_LOG_LEVEL level, const char* message, ...);
 
 
 #ifndef PRINT_ERROR

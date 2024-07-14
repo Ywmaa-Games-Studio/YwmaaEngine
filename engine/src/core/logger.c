@@ -16,7 +16,7 @@ void shutdown_logging() {
     // TODO: cleanup logging/write queued entries.
 }
 
-void log_output(LOG_LEVEL level, const char* message, ...) {
+void log_output(E_LOG_LEVEL level, const char* message, ...) {
     const char* level_strings[4] = {"[ERROR]: ", "[WARN]:  ", "[INFO]:  ", "[DEBUG]: "};
     b8 is_error = level < LOG_LEVEL_WARNING;
 

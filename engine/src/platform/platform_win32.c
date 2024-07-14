@@ -242,7 +242,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
         case WM_SYSKEYUP: {
             // Key pressed/released
             b8 pressed = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN);
-            keys key = (u16)w_param;
+            E_KEYS key = (u16)w_param;
 
             // Pass to the input subsystem for processing.
             input_process_key(key, pressed);
@@ -271,7 +271,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
         case WM_MBUTTONUP:
         case WM_RBUTTONUP: {
             b8 pressed = msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN;
-            buttons mouse_button = BUTTON_MAX_BUTTONS;
+            E_BUTTONS mouse_button = BUTTON_MAX_BUTTONS;
             switch (msg) {
                 case WM_LBUTTONDOWN:
                 case WM_LBUTTONUP:

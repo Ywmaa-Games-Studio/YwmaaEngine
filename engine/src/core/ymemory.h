@@ -2,7 +2,7 @@
 
 #include "defines.h"
 
-typedef enum MEMORY_TAG {
+typedef enum E_MEMORY_TAG {
     // For temporary use. Should be assigned one of the below or have a new tag created.
     MEMORY_TAG_UNKNOWN,
     MEMORY_TAG_ARRAY,
@@ -23,14 +23,14 @@ typedef enum MEMORY_TAG {
     MEMORY_TAG_SCENE,
 
     MEMORY_TAG_MAX_TAGS
-} MEMORY_TAG;
+} E_MEMORY_TAG;
 
 YAPI void init_memory();
 YAPI void shutdown_memory();
 
-YAPI void* yallocate(u64 size, MEMORY_TAG tag);
+YAPI void* yallocate(u64 size, E_MEMORY_TAG tag);
 
-YAPI void yfree(void* block, u64 size, MEMORY_TAG tag);
+YAPI void yfree(void* block, u64 size, E_MEMORY_TAG tag);
 
 YAPI void* yzero_memory(void* block, u64 size);
 

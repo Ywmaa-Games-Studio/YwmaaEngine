@@ -40,7 +40,7 @@ typedef struct INTERNAL_STATE {
 } INTERNAL_STATE;
 
 // Key translation
-KEYS translate_keycode(u32 x_keycode);
+E_KEYS translate_keycode(u32 x_keycode);
 
 b8 platform_startup(
     PLATFORM_STATE* platform_state,
@@ -208,7 +208,7 @@ b8 platform_pump_messages(PLATFORM_STATE* platform_state) {
                     0,
                     code & ShiftMask ? 1 : 0);
 
-                KEYS key = translate_keycode(key_sym);
+                E_KEYS key = translate_keycode(key_sym);
 
                 // Pass to the input subsystem for processing.
                 input_process_key(key, pressed);
@@ -217,7 +217,7 @@ b8 platform_pump_messages(PLATFORM_STATE* platform_state) {
             case XCB_BUTTON_RELEASE: {
                 xcb_button_press_event_t *mouse_event = (xcb_button_press_event_t *)event;
                 b8 pressed = event->response_type == XCB_BUTTON_PRESS;
-                BUTTONS mouse_button = BUTTON_MAX_BUTTONS;
+                E_BUTTONS mouse_button = BUTTON_MAX_BUTTONS;
                 switch (mouse_event->detail) {
                     case XCB_BUTTON_INDEX_1:
                         mouse_button = BUTTON_LEFT;
@@ -339,7 +339,7 @@ b8 platform_create_vulkan_surface(PLATFORM_STATE *platform_state, VULKAN_CONTEXT
 }
 
 // Key translation
-KEYS translate_keycode(u32 x_keycode) {
+E_KEYS translate_keycode(u32 x_keycode) {
     switch (x_keycode) {
         case XK_BackSpace:
             return KEY_BACKSPACE;

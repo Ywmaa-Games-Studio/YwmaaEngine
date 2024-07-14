@@ -42,7 +42,7 @@ void shutdown_memory() {
 }
 
 
-void* yallocate(u64 size, MEMORY_TAG tag) {
+void* yallocate(u64 size, E_MEMORY_TAG tag) {
     if (tag == MEMORY_TAG_UNKNOWN) {
         PRINT_WARNING("yallocate called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
@@ -56,7 +56,7 @@ void* yallocate(u64 size, MEMORY_TAG tag) {
     return block;
 }
 
-void yfree(void* block, u64 size, MEMORY_TAG tag) {
+void yfree(void* block, u64 size, E_MEMORY_TAG tag) {
     if (tag == MEMORY_TAG_UNKNOWN) {
         PRINT_WARNING("yfree called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }

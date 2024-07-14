@@ -75,7 +75,21 @@ use the provided shell.nix
 # Contributing Guide
 
 ### Naming Conventions
+```
+Macros & Constants  ALL_CAPS
 
+Struct              ALL_CAPS
+Struct Members      lower_case
+
+Enum                E_ALL_CAPS
+Enum Members        ALL_CAPS
+
+Public functions    pfx_lower_case (pfx = two or three letter module prefix)
+Private functions   lower_case
+Trivial variables   i,x,n,f etc...
+Local variables     lower_case
+Global variables    g_lower_case (searchable by g_ prefix)
+```
 #### Variables
 variables must/should be named snake_case.
 
@@ -98,11 +112,11 @@ any struct or enum must be named all upper case.
 
 examples:
 ```
-typedef enum RENDERER_BACKEND_API {
+typedef enum E_RENDERER_BACKEND_API {
     RENDERER_BACKEND_API_VULKAN,
     RENDERER_BACKEND_API_OPENGL,
     RENDERER_BACKEND_API_DIRECTX
-} RENDERER_BACKEND_API;
+} E_RENDERER_BACKEND_API;
 
 typedef struct RENDERER_BACKEND {
     struct PLATFORM_STATE* platform_state;  

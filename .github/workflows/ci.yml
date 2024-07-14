@@ -18,8 +18,6 @@ jobs:
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
     # to the branch.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    env:
-      DISPLAY: ':99.0'
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -29,8 +27,8 @@ jobs:
           sudo sh -c 'wget -c https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
       - name: x86_64-linux
         run: zig build
-      # - name: x86_64-linux -> x86_64-linux-musl
-      #   run: zig build -Dtarget=x86_64-linux-musl
+      #- name: x86_64-linux -> x86_64-linux-musl
+      #  run: zig build -Dtarget=x86_64-linux-musl
       #- name: x86_64-linux -> x86_64-macos Cross-compile is not working, yet.
       #  run: zig build -Dtarget=x86_64-macos
       #- name: x86_64-linux -> aarch64-macos Cross-compile is not working, yet.
@@ -52,7 +50,7 @@ jobs:
           cd C:\
           7z x zig.zip
           Add-Content $env:GITHUB_PATH 'C:\zig-windows-x86_64-0.13.0-dev.351+64ef45eb0\'
-      - name: x86_64-windows
+      - name: Build
         run: zig build
   x86_64-macos:
     runs-on: macos-12
@@ -67,5 +65,5 @@ jobs:
           brew uninstall --ignore-dependencies libx11 # https://github.com/ziglang/zig/issues/11066
           brew install xz
           sudo sh -c 'wget -c https://ziglang.org/download/0.13.0/zig-macos-x86_64-0.13.0.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
-      - name: test
+      - name: Build
         run: zig build

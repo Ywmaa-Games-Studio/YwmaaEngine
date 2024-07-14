@@ -2,7 +2,7 @@
 
 #include "vulkan/vulkan_backend.h"
 
-b8 renderer_backend_create(RENDERER_BACKEND_API type, struct PLATFORM_STATE* platform_state, RENDERER_BACKEND* out_renderer_backend) {
+b8 renderer_backend_create(E_RENDERER_BACKEND_API type, struct PLATFORM_STATE* platform_state, RENDERER_BACKEND* out_renderer_backend) {
     out_renderer_backend->platform_state = platform_state;
 
     if (type == RENDERER_BACKEND_API_VULKAN) {

@@ -8,7 +8,6 @@ with pkgs;
   packages = [
     #glfw
     freetype
-    vulkan-headers
     vulkan-loader
     vulkan-validation-layers
     vulkan-tools        # vulkaninfo
@@ -38,8 +37,6 @@ with pkgs;
     libdecor
   ];
 
-  LD_LIBRARY_PATH="${pkgs.wayland}/${pkgs.wayland-protocols}/${glfw}/lib:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
-  VULKAN_SDK = "${vulkan-headers}";
-  VK_LAYER_PATH = "${vulkan-validation-layers}/share/vulkan/explicit_layer.d";
+  LD_LIBRARY_PATH="${pkgs.wayland}/:${pkgs.wayland-protocols}/:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
 }
 

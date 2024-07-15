@@ -25,6 +25,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     void* user_data);
 
 b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* application_name, struct PLATFORM_STATE* platform_state) {
+    VK_CHECK(volkInitialize());
     // TODO: custom allocator.
     context.allocator = 0;
 
@@ -39,12 +40,14 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     VkInstanceCreateInfo create_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     create_info.pApplicationInfo = &app_info;
 
+    
 
     vulkan_setup_extensions(&create_info);
 
     if (vulkan_setup_validation_layers(&create_info) == FALSE) return FALSE;
 
     VK_CHECK(vkCreateInstance(&create_info, context.allocator, &context.instance));
+    volkLoadInstance(context.instance);
     PRINT_INFO("Vulkan Instance created.");
     //END Setup Vulkan instance.
 

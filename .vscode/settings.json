@@ -20,6 +20,10 @@
         "string": "cpp",
         "type_traits": "cpp",
         "new": "cpp",
-        "stdexcept": "cpp"
+        "stdexcept": "cpp",
+        "vulkan_types.inl": "c",
+        "vulkan_win32.h": "c",
+        "vulkan.h": "c",
+        "volk.h": "c"
     }
 }

@@ -4,7 +4,7 @@
 #if YPLATFORM_WINDOWS
 
 #include "core/logger.h"
-#include "core/input.h"
+#include "input/input.h"
 
 #include "variants/darray.h"
 
@@ -13,7 +13,9 @@
 #include <stdlib.h>
 
 // For surface creation
-#include <vulkan/vulkan.h>
+#define VK_USE_PLATFORM_WIN32_KHR
+#define VOLK_IMPLEMENTATION
+#include "../thirdparty/volk/volk.h"
 #include <vulkan/vulkan_win32.h>
 #include "renderer/vulkan/vulkan_types.inl"
 typedef struct INTERNAL_STATE {

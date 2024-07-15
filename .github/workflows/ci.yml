@@ -38,12 +38,12 @@ jobs:
         run: zig build
       #- name: x86_64-linux -> x86_64-linux-musl
       #  run: zig build -Dtarget=x86_64-linux-musl
-      #- name: x86_64-linux -> x86_64-macos Cross-compile is not working, yet.
+      #- name: x86_64-linux -> x86_64-macos No mac os backend, yet.
       #  run: zig build -Dtarget=x86_64-macos
-      #- name: x86_64-linux -> aarch64-macos Cross-compile is not working, yet.
+      #- name: x86_64-linux -> aarch64-macos No mac os backend, yet.
       #  run: zig build -Dtarget=aarch64-macos
-      #- name: x86_64-linux -> x86_64-windows Cross-compile is not working, yet.
-      #  run: zig build -Dtarget=x86_64-windows-gnu
+      - name: x86_64-linux -> x86_64-windows
+        run: zig build -Dtarget=x86_64-windows-gnu
   x86_64-windows:
     runs-on: windows-latest
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push

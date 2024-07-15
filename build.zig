@@ -40,20 +40,30 @@ pub fn build(b: *std.Build) !void {
     }
 
     if (target.result.os.tag == .linux) {
+        if (b.lazyDependency("x11_headers", .{
+            .target = target,
+            .optimize = optimize,
+        })) |dep| {
+            libengine.linkLibrary(dep.artifact("x11-headers"));
+        }
+        //        if (b.lazyDependency("wayland_headers", .{
+        //            .target = target,
+        //            .optimize = optimize,
+        //        })) |dep| {
+        //            libengine.linkLibrary(dep.artifact("wayland-headers"));
+        //        }
         libengine.linkSystemLibrary("xcb");
         libengine.linkSystemLibrary("X11");
         libengine.linkSystemLibrary("X11-xcb");
         libengine.linkSystemLibrary("xkbcommon");
-        libengine.linkSystemLibrary("vulkan");
         libengine.addLibraryPath(.{ .cwd_relative = "/usr/X11R6/lib" });
-    } else if (target.result.os.tag == .windows) {
-        libengine.linkSystemLibrary("vulkan-1");
     }
 
-    const env_map = try std.process.getEnvMap(b.allocator);
-    if (env_map.get("VULKAN_SDK")) |path| {
-        libengine.addLibraryPath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/lib", .{path}) catch @panic("OOM") });
-        libengine.addIncludePath(.{ .cwd_relative = std.fmt.allocPrint(b.allocator, "{s}/include", .{path}) catch @panic("OOM") });
+    if (b.lazyDependency("vulkan_headers", .{
+        .target = target,
+        .optimize = optimize,
+    })) |dep| {
+        libengine.linkLibrary(dep.artifact("vulkan-headers"));
     }
 
     libengine.linkLibC();
@@ -89,7 +99,7 @@ pub fn build(b: *std.Build) !void {
 
     exe.linkLibrary(libengine);
 
-    //b.installArtifact(libengine); use this when the engine is compiled as a shared library
+    //b.installArtifact(libengine); //use this when the engine is compiled as a shared library
 
     b.installArtifact(exe);
 

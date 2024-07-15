@@ -27,7 +27,8 @@
 #include <string.h>
 // For surface creation
 #define VK_USE_PLATFORM_XCB_KHR
-#include <vulkan/vulkan.h>
+#define VOLK_IMPLEMENTATION
+#include "../thirdparty/volk/volk.h"
 #include "renderer/vulkan/vulkan_types.inl"
 typedef struct INTERNAL_STATE {
     Display* display;

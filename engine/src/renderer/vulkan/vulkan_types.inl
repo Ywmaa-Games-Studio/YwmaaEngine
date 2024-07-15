@@ -3,7 +3,7 @@
 #include "defines.h"
 #include "core/asserts.h"
 
-#include <vulkan/vulkan.h>
+#include "../thirdparty/volk/volk.h"
 
 // Checks the given expression's return value against VK_SUCCESS.
 #define VK_CHECK(expr)               \

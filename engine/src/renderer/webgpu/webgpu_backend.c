@@ -17,8 +17,18 @@ WGPUDevice request_device_sync(WGPUAdapter adapter, WGPUDeviceDescriptor const *
 void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, char const * message, void * pUserData);
 void on_device_lost(WGPUDeviceLostReason reason, char const* message, void* /* pUserData */);
 void on_device_error(WGPUErrorType type, char const* message, void* /* pUserData */);
-// static Vulkan context
+
+void on_queue_work_done(WGPUQueueWorkDoneStatus status, void* /* pUserData */);
+
+void webgpu_swapchain_create(
+    WEBGPU_CONTEXT* context,
+    u32 width,
+    u32 height);
+WGPUTextureView get_next_surface_texture_view();
+// static WebGPU context
 static WEBGPU_CONTEXT context;
+
+
 
 b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* application_name, struct PLATFORM_STATE* platform_state) {
     // We create a descriptor
@@ -99,12 +109,34 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
 
     context.queue = wgpuDeviceGetQueue(context.device);
 
+    PRINT_INFO("Queues obtained.");
+    wgpuQueueOnSubmittedWorkDone(context.queue, on_queue_work_done, NULL /* pUserData */);
+
+
+    // Swapchain
+    //TODO: Remove the hardcoded w & h sizes
+    context.framebuffer_width = 640;
+    context.framebuffer_height = 480;
+    webgpu_swapchain_create(
+        &context,
+        context.framebuffer_width,
+        context.framebuffer_height);
+
+    WGPUCommandEncoderDescriptor encoder_desc = {};
+    encoder_desc.nextInChain = NULL;
+    encoder_desc.label = "command encoder";
+    context.encoder = wgpuDeviceCreateCommandEncoder(context.device, &encoder_desc);
+
     PRINT_INFO("WebGPU renderer initialized successfully.");
     return TRUE;
 }
 
 void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
     // Destroy in the opposite order of creation.
+    wgpuCommandEncoderRelease(context.encoder);
+
+    wgpuSurfaceUnconfigure(context.surface);
+
     PRINT_DEBUG("Destroying WebGPU Queue...");
     wgpuQueueRelease(context.queue);
 
@@ -127,10 +159,74 @@ void webgpu_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u1
 }
 
 b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+    //Create Texture
+    context.target_view = get_next_surface_texture_view();
+    if (!context.target_view) return FALSE;
+
+    //START Render Pass
+    WGPURenderPassDescriptor render_pass_desc = {};
+    render_pass_desc.nextInChain = NULL;
+
+    // Describe Render Pass
+
+    WGPURenderPassColorAttachment render_pass_color_attachment = {};
+
+    // [...] Describe the attachment
+
+    render_pass_desc.colorAttachmentCount = 1;
+    render_pass_desc.colorAttachments = &render_pass_color_attachment;
+    render_pass_desc.depthStencilAttachment = NULL;
+    render_pass_desc.timestampWrites = NULL;
+
+    render_pass_color_attachment.view = context.target_view;
+
+    render_pass_color_attachment.resolveTarget = NULL;
+
+    render_pass_color_attachment.loadOp = WGPULoadOp_Clear;
+    render_pass_color_attachment.storeOp = WGPUStoreOp_Store;
+
+    WGPUColor color = {};
+    color.r = 0.9;
+    color.g = 0.1;
+    color.b = 0.2;
+    color.a = 1.0;
+    render_pass_color_attachment.clearValue = color;
+
+    context.render_pass = wgpuCommandEncoderBeginRenderPass(context.encoder, &render_pass_desc);
+    // [...] Use Render Pass
+
     return TRUE;
 }
 
 b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+
+    wgpuRenderPassEncoderEnd(context.render_pass);
+    wgpuRenderPassEncoderRelease(context.render_pass);
+    //END Render Pass
+
+
+    WGPUCommandBufferDescriptor cmd_buffer_descriptor = {};
+    cmd_buffer_descriptor.nextInChain = NULL;
+    cmd_buffer_descriptor.label = "Render Pass buffer";
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(context.encoder, &cmd_buffer_descriptor);
+    
+
+    // Finally submit the command queue
+    PRINT_DEBUG("Submitting command...");
+    wgpuQueueSubmit(context.queue, 1, &command);
+    wgpuCommandBufferRelease(command);
+    PRINT_DEBUG("Command submitted.");
+
+    //for (int i = 0 ; i < 5 ; ++i) {
+    //    PRINT_DEBUG("Tick/Poll device...");
+    //    wgpuDevicePoll(context.device, FALSE, NULL);
+    //}
+
+    //Present Texture
+    wgpuSurfacePresent(context.surface);
+
+    
+    wgpuTextureViewRelease(context.target_view);
     return TRUE;
 }
 
@@ -240,3 +336,55 @@ void on_device_error(WGPUErrorType type, char const* message, void* /* pUserData
     PRINT_ERROR("Uncaptured device error: type ", type);
     if (message) PRINT_ERROR("message: ", message);
 };
+
+
+
+void on_queue_work_done(WGPUQueueWorkDoneStatus status, void* /* pUserData */) {
+    PRINT_DEBUG("Queued work finished with status: ", status);
+};
+
+
+
+void webgpu_swapchain_create(
+    WEBGPU_CONTEXT* context,
+    u32 width,
+    u32 height) {
+    WGPUSurfaceConfiguration config = {};
+    config.nextInChain = NULL;
+    config.width = width;
+    config.height = height;
+    config.usage = WGPUTextureUsage_RenderAttachment;
+    WGPUTextureFormat surfaceFormat = wgpuSurfaceGetPreferredFormat(context->surface, context->adapter);
+    config.format = surfaceFormat;
+    // And we do not need any particular view format:
+    config.viewFormatCount = 0;
+    config.viewFormats = NULL;
+    config.device = context->device;
+    config.presentMode = WGPUPresentMode_Fifo;
+    config.alphaMode = WGPUCompositeAlphaMode_Auto;
+    wgpuSurfaceConfigure(context->surface, &config);
+}
+
+WGPUTextureView get_next_surface_texture_view() {
+    //Get the next surface texture
+    WGPUSurfaceTexture surface_texture;
+    wgpuSurfaceGetCurrentTexture(context.surface, &surface_texture);
+
+    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
+        return NULL;
+    }
+
+    //Create surface texture view
+    WGPUTextureViewDescriptor view_descriptor;
+    view_descriptor.nextInChain = NULL;
+    view_descriptor.label = "Surface texture view";
+    view_descriptor.format = wgpuTextureGetFormat(surface_texture.texture);
+    view_descriptor.dimension = WGPUTextureViewDimension_2D;
+    view_descriptor.baseMipLevel = 0;
+    view_descriptor.mipLevelCount = 1;
+    view_descriptor.baseArrayLayer = 0;
+    view_descriptor.arrayLayerCount = 1;
+    view_descriptor.aspect = WGPUTextureAspect_All;
+    WGPUTextureView target_view = wgpuTextureCreateView(surface_texture.texture, &view_descriptor);
+    return target_view;
+}

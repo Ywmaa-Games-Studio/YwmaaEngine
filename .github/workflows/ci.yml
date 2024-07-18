@@ -43,7 +43,7 @@ jobs:
       #- name: x86_64-linux -> aarch64-macos No mac os backend, yet.
       #  run: zig build -Dtarget=aarch64-macos
       - name: x86_64-linux -> x86_64-windows
-        run: zig build -Dtarget=x86_64-windows-gnu
+        run: zig build -Dtarget=x86_64-windows
   x86_64-windows:
     runs-on: windows-latest
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push

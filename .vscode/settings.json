@@ -75,6 +75,7 @@
         "cinttypes": "c",
         "variant": "c",
         "vulkan_renderpass.h": "c",
-        "platform.h": "c"
+        "platform.h": "c",
+        "ymemory.h": "c"
     }
 }

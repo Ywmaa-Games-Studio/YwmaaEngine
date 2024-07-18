@@ -5,10 +5,14 @@
 #include "core/logger.h"
 #include "core/ystring.h"
 #include "core/asserts.h"
+#include "core/application.h"
 
 #include "variants/darray.h"
 
 #include "platform/platform.h"
+
+b8 webgpu_device_create(struct PLATFORM_STATE* platform_state);
+void webgpu_device_destroy();
 
 WGPUAdapter request_adapter_sync(WGPUInstance instance, WGPURequestAdapterOptions const * options);
 void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapter, char const * message, void * pUserData);
@@ -20,112 +24,33 @@ void on_device_error(WGPUErrorType type, char const* message, void* /* pUserData
 
 void on_queue_work_done(WGPUQueueWorkDoneStatus status, void* /* pUserData */);
 
-void webgpu_swapchain_create(
-    WEBGPU_CONTEXT* context,
+b8 webgpu_swapchain_create(
     u32 width,
     u32 height);
+void webgpu_swapchain_destroy();
+b8 webgpu_recreate_swapchain(RENDERER_BACKEND* backend);
+
 WGPUTextureView get_next_surface_texture_view();
 // static WebGPU context
 static WEBGPU_CONTEXT context;
-
+static u32 cached_framebuffer_width = 0;
+static u32 cached_framebuffer_height = 0;
 
 
 b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* application_name, struct PLATFORM_STATE* platform_state) {
-    // We create a descriptor
-    WGPUInstanceDescriptor desc = {};
-    desc.nextInChain = NULL;
+    application_get_framebuffer_size(&cached_framebuffer_width, &cached_framebuffer_height);
+    context.framebuffer_width = (cached_framebuffer_width != 0) ? cached_framebuffer_width : 800;
+    context.framebuffer_height = (cached_framebuffer_height != 0) ? cached_framebuffer_height : 600;
+    cached_framebuffer_width = 0;
+    cached_framebuffer_height = 0;
 
-// We create the instance using this descriptor
-#ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    PRINT_INFO("Detected Web Build Use EMSCRIPTEN.");
-    context.instance = wgpuCreateInstance(nullptr);
-#else //  WEBGPU_BACKEND_EMSCRIPTEN
-    context.instance = wgpuCreateInstance(&desc);
-#endif //  WEBGPU_BACKEND_EMSCRIPTEN
-
-
-    // We can check whether there is actually an instance created
-    if (!context.instance) {
-        PRINT_ERROR("Could not initialize WebGPU!");
+    if (!webgpu_device_create(platform_state)){
         return FALSE;
     }
-    PRINT_INFO("WGPU instance: %i", context.instance);
 
-    //START Surface
-    PRINT_DEBUG("Creating WebGPU surface...");
-    if (!platform_create_webgpu_surface(platform_state, &context)) {
-        PRINT_ERROR("Failed to create platform surface!");
+    if (!webgpu_swapchain_create(context.framebuffer_width, context.framebuffer_height)){
         return FALSE;
-    }
-    PRINT_DEBUG("WebGPU surface created.");
-    //END
-
-    //START Device creation
-    //Adapter
-    PRINT_DEBUG("Requesting adapter...");
-
-    WGPURequestAdapterOptions adapter_opts = {};
-    adapter_opts.nextInChain = NULL;
-    adapter_opts.compatibleSurface = context.surface;
-    context.adapter = request_adapter_sync(context.instance, &adapter_opts);
-
-    PRINT_INFO("Got adapter: %i", context.adapter);
-    WGPUAdapterProperties properties = {};
-    properties.nextInChain = NULL;
-    wgpuAdapterGetProperties(context.adapter, &properties);
-    PRINT_INFO("Adapter properties:");
-    PRINT_INFO(" - vendorID: ", properties.vendorID);
-    if (properties.vendorName) {
-        PRINT_INFO(" - vendorName: ", properties.vendorName);
-    }
-    if (properties.architecture) {
-        PRINT_INFO(" - architecture: ", properties.architecture);
-    }
-    PRINT_INFO(" - deviceID: ", properties.deviceID);
-    if (properties.name) {
-        PRINT_INFO(" - name: ", properties.name);
-    }
-    if (properties.driverDescription) {
-        PRINT_INFO(" - driverDescription: ", properties.driverDescription);
-    }
-    PRINT_INFO(" - adapterType: 0x", properties.adapterType);
-    PRINT_INFO(" - backendType: 0x", properties.backendType);
-    // Device
-    PRINT_DEBUG("Requesting device...");
-
-    WGPUDeviceDescriptor device_desc = {};
-    device_desc.label = "My Device"; // anything works here, that's your call
-    device_desc.requiredFeatureCount = 0; // we do not require any specific feature
-    device_desc.requiredLimits = NULL; // we do not require any specific limit
-    device_desc.defaultQueue.nextInChain = NULL;
-    device_desc.defaultQueue.label = "The default queue";
-    device_desc.deviceLostCallback = on_device_lost;
-    // [...] Build device descriptor
-    context.device = request_device_sync(context.adapter, &device_desc);
-
-    wgpuDeviceSetUncapturedErrorCallback(context.device, on_device_error, NULL /* pUserData */);
-    PRINT_INFO("Got device: %i", context.device);
-    //END Device creation
-
-    context.queue = wgpuDeviceGetQueue(context.device);
-
-    PRINT_INFO("Queues obtained.");
-    wgpuQueueOnSubmittedWorkDone(context.queue, on_queue_work_done, NULL /* pUserData */);
-
-
-    // Swapchain
-    //TODO: Remove the hardcoded w & h sizes
-    context.framebuffer_width = 640;
-    context.framebuffer_height = 480;
-    webgpu_swapchain_create(
-        &context,
-        context.framebuffer_width,
-        context.framebuffer_height);
-
-    WGPUCommandEncoderDescriptor encoder_desc = {};
-    encoder_desc.nextInChain = NULL;
-    encoder_desc.label = "command encoder";
-    context.encoder = wgpuDeviceCreateCommandEncoder(context.device, &encoder_desc);
+    }   
 
     PRINT_INFO("WebGPU renderer initialized successfully.");
     return TRUE;
@@ -133,35 +58,50 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
 
 void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
     // Destroy in the opposite order of creation.
-    wgpuCommandEncoderRelease(context.encoder);
 
-    wgpuSurfaceUnconfigure(context.surface);
+    webgpu_swapchain_destroy();
 
-    PRINT_DEBUG("Destroying WebGPU Queue...");
-    wgpuQueueRelease(context.queue);
-
-    PRINT_DEBUG("Destroying WebGPU Device...");
-    wgpuDeviceRelease(context.device);
-
-    PRINT_DEBUG("Destroying WebGPU Adapter...");
-    wgpuAdapterRelease(context.adapter);
-
-    PRINT_DEBUG("Destroying WebGPU Surface...");
-    wgpuSurfaceRelease(context.surface);
-
-    PRINT_DEBUG("Destroying WebGPU instance...");
-    // We clean up the WebGPU instance
-    wgpuInstanceRelease(context.instance);
+    webgpu_device_destroy();
 
 }
 
 void webgpu_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u16 height) {
+    // Update the "framebuffer size generation", a counter which indicates when the
+    // framebuffer size has been updated.
+    cached_framebuffer_width = width;
+    cached_framebuffer_height = height;
+    context.framebuffer_size_generation++;
+
+    PRINT_INFO("WebGPU renderer backend->resized: w/h/gen: %i/%i/%llu", width, height, context.framebuffer_size_generation);
 }
 
 b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+    // Check if recreating swap chain and boot out.
+    if (context.recreating_swapchain) {
+        PRINT_INFO("Recreating swapchain, booting.");
+        return FALSE;
+    }
+
+    // Check if the framebuffer has been resized. If so, a new swapchain must be created.
+    if (context.framebuffer_size_generation != context.framebuffer_size_last_generation) {
+        // If the swapchain recreation failed (because, for example, the window was minimized),
+        // boot out before unsetting the flag.
+        if (!webgpu_recreate_swapchain(backend)) {
+            return FALSE;
+        }
+
+        PRINT_INFO("Resized, booting.");
+        return FALSE;
+    }
+
     //Create Texture
     context.target_view = get_next_surface_texture_view();
     if (!context.target_view) return FALSE;
+
+    WGPUCommandEncoderDescriptor encoder_desc = {};
+    encoder_desc.nextInChain = NULL;
+    encoder_desc.label = "command encoder";
+    context.encoder = wgpuDeviceCreateCommandEncoder(context.device, &encoder_desc);
 
     //START Render Pass
     WGPURenderPassDescriptor render_pass_desc = {};
@@ -204,32 +144,134 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     wgpuRenderPassEncoderRelease(context.render_pass);
     //END Render Pass
 
+    wgpuTextureViewRelease(context.target_view);
+
 
     WGPUCommandBufferDescriptor cmd_buffer_descriptor = {};
     cmd_buffer_descriptor.nextInChain = NULL;
-    cmd_buffer_descriptor.label = "Render Pass buffer";
+    cmd_buffer_descriptor.label = "Command buffer";
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(context.encoder, &cmd_buffer_descriptor);
+    wgpuCommandEncoderRelease(context.encoder);
     
 
     // Finally submit the command queue
-    PRINT_DEBUG("Submitting command...");
     wgpuQueueSubmit(context.queue, 1, &command);
     wgpuCommandBufferRelease(command);
-    PRINT_DEBUG("Command submitted.");
-
-    //for (int i = 0 ; i < 5 ; ++i) {
-    //    PRINT_DEBUG("Tick/Poll device...");
-    //    wgpuDevicePoll(context.device, FALSE, NULL);
-    //}
 
     //Present Texture
     wgpuSurfacePresent(context.surface);
 
-    
-    wgpuTextureViewRelease(context.target_view);
     return TRUE;
 }
 
+
+b8 webgpu_device_create(struct PLATFORM_STATE* platform_state){
+    // We create a descriptor
+    WGPUInstanceDescriptor desc = {};
+    desc.nextInChain = NULL;
+
+// We create the instance using this descriptor
+#ifdef WEBGPU_BACKEND_EMSCRIPTEN
+    PRINT_INFO("Detected Web Build Use EMSCRIPTEN.");
+    context.instance = wgpuCreateInstance(nullptr);
+#else //  WEBGPU_BACKEND_EMSCRIPTEN
+    context.instance = wgpuCreateInstance(&desc);
+#endif //  WEBGPU_BACKEND_EMSCRIPTEN
+
+
+    // We can check whether there is actually an instance created
+    if (!context.instance) {
+        PRINT_ERROR("Could not initialize WebGPU!");
+        return FALSE;
+    }
+
+    //START Surface
+    PRINT_DEBUG("Creating WebGPU surface...");
+    if (!platform_create_webgpu_surface(platform_state, &context)) {
+        PRINT_ERROR("Failed to create platform surface!");
+        return FALSE;
+    }
+    PRINT_DEBUG("WebGPU surface created.");
+    //END
+
+    //START Device creation
+    //Adapter
+    PRINT_DEBUG("Requesting adapter...");
+
+    WGPURequestAdapterOptions adapter_opts = {};
+    adapter_opts.nextInChain = NULL;
+    adapter_opts.compatibleSurface = context.surface;
+    context.adapter = request_adapter_sync(context.instance, &adapter_opts);
+
+    PRINT_INFO("Got adapter: %i", context.adapter);
+
+	WGPUSupportedLimits supported_limits;
+	wgpuAdapterGetLimits(context.adapter, &supported_limits);
+
+#ifdef _DEBUG
+    WGPUAdapterProperties properties = {};
+    properties.nextInChain = NULL;
+    wgpuAdapterGetProperties(context.adapter, &properties);
+    PRINT_INFO("Adapter properties:");
+    PRINT_INFO(" - vendorID: ", properties.vendorID);
+    if (properties.vendorName) {
+        PRINT_INFO(" - vendorName: ", properties.vendorName);
+    }
+    if (properties.architecture) {
+        PRINT_INFO(" - architecture: ", properties.architecture);
+    }
+    PRINT_INFO(" - deviceID: ", properties.deviceID);
+    if (properties.name) {
+        PRINT_INFO(" - name: ", properties.name);
+    }
+    if (properties.driverDescription) {
+        PRINT_INFO(" - driverDescription: ", properties.driverDescription);
+    }
+    PRINT_INFO(" - adapterType: 0x", properties.adapterType);
+    PRINT_INFO(" - backendType: 0x", properties.backendType);
+#endif
+
+    // Device
+    PRINT_DEBUG("Requesting device...");
+    WGPUDeviceDescriptor device_desc = {};
+    device_desc.label = "My Device"; // anything works here, that's your call
+    device_desc.requiredFeatureCount = 0; // we do not require any specific feature
+    device_desc.requiredLimits = NULL; // we do not require any specific limit
+    device_desc.defaultQueue.nextInChain = NULL;
+    device_desc.defaultQueue.label = "The default queue";
+    device_desc.deviceLostCallback = on_device_lost;
+    // [...] Build device descriptor
+    context.device = request_device_sync(context.adapter, &device_desc);
+
+    wgpuDeviceSetUncapturedErrorCallback(context.device, on_device_error, NULL /* pUserData */);
+    PRINT_INFO("Got device: %i", context.device);
+    context.swapchain_format = wgpuSurfaceGetPreferredFormat(context.surface, context.adapter);
+    //END Device creation
+
+    context.queue = wgpuDeviceGetQueue(context.device);
+
+    PRINT_INFO("Queues obtained.");
+    wgpuQueueOnSubmittedWorkDone(context.queue, on_queue_work_done, NULL /* pUserData */);
+
+    PRINT_DEBUG("Destroying WebGPU Adapter...");
+    wgpuAdapterRelease(context.adapter);
+    
+    return context.device != NULL;
+}
+void webgpu_device_destroy(){
+    PRINT_DEBUG("Destroying WebGPU Queue...");
+    wgpuQueueRelease(context.queue);
+
+    PRINT_DEBUG("Destroying WebGPU Device...");
+    wgpuDeviceRelease(context.device);
+
+    PRINT_DEBUG("Destroying WebGPU Surface...");
+    wgpuSurfaceRelease(context.surface);
+
+    PRINT_DEBUG("Destroying WebGPU instance...");
+    // We clean up the WebGPU instance
+    wgpuInstanceRelease(context.instance);
+}
 
 /**
  * Utility function to get a WebGPU adapter, so that
@@ -345,8 +387,7 @@ void on_queue_work_done(WGPUQueueWorkDoneStatus status, void* /* pUserData */) {
 
 
 
-void webgpu_swapchain_create(
-    WEBGPU_CONTEXT* context,
+b8 webgpu_swapchain_create(
     u32 width,
     u32 height) {
     WGPUSurfaceConfiguration config = {};
@@ -354,15 +395,63 @@ void webgpu_swapchain_create(
     config.width = width;
     config.height = height;
     config.usage = WGPUTextureUsage_RenderAttachment;
-    WGPUTextureFormat surfaceFormat = wgpuSurfaceGetPreferredFormat(context->surface, context->adapter);
-    config.format = surfaceFormat;
+    config.format = context.swapchain_format;
     // And we do not need any particular view format:
     config.viewFormatCount = 0;
     config.viewFormats = NULL;
-    config.device = context->device;
+    config.device = context.device;
     config.presentMode = WGPUPresentMode_Fifo;
     config.alphaMode = WGPUCompositeAlphaMode_Auto;
-    wgpuSurfaceConfigure(context->surface, &config);
+    wgpuSurfaceConfigure(context.surface, &config);
+    
+
+    return context.surface != NULL;
+}
+
+void webgpu_swapchain_destroy(){
+    wgpuSurfaceUnconfigure(context.surface);
+}
+
+b8 webgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
+    // If already being recreated, do not try again.
+    if (context.recreating_swapchain) {
+        PRINT_DEBUG("recreate_swapchain called when already recreating. Booting.");
+        return FALSE;
+    }
+
+    // Detect if the window is too small to be drawn to
+    if (context.framebuffer_width == 0 || context.framebuffer_height == 0) {
+        PRINT_DEBUG("recreate_swapchain called when window is < 1 in a dimension. Booting.");
+        return FALSE;
+    }
+
+    // Mark as recreating if the dimensions are valid.
+    context.recreating_swapchain = TRUE;
+
+    webgpu_swapchain_destroy();
+    
+    // Re-init
+    // Swapchain
+    if (!webgpu_swapchain_create(cached_framebuffer_width, cached_framebuffer_height)){
+        PRINT_DEBUG("Failed to recreate swapchain");
+        return FALSE;
+    }   
+
+
+    // Sync the framebuffer size with the cached sizes.
+    context.framebuffer_width = cached_framebuffer_width;
+    context.framebuffer_height = cached_framebuffer_height;
+    cached_framebuffer_width = 0;
+    cached_framebuffer_height = 0;
+
+
+    // Update framebuffer size generation.
+    context.framebuffer_size_last_generation = context.framebuffer_size_generation;
+
+    // Clear the recreating flag.
+    context.recreating_swapchain = FALSE;
+
+    return TRUE;
 }
 
 WGPUTextureView get_next_surface_texture_view() {

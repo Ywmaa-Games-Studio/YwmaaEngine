@@ -76,9 +76,9 @@ pub fn build(b: *std.Build) !void {
         var lib_file = dep.path("bin");
         if (target.result.os.tag == .linux) {
             if (target.result.cpu.arch == .aarch64) {
-                lib_file = dep.path("bin/linux-aarch64");
+                lib_file = dep.path("bin/linux-aarch64/libwgpu_native.so");
             } else if (target.result.cpu.arch == .x86_64) {
-                lib_file = dep.path("bin/linux-x86_64");
+                lib_file = dep.path("bin/linux-x86_64/libwgpu_native.so");
             }
         } else if (target.result.os.tag == .windows) {
             if (target.result.cpu.arch == .aarch64) {
@@ -88,28 +88,36 @@ pub fn build(b: *std.Build) !void {
             }
         } else if (target.result.os.tag == .macos) {
             if (target.result.cpu.arch == .aarch64) {
-                lib_file = dep.path("bin/macos-aarch64");
+                lib_file = dep.path("bin/macos-aarch64/libwgpu_native.dylib");
             } else if (target.result.cpu.arch == .x86_64) {
-                lib_file = dep.path("bin/macos-x86_64");
+                lib_file = dep.path("bin/macos-x86_64/libwgpu_native.dylib");
             }
         }
 
-        b.installDirectory(.{
-            .source_dir = lib_file,
-            .install_dir = .prefix,
-            .install_subdir = "bin/",
-        });
         libengine.root_module.addRPathSpecial("$ORIGIN");
+        libengine.root_module.addRPathSpecial("$ORIGIN/lib");
+        libengine.root_module.addRPathSpecial("$ORIGIN/../lib");
         libengine.root_module.addRPathSpecial(".");
-        libengine.addLibraryPath(lib_file);
         if (target.result.os.tag == .windows) {
+            b.installDirectory(.{
+                .source_dir = lib_file,
+                .install_dir = .prefix,
+                .install_subdir = "bin/",
+            });
+            libengine.addLibraryPath(lib_file);
             libengine.linkSystemLibrary2("wgpu_native.dll", .{
+                .use_pkg_config = .no,
                 .preferred_link_mode = .dynamic,
             });
         } else {
-            libengine.linkSystemLibrary2("wgpu_native", .{
-                .preferred_link_mode = .dynamic,
+            const wgpu = b.addSharedLibrary(.{
+                .name = "wgpu_native",
+                .target = target,
+                .optimize = optimize,
             });
+            wgpu.addObjectFile(lib_file);
+            libengine.linkLibrary(wgpu);
+            b.installArtifact(wgpu);
         }
     }
 
@@ -143,7 +151,8 @@ pub fn build(b: *std.Build) !void {
             }
         }
     }
-
+    exe.root_module.addRPathSpecial("$ORIGIN/Engine");
+    exe.root_module.addRPathSpecial("$ORIGIN/../lib");
     exe.root_module.addRPathSpecial("$ORIGIN");
     exe.root_module.addRPathSpecial(".");
     exe.linkLibrary(libengine);

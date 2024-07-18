@@ -24,6 +24,7 @@
         "vulkan_types.inl": "c",
         "vulkan_win32.h": "c",
         "vulkan.h": "c",
-        "volk.h": "c"
+        "volk.h": "c",
+        "asserts.h": "c"
     }
 }

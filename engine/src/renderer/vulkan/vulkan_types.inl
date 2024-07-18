@@ -34,12 +34,48 @@ typedef struct VULKAN_DEVICE {
     VkPhysicalDeviceProperties properties;
     VkPhysicalDeviceFeatures features;
     VkPhysicalDeviceMemoryProperties memory;
+
+    VkFormat depth_format;
 } VULKAN_DEVICE;
+
+typedef struct VULKAN_IMAGE {
+    VkImage handle;
+    VkDeviceMemory memory;
+    VkImageView view;
+    u32 width;
+    u32 height;
+} VULKAN_IMAGE;
+
+typedef struct VULKAN_SWAPCHAIN {
+    VkSurfaceFormatKHR image_format;
+    u8 max_frames_in_flight;
+    VkSwapchainKHR handle;
+    u32 image_count;
+    VkImage* images;
+    VkImageView* views;
+
+    VULKAN_IMAGE depth_attachment;
+} VULKAN_SWAPCHAIN;
 typedef struct VULKAN_CONTEXT {
+
+    // The framebuffer's current width.
+    u32 framebuffer_width;
+
+    // The framebuffer's current height.
+    u32 framebuffer_height;
+
     VkInstance instance;
     VkAllocationCallbacks* allocator;
     VkSurfaceKHR surface;
     VULKAN_DEVICE device;
+
+    VULKAN_SWAPCHAIN swapchain;
+    u32 image_index;
+    u32 current_frame;
+
+    b8 recreating_swapchain;
+
+    i32 (*find_memory_index)(u32 type_filter, u32 property_flags);
 #if defined(_DEBUG)
     VkDebugUtilsMessengerEXT debug_messenger;
 #endif

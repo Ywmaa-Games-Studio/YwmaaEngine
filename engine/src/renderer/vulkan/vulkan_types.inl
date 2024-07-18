@@ -31,6 +31,8 @@ typedef struct VULKAN_DEVICE {
     VkQueue present_queue;
     VkQueue transfer_queue;
 
+    VkCommandPool graphics_command_pool;
+
     VkPhysicalDeviceProperties properties;
     VkPhysicalDeviceFeatures features;
     VkPhysicalDeviceMemoryProperties memory;
@@ -107,6 +109,10 @@ typedef struct VULKAN_CONTEXT {
 
     VULKAN_SWAPCHAIN swapchain;
     VULKAN_RENDERPASS main_renderpass;
+
+    // darray
+    VULKAN_COMMAND_BUFFER* graphics_command_buffers;
+
     u32 image_index;
     u32 current_frame;
 

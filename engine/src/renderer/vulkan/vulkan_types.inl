@@ -68,6 +68,13 @@ typedef struct VULKAN_RENDERPASS {
     VULKAN_RENDER_PASS_STATE state;
 } VULKAN_RENDERPASS;
 
+
+typedef struct VULKAN_FRAMEBUFFER {
+    VkFramebuffer handle;
+    u32 attachment_count;
+    VkImageView* attachments;
+    VULKAN_RENDERPASS* renderpass;
+} VULKAN_FRAMEBUFFER;
 typedef struct VULKAN_SWAPCHAIN {
     VkSurfaceFormatKHR image_format;
     u8 max_frames_in_flight;
@@ -77,6 +84,9 @@ typedef struct VULKAN_SWAPCHAIN {
     VkImageView* views;
 
     VULKAN_IMAGE depth_attachment;
+
+    // framebuffers used for on-screen rendering.
+    VULKAN_FRAMEBUFFER* framebuffers;
 } VULKAN_SWAPCHAIN;
 
 typedef enum VULKAN_COMMAND_BUFFER_STATE {
@@ -94,6 +104,11 @@ typedef struct VULKAN_COMMAND_BUFFER {
     // Command buffer state.
     VULKAN_COMMAND_BUFFER_STATE state;
 } VULKAN_COMMAND_BUFFER;
+
+typedef struct VULKAN_FENCE {
+    VkFence handle;
+    b8 is_signaled;
+} VULKAN_FENCE;
 typedef struct VULKAN_CONTEXT {
 
     // The framebuffer's current width.
@@ -112,6 +127,18 @@ typedef struct VULKAN_CONTEXT {
 
     // darray
     VULKAN_COMMAND_BUFFER* graphics_command_buffers;
+
+    // darray
+    VkSemaphore* image_available_semaphores;
+
+    // darray
+    VkSemaphore* queue_complete_semaphores;
+
+    u32 in_flight_fence_count;
+    VULKAN_FENCE* in_flight_fences;
+
+    // Holds pointers to fences which exist and are owned elsewhere.
+    VULKAN_FENCE** images_in_flight;
 
     u32 image_index;
     u32 current_frame;

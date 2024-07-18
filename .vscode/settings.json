@@ -73,6 +73,8 @@
         "sstream": "c",
         "streambuf": "c",
         "cinttypes": "c",
-        "variant": "c"
+        "variant": "c",
+        "vulkan_renderpass.h": "c",
+        "platform.h": "c"
     }
 }

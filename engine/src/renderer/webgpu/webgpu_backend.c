@@ -1,4 +1,5 @@
 #include "webgpu_backend.h"
+#include "webgpu_platform.h"
 
 #include "webgpu_types.inl"
 #include "core/logger.h"
@@ -40,6 +41,14 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     }
     PRINT_INFO("WGPU instance: %i", context.instance);
 
+    //START Surface
+    PRINT_DEBUG("Creating WebGPU surface...");
+    if (!platform_create_webgpu_surface(platform_state, &context)) {
+        PRINT_ERROR("Failed to create platform surface!");
+        return FALSE;
+    }
+    PRINT_DEBUG("WebGPU surface created.");
+    //END
 
     //START Device creation
     //Adapter
@@ -47,6 +56,7 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
 
     WGPURequestAdapterOptions adapter_opts = {};
     adapter_opts.nextInChain = NULL;
+    adapter_opts.compatibleSurface = context.surface;
     context.adapter = request_adapter_sync(context.instance, &adapter_opts);
 
     PRINT_INFO("Got adapter: %i", context.adapter);
@@ -87,18 +97,25 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     PRINT_INFO("Got device: %i", context.device);
     //END Device creation
 
+    context.queue = wgpuDeviceGetQueue(context.device);
+
     PRINT_INFO("WebGPU renderer initialized successfully.");
     return TRUE;
 }
 
 void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
     // Destroy in the opposite order of creation.
+    PRINT_DEBUG("Destroying WebGPU Queue...");
+    wgpuQueueRelease(context.queue);
 
     PRINT_DEBUG("Destroying WebGPU Device...");
     wgpuDeviceRelease(context.device);
 
     PRINT_DEBUG("Destroying WebGPU Adapter...");
     wgpuAdapterRelease(context.adapter);
+
+    PRINT_DEBUG("Destroying WebGPU Surface...");
+    wgpuSurfaceRelease(context.surface);
 
     PRINT_DEBUG("Destroying WebGPU instance...");
     // We clean up the WebGPU instance

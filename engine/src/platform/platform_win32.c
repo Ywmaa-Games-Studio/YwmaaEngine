@@ -18,10 +18,13 @@
 #include "../thirdparty/volk/volk.h"
 #include <vulkan/vulkan_win32.h>
 #include "renderer/vulkan/vulkan_types.inl"
+
+#include "renderer/webgpu/webgpu_types.inl"
 typedef struct INTERNAL_STATE {
     HINSTANCE h_instance;
     HWND hwnd;
-    VkSurfaceKHR surface;
+    VkSurfaceKHR vulkan_surface;
+    WGPUSurface webgpu_surface;
 } INTERNAL_STATE;
 
 // Clock
@@ -208,13 +211,33 @@ b8 platform_create_vulkan_surface(PLATFORM_STATE *platform_state, VULKAN_CONTEXT
     create_info.hinstance = state->h_instance;
     create_info.hwnd = state->hwnd;
 
-    VkResult result = vkCreateWin32SurfaceKHR(context->instance, &create_info, context->allocator, &state->surface);
+    VkResult result = vkCreateWin32SurfaceKHR(context->instance, &create_info, context->allocator, &state->vulkan_surface);
     if (result != VK_SUCCESS) {
         PRINT_ERROR("Vulkan surface creation failed.");
         return FALSE;
     }
 
-    context->surface = state->surface;
+    context->surface = state->vulkan_surface;
+    return TRUE;
+}
+// Surface creation for WebGPU
+b8 platform_create_webgpu_surface(PLATFORM_STATE *platform_state, WEBGPU_CONTEXT *context) {
+    // Simply cold-cast to the known type.
+    INTERNAL_STATE *state = (INTERNAL_STATE *)platform_state->internal_state;
+
+    WGPUSurfaceDescriptorFromWindowsHWND fromWindowsHWND;
+    fromWindowsHWND.chain.next = NULL;
+    fromWindowsHWND.chain.sType = WGPUSType_SurfaceDescriptorFromWindowsHWND;
+    fromWindowsHWND.hinstance = state->h_instance;
+    fromWindowsHWND.hwnd = state->hwnd;
+
+    WGPUSurfaceDescriptor surfaceDescriptor;
+    surfaceDescriptor.nextInChain = &fromWindowsHWND.chain;
+    surfaceDescriptor.label = NULL;
+
+    state->webgpu_surface = wgpuInstanceCreateSurface(context->instance, &surfaceDescriptor);
+
+    context->surface = state->webgpu_surface;
     return TRUE;
 }
 

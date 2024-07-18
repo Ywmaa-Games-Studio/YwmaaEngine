@@ -46,6 +46,26 @@ typedef struct VULKAN_IMAGE {
     u32 height;
 } VULKAN_IMAGE;
 
+typedef enum VULKAN_RENDER_PASS_STATE {
+    READY,
+    RECORDING,
+    IN_RENDER_PASS,
+    RECORDING_ENDED,
+    SUBMITTED,
+    NOT_ALLOCATED
+} VULKAN_RENDER_PASS_STATE;
+
+typedef struct VULKAN_RENDERPASS {
+    VkRenderPass handle;
+    f32 x, y, w, h;
+    f32 r, g, b, a;
+
+    f32 depth;
+    u32 stencil;
+
+    VULKAN_RENDER_PASS_STATE state;
+} VULKAN_RENDERPASS;
+
 typedef struct VULKAN_SWAPCHAIN {
     VkSurfaceFormatKHR image_format;
     u8 max_frames_in_flight;
@@ -56,6 +76,22 @@ typedef struct VULKAN_SWAPCHAIN {
 
     VULKAN_IMAGE depth_attachment;
 } VULKAN_SWAPCHAIN;
+
+typedef enum VULKAN_COMMAND_BUFFER_STATE {
+    COMMAND_BUFFER_STATE_READY,
+    COMMAND_BUFFER_STATE_RECORDING,
+    COMMAND_BUFFER_STATE_IN_RENDER_PASS,
+    COMMAND_BUFFER_STATE_RECORDING_ENDED,
+    COMMAND_BUFFER_STATE_SUBMITTED,
+    COMMAND_BUFFER_STATE_NOT_ALLOCATED
+} VULKAN_COMMAND_BUFFER_STATE;
+
+typedef struct VULKAN_COMMAND_BUFFER {
+    VkCommandBuffer handle;
+
+    // Command buffer state.
+    VULKAN_COMMAND_BUFFER_STATE state;
+} VULKAN_COMMAND_BUFFER;
 typedef struct VULKAN_CONTEXT {
 
     // The framebuffer's current width.
@@ -70,6 +106,7 @@ typedef struct VULKAN_CONTEXT {
     VULKAN_DEVICE device;
 
     VULKAN_SWAPCHAIN swapchain;
+    VULKAN_RENDERPASS main_renderpass;
     u32 image_index;
     u32 current_frame;
 

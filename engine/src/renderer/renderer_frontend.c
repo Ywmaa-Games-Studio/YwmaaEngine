@@ -14,7 +14,7 @@ b8 renderer_init(const char* application_name, struct PLATFORM_STATE* platform_s
     backend = yallocate(sizeof(RENDERER_BACKEND), MEMORY_TAG_RENDERER);
 
     // TODO: make this configurable.
-    renderer_backend_create(RENDERER_BACKEND_API_VULKAN, platform_state, backend);
+    renderer_backend_create(RENDERER_BACKEND_API_WEBGPU, platform_state, backend);
     backend->frame_number = 0;
 
     if (!backend->init(backend, application_name, platform_state)) {

@@ -1071,12 +1071,12 @@ YINLINE Vector3 Matrice4_down(Matrice4 matrix) {
  * @return A 3-component directional vector.
  */
 YINLINE Vector3 Matrice4_left(Matrice4 matrix) {
-    Vector3 right;
-    right.x = -matrix.data[0];
-    right.y = -matrix.data[4];
-    right.z = -matrix.data[8];
-    Vector3_normalize(&right);
-    return right;
+    Vector3 left;
+    left.x = -matrix.data[0];
+    left.y = -matrix.data[4];
+    left.z = -matrix.data[8];
+    Vector3_normalize(&left);
+    return left;
 }
 
 /**
@@ -1086,12 +1086,12 @@ YINLINE Vector3 Matrice4_left(Matrice4 matrix) {
  * @return A 3-component directional vector.
  */
 YINLINE Vector3 Matrice4_right(Matrice4 matrix) {
-    Vector3 left;
-    left.x = matrix.data[0];
-    left.y = matrix.data[4];
-    left.z = matrix.data[8];
-    Vector3_normalize(&left);
-    return left;
+    Vector3 right;
+    right.x = matrix.data[0];
+    right.y = matrix.data[4];
+    right.z = matrix.data[8];
+    Vector3_normalize(&right);
+    return right;
 }
 
 // ------------------------------------------

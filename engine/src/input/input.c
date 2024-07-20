@@ -47,21 +47,21 @@ void input_update(f64 delta_time) {
 
 void input_process_key(E_KEYS key, b8 pressed) {
     if (key == KEY_LALT) {
-        PRINT_INFO("Left alt pressed.");
+        PRINT_INFO("Left alt %s.", pressed ? "pressed" : "released.");
     } else if (key == KEY_RALT) {
-        PRINT_INFO("Right alt pressed.");
+        PRINT_INFO("Right alt %s.", pressed ? "pressed" : "released.");
     }
 
     if (key == KEY_LCONTROL) {
-        PRINT_INFO("Left ctrl pressed.");
+        PRINT_INFO("Left ctrl %s.", pressed ? "pressed" : "released.");
     } else if (key == KEY_RCONTROL) {
-        PRINT_INFO("Right ctrl pressed.");
+        PRINT_INFO("Right ctrl %s.", pressed ? "pressed" : "released.");
     }
 
     if (key == KEY_LSHIFT) {
-        PRINT_INFO("Left shift pressed.");
+        PRINT_INFO("Left shift %s.", pressed ? "pressed" : "released.");
     } else if (key == KEY_RSHIFT) {
-        PRINT_INFO("Right shift pressed.");
+        PRINT_INFO("Right shift %s.", pressed ? "pressed" : "released.");
     }
 
     // Only handle this if the state actually changed.

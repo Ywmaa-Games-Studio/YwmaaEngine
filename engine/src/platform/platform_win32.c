@@ -242,6 +242,24 @@ b8 platform_create_webgpu_surface(PLATFORM_STATE *platform_state, WEBGPU_CONTEXT
     return true;
 }
 
+E_KEYS split_code_left_right(b8 pressed, i32 in_left, i32 in_right, E_KEYS out_left, E_KEYS out_right) {
+    E_KEYS key;
+    if (pressed) {
+        if (GetKeyState(in_right) & 0x8000) {
+            key = out_right;
+        } else if (GetKeyState(in_left) & 0x8000) {
+            key = out_left;
+        }
+    } else {
+        if (!(GetKeyState(in_right) & 0x8000)) {
+            key = out_right;
+        } else if (!(GetKeyState(in_left) & 0x8000)) {
+            key = out_left;
+        }
+    }
+    return key;
+}
+
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param) {
     switch (msg) {
         case WM_ERASEBKGND:
@@ -277,27 +295,18 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
 
             // Alt key
             if (w_param == VK_MENU) {
-                if (GetKeyState(VK_RMENU) & 0x8000) {
-                    key = KEY_RALT;
-                } else if (GetKeyState(VK_LMENU) & 0x8000) {
-                    key = KEY_LALT;
-                }
+                key = split_code_left_right(pressed, VK_LMENU, VK_RMENU, KEY_LALT, KEY_RALT);
             } else if (w_param == VK_SHIFT) {
-                if (GetKeyState(VK_RSHIFT) & 0x8000) {
-                    key = KEY_RSHIFT;
-                } else if (GetKeyState(VK_LSHIFT) & 0x8000) {
-                    key = KEY_LSHIFT;
-                }
+                key = split_code_left_right(pressed, VK_LSHIFT, VK_RSHIFT, KEY_LSHIFT, KEY_RSHIFT);
             } else if (w_param == VK_CONTROL) {
-                if (GetKeyState(VK_RCONTROL) & 0x8000) {
-                    key = KEY_RCONTROL;
-                } else if (GetKeyState(VK_LCONTROL) & 0x8000) {
-                    key = KEY_LCONTROL;
-                }
+                key = split_code_left_right(pressed, VK_LCONTROL, VK_RCONTROL, KEY_LCONTROL, KEY_RCONTROL);
             }
 
             // Pass to the input subsystem for processing.
             input_process_key(key, pressed);
+
+            // Return 0 to prevent default window behaviour for some keypresses, such as alt.
+            return 0;
 
         } break;
         case WM_MOUSEMOVE: {

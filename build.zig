@@ -5,8 +5,11 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const flags = [_][]const u8{
-        "",
+    const engine_flags = [_][]const u8{
+        "-DYEXPORT",
+    };
+    const testbed_flags = [_][]const u8{
+        "-DYIMPORT",
     };
     // Engine Flag -DYEXPORT
     // Testbed Flag -DYIMPORT
@@ -34,7 +37,7 @@ pub fn build(b: *std.Build) !void {
             } else false;
             if (include_file) {
                 std.debug.print("Engine: Found C file to compile: '{s}'. path: '{s}'\n", .{ entry.basename, entry.path });
-                libengine.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "engine/src", entry.path })), .flags = &flags });
+                libengine.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "engine/src", entry.path })), .flags = &engine_flags });
             }
         }
     }
@@ -147,7 +150,7 @@ pub fn build(b: *std.Build) !void {
             } else false;
             if (include_file) {
                 std.debug.print("Testbed: Found C file to compile: '{s}'. path: '{s}'\n", .{ entry.basename, entry.path });
-                exe.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "testbed/src", entry.path })), .flags = &flags });
+                exe.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "testbed/src", entry.path })), .flags = &testbed_flags });
             }
         }
     }
@@ -180,44 +183,52 @@ pub fn build(b: *std.Build) !void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    const unit_tests = b.addTest(.{
-        .root_source_file = b.path("test/src/main.c"),
-        .target = target,
-        .optimize = optimize,
-    });
+    //const unit_tests = b.addExecutable(.{
+    //    .name = "test",
+    //    .target = target,
+    //    .optimize = optimize,
+    //});
+    //
+    //unit_tests.addIncludePath(.{ .cwd_relative = "engine/src" });
+    //unit_tests.addIncludePath(.{ .cwd_relative = "test/src" });
+    //// Search for all C/C++ files in `src` and add them
+    //{
+    //    var dir = try std.fs.cwd().openDir("test/src", .{ .iterate = true });
+    //
+    //    var walker = try dir.walk(b.allocator);
+    //    defer walker.deinit();
+    //
+    //    const allowed_exts = [_][]const u8{".c"};
+    //    while (try walker.next()) |entry| {
+    //        const ext = std.fs.path.extension(entry.basename);
+    //        const include_file = for (allowed_exts) |e| {
+    //            if (std.mem.eql(u8, ext, e))
+    //                break true;
+    //        } else false;
+    //        if (include_file) {
+    //            std.debug.print("test: Found C file to compile: '{s}'. path: '{s}'\n", .{ entry.basename, entry.path });
+    //            unit_tests.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "test/src", entry.path })), .flags = &flags });
+    //        }
+    //    }
+    //}
+    //unit_tests.linkLibrary(libengine); //just compile specific files
+    //unit_tests.linkLibC();
+    //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/core/logger.c"), .flags = &flags });
+    //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/core/ystring.c"), .flags = &flags });
+    //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/core/ymemory.c"), .flags = &flags });
+    //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/math/ymath.c"), .flags = &flags });
+    //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/variants/darray.c"), .flags = &flags });
+    //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/memory/linear_allocator.c"), .flags = &flags });
 
-    unit_tests.addIncludePath(.{ .cwd_relative = "engine/src" });
-    unit_tests.addIncludePath(.{ .cwd_relative = "test/src" });
-    // Search for all C/C++ files in `src` and add them
-    {
-        var dir = try std.fs.cwd().openDir("test/src", .{ .iterate = true });
+    //const run_unit_tests = b.addRunArtifact(unit_tests)//;
 
-        var walker = try dir.walk(b.allocator);
-        defer walker.deinit();
-
-        const allowed_exts = [_][]const u8{".c"};
-        while (try walker.next()) |entry| {
-            const ext = std.fs.path.extension(entry.basename);
-            const include_file = for (allowed_exts) |e| {
-                if (std.mem.eql(u8, ext, e))
-                    break true;
-            } else false;
-            if (include_file) {
-                std.debug.print("test: Found C file to compile: '{s}'. path: '{s}'\n", .{ entry.basename, entry.path });
-                unit_tests.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "test/src", entry.path })), .flags = &flags });
-            }
-        }
-    }
-
-    const run_unit_tests = b.addRunArtifact(unit_tests);
-
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_unit_tests.step);
+    //const test_step = b.step("test", "Run unit tests");
+    //test_step.dependOn(&run_unit_tests.step);
 }
 
 fn addShader(b: *std.Build, exe: anytype, in_file: []const u8, out_file: []const u8, additional_arg: []const u8) !void {
     // example:
-    // glslc -o shaders/vert.spv shaders/shader.vert
+    // glslc $additional_arg shaders/vert.spv -o shaders/shader.vert
     const dirname = "assets/shaders";
     const full_in = b.pathJoin(&.{ dirname, in_file });
     const full_out = b.pathJoin(&.{ dirname, out_file });

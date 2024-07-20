@@ -240,7 +240,7 @@ b8 platform_startup(
 
     if (!state->display) {
         PRINT_ERROR("Failed to connect to wayland server.");
-        return FALSE;
+        return false;
     }
 
     // Retrieve the connection from the display.
@@ -270,7 +270,7 @@ b8 platform_startup(
 	wl_callback_add_listener(state->callback, &cb_list, 0); */
 
 
-    return TRUE;
+    return true;
 }
 
 void platform_shutdown(PLATFORM_STATE* platform_state) {
@@ -295,7 +295,7 @@ b8 platform_pump_messages(PLATFORM_STATE* platform_state) {
     // Simply cold-cast to the known type.
     INTERNAL_STATE* state = (INTERNAL_STATE*)platform_state->internal_state;
 
-    b8 quit_flagged = FALSE;
+    b8 quit_flagged = false;
 
     // Poll for events until null is returned.
     while (wl_display_dispatch(state->display)) {
@@ -374,11 +374,11 @@ b8 platform_create_vulkan_surface(PLATFORM_STATE *platform_state, VULKAN_CONTEXT
         &state->vulkan_surface);
     if (result != VK_SUCCESS) {
         PRINT_ERROR("Vulkan surface creation failed.");
-        return FALSE;
+        return false;
     }
 
     context->surface = state->vulkan_surface;
-    return TRUE;
+    return true;
 }
 
 // Surface creation for WebGPU
@@ -399,7 +399,7 @@ b8 platform_create_webgpu_surface(PLATFORM_STATE *platform_state, WEBGPU_CONTEXT
     state->webgpu_surface = wgpuInstanceCreateSurface(context->instance, &surfaceDescriptor);
 
     context->surface = state->webgpu_surface;
-    return TRUE;
+    return true;
 }
 
 // Key translation

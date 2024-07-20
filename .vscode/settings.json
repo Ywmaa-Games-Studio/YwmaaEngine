@@ -76,6 +76,9 @@
         "variant": "c",
         "vulkan_renderpass.h": "c",
         "platform.h": "c",
-        "ymemory.h": "c"
+        "ymemory.h": "c",
+        "vulkan_shader_utils.h": "c",
+        "filesystem.h": "c",
+        "renderer_frontend.h": "c"
     }
 }

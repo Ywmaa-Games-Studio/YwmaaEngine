@@ -21,18 +21,18 @@ typedef struct INPUT_STATE {
 } INPUT_STATE;
 
 // Internal input state
-static b8 initialized = FALSE;
+static b8 initialized = false;
 static INPUT_STATE state = {};
 
 void input_init() {
     yzero_memory(&state, sizeof(INPUT_STATE));
-    initialized = TRUE;
+    initialized = true;
     PRINT_INFO("Input subsystem initialized.");
 }
 
 void input_shutdown() {
     // TODO: Add shutdown routines when needed.
-    initialized = FALSE;
+    initialized = false;
 }
 
 void input_update(f64 delta_time) {
@@ -46,6 +46,24 @@ void input_update(f64 delta_time) {
 }
 
 void input_process_key(E_KEYS key, b8 pressed) {
+    if (key == KEY_LALT) {
+        PRINT_INFO("Left alt pressed.");
+    } else if (key == KEY_RALT) {
+        PRINT_INFO("Right alt pressed.");
+    }
+
+    if (key == KEY_LCONTROL) {
+        PRINT_INFO("Left ctrl pressed.");
+    } else if (key == KEY_RCONTROL) {
+        PRINT_INFO("Right ctrl pressed.");
+    }
+
+    if (key == KEY_LSHIFT) {
+        PRINT_INFO("Left shift pressed.");
+    } else if (key == KEY_RSHIFT) {
+        PRINT_INFO("Right shift pressed.");
+    }
+
     // Only handle this if the state actually changed.
     if (state.keyboard_current.keys[key] != pressed) {
         // Update internal state.
@@ -98,59 +116,59 @@ void input_process_mouse_wheel(i8 z_delta) {
 
 b8 input_is_key_down(E_KEYS key) {
     if (!initialized) {
-        return FALSE;
+        return false;
     }
-    return state.keyboard_current.keys[key] == TRUE;
+    return state.keyboard_current.keys[key] == true;
 }
 
 b8 input_is_key_up(E_KEYS key) {
     if (!initialized) {
-        return TRUE;
+        return true;
     }
-    return state.keyboard_current.keys[key] == FALSE;
+    return state.keyboard_current.keys[key] == false;
 }
 
 b8 input_was_key_down(E_KEYS key) {
     if (!initialized) {
-        return FALSE;
+        return false;
     }
-    return state.keyboard_previous.keys[key] == TRUE;
+    return state.keyboard_previous.keys[key] == true;
 }
 
 b8 input_was_key_up(E_KEYS key) {
     if (!initialized) {
-        return TRUE;
+        return true;
     }
-    return state.keyboard_previous.keys[key] == FALSE;
+    return state.keyboard_previous.keys[key] == false;
 }
 
 // mouse input
 b8 input_is_button_down(E_BUTTONS button) {
     if (!initialized) {
-        return FALSE;
+        return false;
     }
-    return state.mouse_current.buttons[button] == TRUE;
+    return state.mouse_current.buttons[button] == true;
 }
 
 b8 input_is_button_up(E_BUTTONS button) {
     if (!initialized) {
-        return TRUE;
+        return true;
     }
-    return state.mouse_current.buttons[button] == FALSE;
+    return state.mouse_current.buttons[button] == false;
 }
 
 b8 input_was_button_down(E_BUTTONS button) {
     if (!initialized) {
-        return FALSE;
+        return false;
     }
-    return state.mouse_previous.buttons[button] == TRUE;
+    return state.mouse_previous.buttons[button] == true;
 }
 
 b8 input_was_button_up(E_BUTTONS button) {
     if (!initialized) {
-        return TRUE;
+        return true;
     }
-    return state.mouse_previous.buttons[button] == FALSE;
+    return state.mouse_previous.buttons[button] == false;
 }
 
 void input_get_mouse_position(i32* x, i32* y) {

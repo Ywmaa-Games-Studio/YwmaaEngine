@@ -13,7 +13,7 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, struct PLATFORM_STATE* p
         out_renderer_backend->end_frame = vulkan_renderer_backend_end_frame;
         out_renderer_backend->resized = vulkan_renderer_backend_on_resized;
 
-        return TRUE;
+        return true;
     }
 
     if (type == RENDERER_BACKEND_API_WEBGPU) {
@@ -23,10 +23,10 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, struct PLATFORM_STATE* p
         out_renderer_backend->end_frame = webgpu_renderer_backend_end_frame;
         out_renderer_backend->resized = webgpu_renderer_backend_on_resized;
 
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 void renderer_backend_destroy(RENDERER_BACKEND* renderer_backend) {

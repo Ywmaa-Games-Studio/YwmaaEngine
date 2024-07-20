@@ -77,8 +77,8 @@ void vulkan_command_buffer_allocate_and_begin_single_use(
     VULKAN_CONTEXT* context,
     VkCommandPool pool,
     VULKAN_COMMAND_BUFFER* out_command_buffer) {
-    vulkan_command_buffer_allocate(context, pool, TRUE, out_command_buffer);
-    vulkan_command_buffer_begin(out_command_buffer, TRUE, FALSE, FALSE);
+    vulkan_command_buffer_allocate(context, pool, true, out_command_buffer);
+    vulkan_command_buffer_begin(out_command_buffer, true, false, false);
 }
 
 void vulkan_command_buffer_end_single_use(

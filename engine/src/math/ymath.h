@@ -220,14 +220,14 @@ YINLINE Vector2 Vector2_normalized(Vector2 vector) {
  */
 YINLINE b8 Vector2_compare(Vector2 vector_0, Vector2 vector_1, f32 tolerance) {
     if (yabs(vector_0.x - vector_1.x) > tolerance) {
-        return FALSE;
+        return false;
     }
 
     if (yabs(vector_0.y - vector_1.y) > tolerance) {
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 /**
@@ -493,18 +493,18 @@ YINLINE Vector3 Vector3_cross(Vector3 vector_0, Vector3 vector_1) {
  */
 YINLINE const b8 Vector3_compare(Vector3 vector_0, Vector3 vector_1, f32 tolerance) {
     if (yabs(vector_0.x - vector_1.x) > tolerance) {
-        return FALSE;
+        return false;
     }
 
     if (yabs(vector_0.y - vector_1.y) > tolerance) {
-        return FALSE;
+        return false;
     }
 
     if (yabs(vector_0.z - vector_1.z) > tolerance) {
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 /**

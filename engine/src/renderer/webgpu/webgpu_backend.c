@@ -45,15 +45,15 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     cached_framebuffer_height = 0;
 
     if (!webgpu_device_create(platform_state)){
-        return FALSE;
+        return false;
     }
 
     if (!webgpu_swapchain_create(context.framebuffer_width, context.framebuffer_height)){
-        return FALSE;
+        return false;
     }   
 
     PRINT_INFO("WebGPU renderer initialized successfully.");
-    return TRUE;
+    return true;
 }
 
 void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
@@ -79,7 +79,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     // Check if recreating swap chain and boot out.
     if (context.recreating_swapchain) {
         PRINT_INFO("Recreating swapchain, booting.");
-        return FALSE;
+        return false;
     }
 
     // Check if the framebuffer has been resized. If so, a new swapchain must be created.
@@ -87,16 +87,16 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
         // If the swapchain recreation failed (because, for example, the window was minimized),
         // boot out before unsetting the flag.
         if (!webgpu_recreate_swapchain(backend)) {
-            return FALSE;
+            return false;
         }
 
         PRINT_INFO("Resized, booting.");
-        return FALSE;
+        return false;
     }
 
     //Create Texture
     context.target_view = get_next_surface_texture_view();
-    if (!context.target_view) return FALSE;
+    if (!context.target_view) return false;
 
     WGPUCommandEncoderDescriptor encoder_desc = {};
     encoder_desc.nextInChain = NULL;
@@ -135,7 +135,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     context.render_pass = wgpuCommandEncoderBeginRenderPass(context.encoder, &render_pass_desc);
     // [...] Use Render Pass
 
-    return TRUE;
+    return true;
 }
 
 b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
@@ -161,7 +161,7 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     //Present Texture
     wgpuSurfacePresent(context.surface);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -182,14 +182,14 @@ b8 webgpu_device_create(struct PLATFORM_STATE* platform_state){
     // We can check whether there is actually an instance created
     if (!context.instance) {
         PRINT_ERROR("Could not initialize WebGPU!");
-        return FALSE;
+        return false;
     }
 
     //START Surface
     PRINT_DEBUG("Creating WebGPU surface...");
     if (!platform_create_webgpu_surface(platform_state, &context)) {
         PRINT_ERROR("Failed to create platform surface!");
-        return FALSE;
+        return false;
     }
     PRINT_DEBUG("WebGPU surface created.");
     //END
@@ -318,7 +318,7 @@ void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapt
     } else {
         PRINT_ERROR("Could not get WebGPU adapter: ", message);
     }
-    adapter_data->requestEnded = TRUE;
+    adapter_data->requestEnded = true;
 };
 
 
@@ -364,7 +364,7 @@ void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, 
     } else {
         PRINT_ERROR("Could not get WebGPU device: ", message);
     }
-    device_data->requestEnded = TRUE;
+    device_data->requestEnded = true;
 };
 
 
@@ -416,17 +416,17 @@ b8 webgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     // If already being recreated, do not try again.
     if (context.recreating_swapchain) {
         PRINT_DEBUG("recreate_swapchain called when already recreating. Booting.");
-        return FALSE;
+        return false;
     }
 
     // Detect if the window is too small to be drawn to
     if (context.framebuffer_width == 0 || context.framebuffer_height == 0) {
         PRINT_DEBUG("recreate_swapchain called when window is < 1 in a dimension. Booting.");
-        return FALSE;
+        return false;
     }
 
     // Mark as recreating if the dimensions are valid.
-    context.recreating_swapchain = TRUE;
+    context.recreating_swapchain = true;
 
     webgpu_swapchain_destroy();
     
@@ -434,7 +434,7 @@ b8 webgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     // Swapchain
     if (!webgpu_swapchain_create(cached_framebuffer_width, cached_framebuffer_height)){
         PRINT_DEBUG("Failed to recreate swapchain");
-        return FALSE;
+        return false;
     }   
 
 
@@ -449,9 +449,9 @@ b8 webgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     context.framebuffer_size_last_generation = context.framebuffer_size_generation;
 
     // Clear the recreating flag.
-    context.recreating_swapchain = FALSE;
+    context.recreating_swapchain = false;
 
-    return TRUE;
+    return true;
 }
 
 WGPUTextureView get_next_surface_texture_view() {

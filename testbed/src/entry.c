@@ -21,5 +21,7 @@ b8 create_game(GAME* out_game) {
     out_game->state = yallocate(sizeof(GAME_STATE), MEMORY_TAG_GAME);
     //PRINT_INFO(get_memory_usage_str());
 
-    return TRUE;
+    out_game->application_state = 0;
+
+    return true;
 }

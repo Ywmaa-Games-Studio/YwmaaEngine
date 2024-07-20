@@ -6,6 +6,7 @@ typedef enum E_MEMORY_TAG {
     // For temporary use. Should be assigned one of the below or have a new tag created.
     MEMORY_TAG_UNKNOWN,
     MEMORY_TAG_ARRAY,
+    MEMORY_TAG_LINEAR_ALLOCATOR,
     MEMORY_TAG_DARRAY,
     MEMORY_TAG_DICT,
     MEMORY_TAG_RING_QUEUE,
@@ -25,7 +26,7 @@ typedef enum E_MEMORY_TAG {
     MEMORY_TAG_MAX_TAGS
 } E_MEMORY_TAG;
 
-YAPI void init_memory();
+YAPI void init_memory(u64* memory_requirement, void* state);
 YAPI void shutdown_memory();
 
 YAPI void* yallocate(u64 size, E_MEMORY_TAG tag);
@@ -39,3 +40,5 @@ YAPI void* ycopy_memory(void* dest, const void* source, u64 size);
 YAPI void* yset_memory(void* dest, i32 value, u64 size);
 
 YAPI char* get_memory_usage_str();
+
+YAPI u64 get_memory_alloc_count();

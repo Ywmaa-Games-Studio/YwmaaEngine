@@ -68,7 +68,7 @@ b8 platform_startup(
 
     if (xcb_connection_has_error(state->connection)) {
         PRINT_ERROR("Failed to connect to X server via XCB.");
-        return FALSE;
+        return false;
     }
 
     // Get data from the X server
@@ -168,10 +168,10 @@ b8 platform_startup(
     i32 stream_result = xcb_flush(state->connection);
     if (stream_result <= 0) {
         PRINT_ERROR("An error occurred when flusing the stream: %d", stream_result);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 void platform_shutdown(PLATFORM_STATE* platform_state) {
@@ -191,7 +191,7 @@ b8 platform_pump_messages(PLATFORM_STATE* platform_state) {
     xcb_generic_event_t* event;
     xcb_client_message_event_t* cm;
 
-    b8 quit_flagged = FALSE;
+    b8 quit_flagged = false;
 
     // Poll for events until null is returned.
     while ((event = xcb_poll_for_event(state->connection))) {
@@ -265,7 +265,7 @@ b8 platform_pump_messages(PLATFORM_STATE* platform_state) {
 
                 // Window close
                 if (cm->data.data32[0] == state->wm_delete_win) {
-                    quit_flagged = TRUE;
+                    quit_flagged = true;
                 }
             } break;
             default:
@@ -345,11 +345,11 @@ b8 platform_create_vulkan_surface(PLATFORM_STATE *platform_state, VULKAN_CONTEXT
         &state->vulkan_surface);
     if (result != VK_SUCCESS) {
         PRINT_ERROR("Vulkan surface creation failed.");
-        return FALSE;
+        return false;
     }
 
     context->surface = state->vulkan_surface;
-    return TRUE;
+    return true;
 }
 
 // Surface creation for WebGPU
@@ -370,7 +370,7 @@ b8 platform_create_webgpu_surface(PLATFORM_STATE *platform_state, WEBGPU_CONTEXT
     state->webgpu_surface = wgpuInstanceCreateSurface(context->instance, &surfaceDescriptor);
 
     context->surface = state->webgpu_surface;
-    return TRUE;
+    return true;
 }
 
 // Key translation
@@ -538,9 +538,10 @@ E_KEYS translate_keycode(u32 x_keycode) {
             return KEY_LCONTROL;
         case XK_Control_R:
             return KEY_RCONTROL;
-        // case XK_Menu: return KEY_LMENU;
-        case XK_Menu:
-            return KEY_RMENU;
+        case XK_Alt_L:
+            return KEY_LALT;
+        case XK_Alt_R:
+            return KEY_RALT;
 
         case XK_semicolon:
             return KEY_SEMICOLON;

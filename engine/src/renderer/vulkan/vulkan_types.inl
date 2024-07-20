@@ -109,6 +109,26 @@ typedef struct VULKAN_FENCE {
     VkFence handle;
     b8 is_signaled;
 } VULKAN_FENCE;
+typedef struct VULKAN_SHADER_STAGE {
+    VkShaderModuleCreateInfo create_info;
+    VkShaderModule handle;
+    VkPipelineShaderStageCreateInfo shader_stage_create_info;
+} VULKAN_SHADER_STAGE;
+
+typedef struct VULKAN_PIPELINE {
+    VkPipeline handle;
+    VkPipelineLayout pipeline_layout;
+} VULKAN_PIPELINE;
+
+#define OBJECT_SHADER_STAGE_COUNT 2
+typedef struct VULKAN_OBJECT_SHADER {
+    // vertex, fragment
+    VULKAN_SHADER_STAGE stages[OBJECT_SHADER_STAGE_COUNT];
+
+    VULKAN_PIPELINE pipeline;
+
+
+} VULKAN_OBJECT_SHADER;
 typedef struct VULKAN_CONTEXT {
 
     // The framebuffer's current width.
@@ -152,6 +172,8 @@ typedef struct VULKAN_CONTEXT {
     u32 current_frame;
 
     b8 recreating_swapchain;
+
+    VULKAN_OBJECT_SHADER object_shader;
 
     i32 (*find_memory_index)(u32 type_filter, u32 property_flags);
 #if defined(_DEBUG)

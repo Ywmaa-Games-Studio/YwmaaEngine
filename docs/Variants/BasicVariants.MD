@@ -30,4 +30,4 @@ double: f64
 
 int: b32
 
-char: b8
+_Bool: b8

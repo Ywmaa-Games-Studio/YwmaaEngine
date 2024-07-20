@@ -2,6 +2,7 @@
 
 #include "defines.h"
 #include "core/asserts.h"
+#include "renderer/renderer_types.inl"
 
 #include "../thirdparty/volk/volk.h"
 
@@ -132,6 +133,19 @@ typedef struct VULKAN_PIPELINE {
 typedef struct VULKAN_OBJECT_SHADER {
     // vertex, fragment
     VULKAN_SHADER_STAGE stages[OBJECT_SHADER_STAGE_COUNT];
+
+    VkDescriptorPool global_descriptor_pool;
+    VkDescriptorSetLayout global_descriptor_set_layout;
+
+    // One descriptor set per frame - max 3 for triple-buffering.
+    VkDescriptorSet global_descriptor_sets[3];
+    b8 descriptor_updated[3];
+
+    // Global uniform object.
+    global_uniform_object global_ubo;
+
+    // Global uniform buffer.
+    VULKAN_BUFFER global_uniform_buffer;
 
     VULKAN_PIPELINE pipeline;
 

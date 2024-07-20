@@ -33,5 +33,8 @@ typedef struct WEBGPU_CONTEXT {
     WGPUCommandEncoder encoder;
     WGPURenderPassEncoder render_pass;
     WGPUTextureFormat swapchain_format;
+    
+    WGPURenderPipeline pipeline;
+    WGPUShaderModule shaderModule;
 
 } WEBGPU_CONTEXT;

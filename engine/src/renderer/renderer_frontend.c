@@ -4,6 +4,7 @@
 
 #include "core/logger.h"
 #include "core/ymemory.h"
+#include "math/ymath.h"
 
 typedef struct RENDERER_SYSTEM_STATE {
     RENDERER_BACKEND backend;
@@ -64,7 +65,12 @@ void renderer_on_resized(u16 width, u16 height) {
 b8 renderer_draw_frame(RENDER_PACKET* packet) {
     // If the begin frame returned successfully, mid-frame operations may continue.
     if (renderer_begin_frame(packet->delta_time)) {
+        Matrice4 projection = Matrice4_perspective(deg_to_rad(45.0f), 1280 / 720.0f, 0.1f, 1000.0f);
+        static f32 z = -1.0f;
+        z -= 0.005f;
+        Matrice4 view = Matrice4_translation((Vector3){0, 0, z});
 
+        state_ptr->backend.update_global_state(projection, view, Vector3_zero(), Vector4_one(), 0);
         // End the frame. If this fails, it is likely unrecoverable.
         b8 result = renderer_end_frame(packet->delta_time);
 

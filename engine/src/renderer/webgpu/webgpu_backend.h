@@ -9,3 +9,5 @@ void webgpu_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u1
 
 b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time);
 b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time);
+
+void webgpu_renderer_update_global_state(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode);

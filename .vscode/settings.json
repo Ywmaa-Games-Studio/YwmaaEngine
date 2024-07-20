@@ -80,6 +80,8 @@
         "vulkan_shader_utils.h": "c",
         "filesystem.h": "c",
         "renderer_frontend.h": "c",
-        "vulkan_object_shader.h": "c"
+        "vulkan_object_shader.h": "c",
+        "renderer_types.inl": "c",
+        "math_types.h": "c"
     }
 }

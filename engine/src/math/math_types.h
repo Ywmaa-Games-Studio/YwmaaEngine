@@ -66,3 +66,7 @@ typedef Vector4 Color;
 typedef union Matrice_u {
     f32 data[16];
 } Matrice4;
+
+typedef struct Vertex3D {
+    Vector3 position;
+} Vertex3D;

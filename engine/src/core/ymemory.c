@@ -38,9 +38,10 @@ typedef struct MEMORY_SYSTEM_STATE {
     u64 alloc_count;
 } MEMORY_SYSTEM_STATE;
 
+// Pointer to system state.
 static MEMORY_SYSTEM_STATE* state_ptr;
 
-void init_memory(u64* memory_requirement, void* state) {
+void memory_system_init(u64* memory_requirement, void* state) {
     *memory_requirement = sizeof(MEMORY_SYSTEM_STATE);
     if (state == 0) {
         return;
@@ -51,7 +52,7 @@ void init_memory(u64* memory_requirement, void* state) {
     platform_zero_memory(&state_ptr->stats, sizeof(state_ptr->stats));
 }
 
-void shutdown_memory(void* state) {
+void memory_system_shutdown(void* state) {
     state_ptr = 0;
 }
 
@@ -78,8 +79,10 @@ void yfree(void* block, u64 size, E_MEMORY_TAG tag) {
         PRINT_WARNING("yfree called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
 
-    state_ptr->stats.total_allocated -= size;
-    state_ptr->stats.tagged_allocations[tag] -= size;
+    if (state_ptr) {
+        state_ptr->stats.total_allocated -= size;
+        state_ptr->stats.tagged_allocations[tag] -= size;
+    }
 
     // TODO: Memory alignment
     platform_free(block, false);

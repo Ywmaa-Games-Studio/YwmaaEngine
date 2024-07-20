@@ -65,6 +65,7 @@ jobs:
           Invoke-WebRequest -Uri 'https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe' -OutFile 'C:\vulkan-sdk.exe'
           cd C:\
           .\vulkan-sdk.exe --accept-licenses --default-answer --confirm-command install
+          DOSKEY glslc=%VULKAN_SDK%\bin\glslc.exe
       - name: Build
         run: zig build -Doptimize=ReleaseFast
 #  x86_64-macos: #Engine doesn't support mac, yet.

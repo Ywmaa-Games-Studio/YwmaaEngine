@@ -21,16 +21,18 @@
 #include "renderer/vulkan/vulkan_types.inl"
 
 #include "renderer/webgpu/webgpu_types.inl"
-typedef struct INTERNAL_STATE {
+typedef struct PLATFORM_STATE {
     HINSTANCE h_instance;
     HWND hwnd;
     VkSurfaceKHR vulkan_surface;
     WGPUSurface webgpu_surface;
-} INTERNAL_STATE;
+} PLATFORM_STATE;
 
-// Clock
-static f64 clock_frequency;
-static LARGE_INTEGER start_time;
+static PLATFORM_STATE *state_ptr;
+
+    // Clock
+    f64 clock_frequency;
+    LARGE_INTEGER start_time;
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 
@@ -41,28 +43,30 @@ void clock_setup() {
     QueryPerformanceCounter(&start_time);
 }
 
-b8 platform_startup(
-    PLATFORM_STATE *platform_state,
+b8 platform_system_startup(
+    u64 *memory_requirement,
+    void *state,
     const char *application_name,
     i32 x,
     i32 y,
     i32 width,
     i32 height) {
-
-    platform_state->internal_state = malloc(sizeof(INTERNAL_STATE));
-    INTERNAL_STATE *state = (INTERNAL_STATE *)platform_state->internal_state;
-
-    state->h_instance = GetModuleHandleA(0);
+    *memory_requirement = sizeof(PLATFORM_STATE);
+    if (state == 0) {
+        return true;
+    }
+    state_ptr = state;
+    state_ptr->h_instance = GetModuleHandleA(0);
 
     // Setup and register window class.
-    HICON icon = LoadIcon(state->h_instance, IDI_APPLICATION);
+    HICON icon = LoadIcon(state_ptr->h_instance, IDI_APPLICATION);
     WNDCLASSA wc;
     memset(&wc, 0, sizeof(wc));
     wc.style = CS_DBLCLKS;  // Get double-clicks
     wc.lpfnWndProc = win32_process_message;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
-    wc.hInstance = state->h_instance;
+    wc.hInstance = state_ptr->h_instance;
     wc.hIcon = icon;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);  // NULL; // Manage the cursor manually
     wc.hbrBackground = NULL;                   // Transparent
@@ -106,7 +110,7 @@ b8 platform_startup(
     HWND handle = CreateWindowExA(
         window_ex_style, "YWMAA_window_class", application_name,
         window_style, window_x, window_y, window_width, window_height,
-        0, 0, state->h_instance, 0);
+        0, 0, state_ptr->h_instance, 0);
 
     if (handle == 0) {
         MessageBoxA(NULL, "Window creation failed!", "Error!", MB_ICONEXCLAMATION | MB_OK);
@@ -114,7 +118,7 @@ b8 platform_startup(
         PRINT_ERROR("Window creation failed!");
         return false;
     } else {
-        state->hwnd = handle;
+        state_ptr->hwnd = handle;
     }
 
     // Show the window
@@ -122,7 +126,7 @@ b8 platform_startup(
     i32 show_window_command_flags = should_activate ? SW_SHOW : SW_SHOWNOACTIVATE;
     // If initially minimized, use SW_MINIMIZE : SW_SHOWMINNOACTIVE;
     // If initially maximized, use SW_SHOWMAXIMIZED : SW_MAXIMIZE
-    ShowWindow(state->hwnd, show_window_command_flags);
+    ShowWindow(state_ptr->hwnd, show_window_command_flags);
 
     // Clock setup
     clock_setup();
@@ -131,23 +135,21 @@ b8 platform_startup(
 }
 
 
-void platform_shutdown(PLATFORM_STATE *platform_state) {
-    // Simply cold-cast to the known type.
-    INTERNAL_STATE *state = (INTERNAL_STATE *)platform_state->internal_state;
-
-    if (state->hwnd) {
-        DestroyWindow(state->hwnd);
-        state->hwnd = 0;
+void platform_system_shutdown(void *plat_state) {
+    if (state_ptr && state_ptr->hwnd) {
+        DestroyWindow(state_ptr->hwnd);
+        state_ptr->hwnd = 0;
     }
 }
 
-b8 platform_pump_messages(PLATFORM_STATE *platform_state) {
-    MSG message;
-    while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE)) {
-        TranslateMessage(&message);
-        DispatchMessageA(&message);
+b8 platform_pump_messages() {
+    if (state_ptr) {
+        MSG message;
+        while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&message);
+            DispatchMessageA(&message);
+        }
     }
-
     return true;
 }
 
@@ -212,41 +214,43 @@ void platform_get_required_extension_names(const char ***names_darray) {
 }
 
 // Surface creation for Vulkan
-b8 platform_create_vulkan_surface(PLATFORM_STATE *platform_state, VULKAN_CONTEXT *context) {
-    // Simply cold-cast to the known type.
-    INTERNAL_STATE *state = (INTERNAL_STATE *)platform_state->internal_state;
+b8 platform_create_vulkan_surface(VULKAN_CONTEXT *context) {
+    if (!state_ptr) {
+        return false;
+    }
 
     VkWin32SurfaceCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR};
-    create_info.hinstance = state->h_instance;
-    create_info.hwnd = state->hwnd;
+    create_info.hinstance = state_ptr->h_instance;
+    create_info.hwnd = state_ptr->hwnd;
 
-    VkResult result = vkCreateWin32SurfaceKHR(context->instance, &create_info, context->allocator, &state->vulkan_surface);
+    VkResult result = vkCreateWin32SurfaceKHR(context->instance, &create_info, context->allocator, &state_ptr->vulkan_surface);
     if (result != VK_SUCCESS) {
         PRINT_ERROR("Vulkan surface creation failed.");
         return false;
     }
 
-    context->surface = state->vulkan_surface;
+    context->surface = state_ptr->vulkan_surface;
     return true;
 }
 // Surface creation for WebGPU
-b8 platform_create_webgpu_surface(PLATFORM_STATE *platform_state, WEBGPU_CONTEXT *context) {
-    // Simply cold-cast to the known type.
-    INTERNAL_STATE *state = (INTERNAL_STATE *)platform_state->internal_state;
+b8 platform_create_webgpu_surface(WEBGPU_CONTEXT *context) {
+    if (!state_ptr) {
+        return false;
+    }
 
     WGPUSurfaceDescriptorFromWindowsHWND fromWindowsHWND;
     fromWindowsHWND.chain.next = NULL;
     fromWindowsHWND.chain.sType = WGPUSType_SurfaceDescriptorFromWindowsHWND;
-    fromWindowsHWND.hinstance = state->h_instance;
-    fromWindowsHWND.hwnd = state->hwnd;
+    fromWindowsHWND.hinstance = state_ptr->h_instance;
+    fromWindowsHWND.hwnd = state_ptr->hwnd;
 
     WGPUSurfaceDescriptor surfaceDescriptor;
     surfaceDescriptor.nextInChain = &fromWindowsHWND.chain;
     surfaceDescriptor.label = NULL;
 
-    state->webgpu_surface = wgpuInstanceCreateSurface(context->instance, &surfaceDescriptor);
+    state_ptr->webgpu_surface = wgpuInstanceCreateSurface(context->instance, &surfaceDescriptor);
 
-    context->surface = state->webgpu_surface;
+    context->surface = state_ptr->webgpu_surface;
     return true;
 }
 

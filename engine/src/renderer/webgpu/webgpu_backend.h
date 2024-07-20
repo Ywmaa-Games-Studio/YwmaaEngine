@@ -2,7 +2,7 @@
 
 #include "renderer/renderer_backend.h"
 
-b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* application_name, struct PLATFORM_STATE* platform_state);
+b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* application_name);
 void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend);
 
 void webgpu_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u16 height);

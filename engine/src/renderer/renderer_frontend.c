@@ -5,19 +5,24 @@
 #include "core/logger.h"
 #include "core/ymemory.h"
 
-struct PLATFORM_STATE;
+typedef struct RENDERER_SYSTEM_STATE {
+    RENDERER_BACKEND backend;
+} RENDERER_SYSTEM_STATE;
 
-// Backend render context.
-static RENDERER_BACKEND* backend = 0;
+static RENDERER_SYSTEM_STATE* state_ptr;
 
-b8 renderer_init(const char* application_name, struct PLATFORM_STATE* platform_state) {
-    backend = yallocate(sizeof(RENDERER_BACKEND), MEMORY_TAG_RENDERER);
+b8 renderer_system_init(u64* memory_requirement, void* state, const char* application_name) {
+    *memory_requirement = sizeof(RENDERER_SYSTEM_STATE);
+    if (state == 0) {
+        return true;
+    }
+    state_ptr = state;
 
     // TODO: make this configurable.
-    renderer_backend_create(RENDERER_BACKEND_API_VULKAN, platform_state, backend);
-    backend->frame_number = 0;
+    renderer_backend_create(RENDERER_BACKEND_API_VULKAN, &state_ptr->backend);
+    state_ptr->backend.frame_number = 0;
 
-    if (!backend->init(backend, application_name, platform_state)) {
+    if (!state_ptr->backend.init(&state_ptr->backend, application_name)) {
         PRINT_ERROR("Renderer backend failed to initialize. Shutting down.");
         return false;
     }
@@ -25,24 +30,32 @@ b8 renderer_init(const char* application_name, struct PLATFORM_STATE* platform_s
     return true;
 }
 
-void renderer_shutdown() {
-    backend->shutdown(backend);
-    yfree(backend, sizeof(RENDERER_BACKEND), MEMORY_TAG_RENDERER);
+void renderer_system_shutdown(void* state) {
+    if (state_ptr) {
+        state_ptr->backend.shutdown(&state_ptr->backend);
+    }
+    state_ptr = 0;
 }
 
 b8 renderer_begin_frame(f32 delta_time) {
-    return backend->begin_frame(backend, delta_time);
+    if (!state_ptr) {
+        return false;
+    }
+    return state_ptr->backend.begin_frame(&state_ptr->backend, delta_time);
 }
 
 b8 renderer_end_frame(f32 delta_time) {
-    b8 result = backend->end_frame(backend, delta_time);
-    backend->frame_number++;
+    if (!state_ptr) {
+        return false;
+    }
+    b8 result = state_ptr->backend.end_frame(&state_ptr->backend, delta_time);
+    state_ptr->backend.frame_number++;
     return result;
 }
 
 void renderer_on_resized(u16 width, u16 height) {
-    if (backend) {
-        backend->resized(backend, width, height);
+    if (state_ptr) {
+        state_ptr->backend.resized(&state_ptr->backend, width, height);
     } else {
         PRINT_WARNING("renderer backend does not exist to accept resize: %i %i", width, height);
     }

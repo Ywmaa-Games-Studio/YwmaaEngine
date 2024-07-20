@@ -26,8 +26,8 @@ typedef enum E_MEMORY_TAG {
     MEMORY_TAG_MAX_TAGS
 } E_MEMORY_TAG;
 
-YAPI void init_memory(u64* memory_requirement, void* state);
-YAPI void shutdown_memory();
+YAPI void memory_system_init(u64* memory_requirement, void* state);
+YAPI void memory_system_shutdown(void* state);
 
 YAPI void* yallocate(u64 size, E_MEMORY_TAG tag);
 

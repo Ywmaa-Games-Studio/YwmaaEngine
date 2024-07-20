@@ -11,7 +11,7 @@ typedef struct RENDERER_BACKEND {
     struct PLATFORM_STATE* platform_state;
     u64 frame_number;
 
-    b8 (*init)(struct RENDERER_BACKEND* backend, const char* application_name, struct PLATFORM_STATE* platform_state);
+    b8 (*init)(struct RENDERER_BACKEND* backend, const char* application_name);
 
     void (*shutdown)(struct RENDERER_BACKEND* backend);
 

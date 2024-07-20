@@ -20,29 +20,32 @@ typedef struct INPUT_STATE {
     MOUSE_STATE mouse_previous;
 } INPUT_STATE;
 
-// Internal input state
-static b8 initialized = false;
-static INPUT_STATE state = {};
+// Internal input state pointer
+static INPUT_STATE* state_ptr;
 
-void input_init() {
-    yzero_memory(&state, sizeof(INPUT_STATE));
-    initialized = true;
+void input_system_init(u64* memory_requirement, void* state) {
+    *memory_requirement = sizeof(INPUT_STATE);
+    if (state == 0) {
+        return;
+    }
+    yzero_memory(state, sizeof(INPUT_STATE));
+    state_ptr = state;
     PRINT_INFO("Input subsystem initialized.");
 }
 
-void input_shutdown() {
+void input_system_shutdown(void* state) {
     // TODO: Add shutdown routines when needed.
-    initialized = false;
+    state_ptr = 0;
 }
 
 void input_update(f64 delta_time) {
-    if (!initialized) {
+    if (!state_ptr) {
         return;
     }
 
     // Copy current states to previous states.
-    ycopy_memory(&state.keyboard_previous, &state.keyboard_current, sizeof(KEYBOARD_STATE));
-    ycopy_memory(&state.mouse_previous, &state.mouse_current, sizeof(MOUSE_STATE));
+    ycopy_memory(&state_ptr->keyboard_previous, &state_ptr->keyboard_current, sizeof(KEYBOARD_STATE));
+    ycopy_memory(&state_ptr->mouse_previous, &state_ptr->mouse_current, sizeof(MOUSE_STATE));
 }
 
 void input_process_key(E_KEYS key, b8 pressed) {
@@ -65,9 +68,9 @@ void input_process_key(E_KEYS key, b8 pressed) {
     }
 
     // Only handle this if the state actually changed.
-    if (state.keyboard_current.keys[key] != pressed) {
+    if (state_ptr->keyboard_current.keys[key] != pressed) {
         // Update internal state.
-        state.keyboard_current.keys[key] = pressed;
+        state_ptr->keyboard_current.keys[key] = pressed;
 
         // Fire off an event for immediate processing.
         EVENT_CONTEXT context;
@@ -78,8 +81,8 @@ void input_process_key(E_KEYS key, b8 pressed) {
 
 void input_process_button(E_BUTTONS button, b8 pressed) {
     // If the state changed, fire an event.
-    if (state.mouse_current.buttons[button] != pressed) {
-        state.mouse_current.buttons[button] = pressed;
+    if (state_ptr->mouse_current.buttons[button] != pressed) {
+        state_ptr->mouse_current.buttons[button] = pressed;
         // Fire the event.
         EVENT_CONTEXT context;
         context.data.u16[0] = button;
@@ -89,13 +92,13 @@ void input_process_button(E_BUTTONS button, b8 pressed) {
 
 void input_process_mouse_move(i16 x, i16 y) {
     // Only process if actually different
-    if (state.mouse_current.x != x || state.mouse_current.y != y) {
+    if (state_ptr->mouse_current.x != x || state_ptr->mouse_current.y != y) {
         // NOTE: Enable this if debugging.
         // PRINT_DEBUG("Mouse pos: %i, %i!", x, y);
 
         // Update internal state.
-        state.mouse_current.x = x;
-        state.mouse_current.y = y;
+        state_ptr->mouse_current.x = x;
+        state_ptr->mouse_current.y = y;
 
         // Fire the event.
         EVENT_CONTEXT context;
@@ -115,78 +118,78 @@ void input_process_mouse_wheel(i8 z_delta) {
 }
 
 b8 input_is_key_down(E_KEYS key) {
-    if (!initialized) {
+    if (!state_ptr) {
         return false;
     }
-    return state.keyboard_current.keys[key] == true;
+    return state_ptr->keyboard_current.keys[key] == true;
 }
 
 b8 input_is_key_up(E_KEYS key) {
-    if (!initialized) {
+    if (!state_ptr) {
         return true;
     }
-    return state.keyboard_current.keys[key] == false;
+    return state_ptr->keyboard_current.keys[key] == false;
 }
 
 b8 input_was_key_down(E_KEYS key) {
-    if (!initialized) {
+    if (!state_ptr) {
         return false;
     }
-    return state.keyboard_previous.keys[key] == true;
+    return state_ptr->keyboard_previous.keys[key] == true;
 }
 
 b8 input_was_key_up(E_KEYS key) {
-    if (!initialized) {
+    if (!state_ptr) {
         return true;
     }
-    return state.keyboard_previous.keys[key] == false;
+    return state_ptr->keyboard_previous.keys[key] == false;
 }
 
 // mouse input
 b8 input_is_button_down(E_BUTTONS button) {
-    if (!initialized) {
+    if (!state_ptr) {
         return false;
     }
-    return state.mouse_current.buttons[button] == true;
+    return state_ptr->mouse_current.buttons[button] == true;
 }
 
 b8 input_is_button_up(E_BUTTONS button) {
-    if (!initialized) {
+    if (!state_ptr) {
         return true;
     }
-    return state.mouse_current.buttons[button] == false;
+    return state_ptr->mouse_current.buttons[button] == false;
 }
 
 b8 input_was_button_down(E_BUTTONS button) {
-    if (!initialized) {
+    if (!state_ptr) {
         return false;
     }
-    return state.mouse_previous.buttons[button] == true;
+    return state_ptr->mouse_previous.buttons[button] == true;
 }
 
 b8 input_was_button_up(E_BUTTONS button) {
-    if (!initialized) {
+    if (!state_ptr) {
         return true;
     }
-    return state.mouse_previous.buttons[button] == false;
+    return state_ptr->mouse_previous.buttons[button] == false;
 }
 
 void input_get_mouse_position(i32* x, i32* y) {
-    if (!initialized) {
+    if (!state_ptr) {
         *x = 0;
         *y = 0;
         return;
     }
-    *x = state.mouse_current.x;
-    *y = state.mouse_current.y;
+    *x = state_ptr->mouse_current.x;
+    *y = state_ptr->mouse_current.y;
 }
 
 void input_get_previous_mouse_position(i32* x, i32* y) {
-    if (!initialized) {
+    if (!state_ptr) {
         *x = 0;
         *y = 0;
         return;
     }
-    *x = state.mouse_previous.x;
-    *y = state.mouse_previous.y;
+    *x = state_ptr->mouse_previous.x;
+    *y = state_ptr->mouse_previous.y;
 }

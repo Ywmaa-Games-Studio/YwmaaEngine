@@ -11,7 +11,7 @@
 
 #include "platform/platform.h"
 
-b8 webgpu_device_create(struct PLATFORM_STATE* platform_state);
+b8 webgpu_device_create();
 void webgpu_device_destroy();
 
 WGPUAdapter request_adapter_sync(WGPUInstance instance, WGPURequestAdapterOptions const * options);
@@ -37,14 +37,14 @@ static u32 cached_framebuffer_width = 0;
 static u32 cached_framebuffer_height = 0;
 
 
-b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* application_name, struct PLATFORM_STATE* platform_state) {
+b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* application_name) {
     application_get_framebuffer_size(&cached_framebuffer_width, &cached_framebuffer_height);
     context.framebuffer_width = (cached_framebuffer_width != 0) ? cached_framebuffer_width : 800;
     context.framebuffer_height = (cached_framebuffer_height != 0) ? cached_framebuffer_height : 600;
     cached_framebuffer_width = 0;
     cached_framebuffer_height = 0;
 
-    if (!webgpu_device_create(platform_state)){
+    if (!webgpu_device_create()){
         return false;
     }
 
@@ -165,7 +165,7 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
 }
 
 
-b8 webgpu_device_create(struct PLATFORM_STATE* platform_state){
+b8 webgpu_device_create(){
     // We create a descriptor
     WGPUInstanceDescriptor desc = {};
     desc.nextInChain = NULL;
@@ -187,7 +187,7 @@ b8 webgpu_device_create(struct PLATFORM_STATE* platform_state){
 
     //START Surface
     PRINT_DEBUG("Creating WebGPU surface...");
-    if (!platform_create_webgpu_surface(platform_state, &context)) {
+    if (!platform_create_webgpu_surface(&context)) {
         PRINT_ERROR("Failed to create platform surface!");
         return false;
     }

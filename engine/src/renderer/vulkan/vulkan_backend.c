@@ -43,7 +43,7 @@ void create_command_buffers(RENDERER_BACKEND* backend);
 void regenerate_framebuffers(RENDERER_BACKEND* backend, VULKAN_SWAPCHAIN* swapchain, VULKAN_RENDERPASS* renderpass);
 b8 recreate_swapchain(RENDERER_BACKEND* backend);
 
-b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* application_name, struct PLATFORM_STATE* platform_state) {
+b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* application_name) {
     VK_CHECK(volkInitialize());
 
     // Function pointers
@@ -83,7 +83,7 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
 
     //START Surface
     PRINT_DEBUG("Creating Vulkan surface...");
-    if (!platform_create_vulkan_surface(platform_state, &context)) {
+    if (!platform_create_vulkan_surface(&context)) {
         PRINT_ERROR("Failed to create platform surface!");
         return false;
     }

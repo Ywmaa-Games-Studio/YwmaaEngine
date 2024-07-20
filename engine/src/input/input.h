@@ -143,8 +143,15 @@ typedef enum E_KEYS {
     KEYS_MAX_KEYS
 } E_KEYS;
 
-void input_init();
-void input_shutdown();
+/**
+ * @brief Initializes the input system. Call twice; once to obtain memory requirement (passing
+ * state = 0), then a second time passing allocated memory to state.
+ * 
+ * @param memory_requirement The required size of the state memory.
+ * @param state Either 0 or the allocated block of state memory.
+ */
+void input_system_init(u64* memory_requirement, void* state);
+void input_system_shutdown(void* state);
 void input_update(f64 delta_time);
 
 // keyboard input

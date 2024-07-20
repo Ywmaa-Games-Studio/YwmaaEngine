@@ -8,6 +8,7 @@
 #include "vulkan_framebuffer.h"
 #include "vulkan_fence.h"
 #include "vulkan_utils.h"
+#include "vulkan_buffer.h"
 
 #include "core/logger.h"
 #include "core/ystring.h"
@@ -15,6 +16,8 @@
 #include "core/application.h"
 
 #include "variants/darray.h"
+
+#include "math/math_types.h"
 
 #include "platform/platform.h"
 
@@ -38,6 +41,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     void* user_data);
 
 i32 find_memory_index(u32 type_filter, u32 property_flags);
+b8 create_buffers(VULKAN_CONTEXT* context);
 
 void create_command_buffers(RENDERER_BACKEND* backend);
 void regenerate_framebuffers(RENDERER_BACKEND* backend, VULKAN_SWAPCHAIN* swapchain, VULKAN_RENDERPASS* renderpass);
@@ -149,6 +153,8 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
         return false;
     }
 
+    create_buffers(&context);
+
     PRINT_INFO("Vulkan renderer initialized successfully.");
     return true;
 }
@@ -156,6 +162,10 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
 void vulkan_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
     vkDeviceWaitIdle(context.device.logical_device);
     // Destroy in the opposite order of creation.
+
+    // Destroy buffers
+    vulkan_buffer_destroy(&context, &context.object_vertex_buffer);
+    vulkan_buffer_destroy(&context, &context.object_index_buffer);
 
     vulkan_object_shader_destroy(&context, &context.object_shader);
 
@@ -533,6 +543,38 @@ b8 recreate_swapchain(RENDERER_BACKEND* backend) {
 
     // Clear the recreating flag.
     context.recreating_swapchain = false;
+
+    return true;
+}
+
+b8 create_buffers(VULKAN_CONTEXT* context) {
+    VkMemoryPropertyFlagBits memory_property_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    const u64 vertex_buffer_size = sizeof(Vertex3D) * 1024 * 1024;
+    if (!vulkan_buffer_create(
+            context,
+            vertex_buffer_size,
+            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            memory_property_flags,
+            true,
+            &context->object_vertex_buffer)) {
+        PRINT_ERROR("Error creating vertex buffer.");
+        return false;
+    }
+    context->geometry_vertex_offset = 0;
+
+    const u64 index_buffer_size = sizeof(u32) * 1024 * 1024;
+    if (!vulkan_buffer_create(
+            context,
+            index_buffer_size,
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            memory_property_flags,
+            true,
+            &context->object_index_buffer)) {
+        PRINT_ERROR("Error creating vertex buffer.");
+        return false;
+    }
+    context->geometry_index_offset = 0;
 
     return true;
 }

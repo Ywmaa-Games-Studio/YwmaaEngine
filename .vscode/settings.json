@@ -79,6 +79,7 @@
         "ymemory.h": "c",
         "vulkan_shader_utils.h": "c",
         "filesystem.h": "c",
-        "renderer_frontend.h": "c"
+        "renderer_frontend.h": "c",
+        "vulkan_object_shader.h": "c"
     }
 }

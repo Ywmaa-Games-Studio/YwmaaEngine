@@ -10,7 +10,15 @@
     {                                \
         YASSERT(expr == VK_SUCCESS); \
     }
-
+typedef struct VULKAN_BUFFER {
+    u64 total_size;
+    VkBuffer handle;
+    VkBufferUsageFlagBits usage;
+    b8 is_locked;
+    VkDeviceMemory memory;
+    i32 memory_index;
+    u32 memory_property_flags;
+} VULKAN_BUFFER;
 typedef struct VULKAN_SWAPCHAIN_SUPPORT_INFO {
     VkSurfaceCapabilitiesKHR capabilities;
     u32 format_count;
@@ -153,6 +161,9 @@ typedef struct VULKAN_CONTEXT {
     VULKAN_SWAPCHAIN swapchain;
     VULKAN_RENDERPASS main_renderpass;
 
+    VULKAN_BUFFER object_vertex_buffer;
+    VULKAN_BUFFER object_index_buffer;
+
     // darray
     VULKAN_COMMAND_BUFFER* graphics_command_buffers;
 
@@ -174,6 +185,9 @@ typedef struct VULKAN_CONTEXT {
     b8 recreating_swapchain;
 
     VULKAN_OBJECT_SHADER object_shader;
+
+    u64 geometry_vertex_offset;
+    u64 geometry_index_offset;
 
     i32 (*find_memory_index)(u32 type_filter, u32 property_flags);
 #if defined(_DEBUG)

@@ -180,22 +180,22 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
 }
 
 b8 webgpu_pipeline_create(){
-WGPUShaderModuleDescriptor shaderDesc = {};
-shaderDesc.hintCount = 0;
-shaderDesc.hints = NULL;
+    WGPUShaderModuleDescriptor shaderDesc = {};
+    shaderDesc.hintCount = 0;
+    shaderDesc.hints = NULL;
 
-WGPUShaderModuleWGSLDescriptor shaderCodeDesc = {};
-// Set the chained struct's header
-shaderCodeDesc.chain.next = NULL;
-shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-const char* code = "@vertex fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4f {var p = vec2f(0.0, 0.0);if (in_vertex_index == 0u) {p = vec2f(-0.5, -0.5);} else if (in_vertex_index == 1u) {p = vec2f(0.5, -0.5);} else {p = vec2f(0.0, 0.5);}return vec4f(p, 0.0, 1.0);} @fragment fn fs_main() -> @location(0) vec4f {return vec4f(0.0, 0.4, 1.0, 1.0);}";
-// Connect the chain
-shaderDesc.nextInChain = &shaderCodeDesc.chain;
+    WGPUShaderModuleWGSLDescriptor shaderCodeDesc = {};
+    // Set the chained struct's header
+    shaderCodeDesc.chain.next = NULL;
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    const char* code = "@vertex fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4f {var p = vec2f(0.0, 0.0);if (in_vertex_index == 0u) {p = vec2f(-0.5, -0.5);} else if (in_vertex_index == 1u) {p = vec2f(0.5, -0.5);} else {p = vec2f(0.0, 0.5);}return vec4f(p, 0.0, 1.0);} @fragment fn fs_main() -> @location(0) vec4f {return vec4f(0.0, 0.4, 1.0, 1.0);}";
+    // Connect the chain
+    shaderDesc.nextInChain = &shaderCodeDesc.chain;
 
-shaderCodeDesc.code = code;
-PRINT_INFO("Got shader module: ");
-context.shaderModule = wgpuDeviceCreateShaderModule(context.device, &shaderDesc);
-PRINT_INFO("Got shader module: %i", &context.shaderModule);
+    shaderCodeDesc.code = code;
+    PRINT_INFO("Got shader module: ");
+    context.shaderModule = wgpuDeviceCreateShaderModule(context.device, &shaderDesc);
+    PRINT_INFO("Got shader module: %i", &context.shaderModule);
 
 
     // [...] Describe render pipeline

@@ -82,6 +82,7 @@
         "renderer_frontend.h": "c",
         "vulkan_object_shader.h": "c",
         "renderer_types.inl": "c",
-        "math_types.h": "c"
+        "math_types.h": "c",
+        "entry.h": "c"
     }
 }

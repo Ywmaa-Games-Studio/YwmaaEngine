@@ -169,7 +169,7 @@ pub fn build(b: *std.Build) !void {
     b.installDirectory(.{
         .source_dir = b.path("assets"),
         .install_dir = .prefix,
-        .install_subdir = "bin/",
+        .install_subdir = "bin/assets",
     });
 
     const run_cmd = b.addRunArtifact(exe);

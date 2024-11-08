@@ -33,7 +33,7 @@ b8 vulkan_graphics_pipeline_create(
     rasterizer_create_info.polygonMode = is_wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizer_create_info.lineWidth = 1.0f;
     rasterizer_create_info.cullMode = VK_CULL_MODE_NONE;//VK_CULL_MODE_BACK_BIT/VK_CULL_MODE_NONE
-    rasterizer_create_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;//VK_FRONT_FACE_COUNTER_CLOCKWISE/VK_FRONT_FACE_CLOCKWISE
+    rasterizer_create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;//VK_FRONT_FACE_COUNTER_CLOCKWISE/VK_FRONT_FACE_CLOCKWISE
     rasterizer_create_info.depthBiasEnable = VK_FALSE;
     rasterizer_create_info.depthBiasConstantFactor = 0.0f;
     rasterizer_create_info.depthBiasClamp = 0.0f;
@@ -58,7 +58,7 @@ b8 vulkan_graphics_pipeline_create(
 
     VkPipelineColorBlendAttachmentState color_blend_attachment_state;
     yzero_memory(&color_blend_attachment_state, sizeof(VkPipelineColorBlendAttachmentState));
-    color_blend_attachment_state.blendEnable = VK_TRUE;
+    color_blend_attachment_state.blendEnable = VK_FALSE;
     color_blend_attachment_state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     color_blend_attachment_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     color_blend_attachment_state.colorBlendOp = VK_BLEND_OP_ADD;

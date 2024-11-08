@@ -155,18 +155,22 @@ void input_system_shutdown(void* state);
 void input_update(f64 delta_time);
 
 // keyboard input
-YAPI b8 input_is_key_down(E_KEYS key);
-YAPI b8 input_is_key_up(E_KEYS key);
-YAPI b8 input_was_key_down(E_KEYS key);
-YAPI b8 input_was_key_up(E_KEYS key);
+YAPI b8 input_is_key_just_pressed(E_KEYS key);
+YAPI b8 input_is_key_just_released(E_KEYS key);
+YAPI b8 input_is_key_pressed(E_KEYS key);
+YAPI b8 input_is_key_released(E_KEYS key);
+YAPI b8 input_was_key_released(E_KEYS key);
+YAPI b8 input_was_key_pressed(E_KEYS key);
 
 void input_process_key(E_KEYS key, b8 pressed);
 
 // mouse input
-YAPI b8 input_is_button_down(E_BUTTONS button);
-YAPI b8 input_is_button_up(E_BUTTONS button);
-YAPI b8 input_was_button_down(E_BUTTONS button);
-YAPI b8 input_was_button_up(E_BUTTONS button);
+YAPI b8 input_is_button_just_pressed(E_BUTTONS button);
+YAPI b8 input_is_button_just_released(E_BUTTONS button);
+YAPI b8 input_is_button_pressed(E_BUTTONS button);
+YAPI b8 input_is_button_released(E_BUTTONS button);
+YAPI b8 input_was_button_pressed(E_BUTTONS button);
+YAPI b8 input_was_button_released(E_BUTTONS button);
 YAPI void input_get_mouse_position(i32* x, i32* y);
 YAPI void input_get_previous_mouse_position(i32* x, i32* y);
 

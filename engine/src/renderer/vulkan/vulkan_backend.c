@@ -181,8 +181,8 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     verts[0].position.x = -0.5 * f;
     verts[0].position.y = -0.5 * f;
 
-    verts[1].position.y = 0.5 * f;
     verts[1].position.x = 0.5 * f;
+    verts[1].position.y = 0.5 * f;
 
     verts[2].position.x = -0.5 * f;
     verts[2].position.y = 0.5 * f;

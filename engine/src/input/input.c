@@ -117,28 +117,42 @@ void input_process_mouse_wheel(i8 z_delta) {
     event_fire(EVENT_CODE_MOUSE_WHEEL, 0, context);
 }
 
-b8 input_is_key_down(E_KEYS key) {
+b8 input_is_key_just_pressed(E_KEYS key) {
+    if (!state_ptr) {
+        return false;
+    }
+    return input_is_key_pressed(key) == true && input_was_key_released(key) == true;
+}
+
+b8 input_is_key_just_released(E_KEYS key) {
+    if (!state_ptr) {
+        return true;
+    }
+    return input_is_key_released(key) == true && input_was_key_pressed(key) == true;
+}
+
+b8 input_is_key_pressed(E_KEYS key) {
     if (!state_ptr) {
         return false;
     }
     return state_ptr->keyboard_current.keys[key] == true;
 }
 
-b8 input_is_key_up(E_KEYS key) {
+b8 input_is_key_released(E_KEYS key) {
     if (!state_ptr) {
         return true;
     }
     return state_ptr->keyboard_current.keys[key] == false;
 }
 
-b8 input_was_key_down(E_KEYS key) {
+b8 input_was_key_pressed(E_KEYS key) {
     if (!state_ptr) {
         return false;
     }
     return state_ptr->keyboard_previous.keys[key] == true;
 }
 
-b8 input_was_key_up(E_KEYS key) {
+b8 input_was_key_released(E_KEYS key) {
     if (!state_ptr) {
         return true;
     }
@@ -146,28 +160,43 @@ b8 input_was_key_up(E_KEYS key) {
 }
 
 // mouse input
-b8 input_is_button_down(E_BUTTONS button) {
+
+b8 input_is_button_just_pressed(E_BUTTONS button) {
+    if (!state_ptr) {
+        return false;
+    }
+    return input_is_button_pressed(button) == true && input_was_button_released(button) == true;
+}
+
+b8 input_is_button_just_released(E_BUTTONS button) {
+    if (!state_ptr) {
+        return true;
+    }
+    return input_is_button_released(button) == true && input_was_button_pressed(button) == true;
+}
+
+b8 input_is_button_pressed(E_BUTTONS button) {
     if (!state_ptr) {
         return false;
     }
     return state_ptr->mouse_current.buttons[button] == true;
 }
 
-b8 input_is_button_up(E_BUTTONS button) {
+b8 input_is_button_released(E_BUTTONS button) {
     if (!state_ptr) {
         return true;
     }
     return state_ptr->mouse_current.buttons[button] == false;
 }
 
-b8 input_was_button_down(E_BUTTONS button) {
+b8 input_was_button_pressed(E_BUTTONS button) {
     if (!state_ptr) {
         return false;
     }
     return state_ptr->mouse_previous.buttons[button] == true;
 }
 
-b8 input_was_button_up(E_BUTTONS button) {
+b8 input_was_button_released(E_BUTTONS button) {
     if (!state_ptr) {
         return true;
     }

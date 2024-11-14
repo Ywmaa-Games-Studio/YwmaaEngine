@@ -86,6 +86,8 @@
         "entry.h": "c",
         "x11.h": "c",
         "x11_loader.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "game_types.h": "c",
+        "application.h": "c"
     }
 }

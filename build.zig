@@ -18,7 +18,6 @@ pub fn build(b: *std.Build) !void {
         .name = "engine",
         .target = target,
         .optimize = optimize,
-        .root_source_file = b.path("engine/src/main.zig"),
     });
 
     libengine.addIncludePath(.{ .cwd_relative = "engine/src" });
@@ -132,7 +131,7 @@ pub fn build(b: *std.Build) !void {
 
     exe.addIncludePath(.{ .cwd_relative = "engine/src" });
     exe.addIncludePath(.{ .cwd_relative = "testbed/src" });
-    // Search for all C/C++ files in `src` and add them
+    // Search for all C files in `src` and add them
     {
         var dir = try std.fs.cwd().openDir("testbed/src", .{ .iterate = true });
 
@@ -147,7 +146,7 @@ pub fn build(b: *std.Build) !void {
                     break true;
             } else false;
             if (include_file) {
-                std.debug.print("Testbed: Found C file to compile: '{s}'. path: '{s}'\n", .{ entry.basename, entry.path });
+                std.debug.print("Testbed: Found {s} file to compile: '{s}'. path: '{s}'\n", .{ ext, entry.basename, entry.path });
                 exe.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "testbed/src", entry.path })), .flags = &testbed_flags });
             }
         }

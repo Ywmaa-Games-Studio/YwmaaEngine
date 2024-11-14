@@ -6,8 +6,6 @@ in
 with pkgs;
   mkShell {
   packages = [
-    #glfw
-    freetype
     vulkan-loader
     vulkan-validation-layers
     vulkan-tools        # vulkaninfo
@@ -19,16 +17,14 @@ with pkgs;
   ];
 
   buildInputs = with pkgs; [
-    #glfw
     freetype
     unstable.zig
     clang-tools
 
-    libxkbcommon.dev
-
     #X11
-    xorg.libX11.dev
-    xorg.libxcb.dev
+    xorg.libX11
+    xorg.libxcb
+    libxkbcommon
 
     #Wayland
     wayland #libwayland-client
@@ -37,6 +33,6 @@ with pkgs;
     libdecor
   ];
 
-  LD_LIBRARY_PATH="${pkgs.wayland}/:${pkgs.wayland-protocols}/:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
+  LD_LIBRARY_PATH="${pkgs.xorg.libX11}/lib:${pkgs.xorg.libxcb}/lib:${pkgs.libxkbcommon}/lib:${pkgs.wayland}/:${pkgs.wayland-protocols}/:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
 }
 

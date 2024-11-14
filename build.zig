@@ -18,6 +18,7 @@ pub fn build(b: *std.Build) !void {
         .name = "engine",
         .target = target,
         .optimize = optimize,
+        .root_source_file = b.path("engine/src/main.zig"),
     });
 
     libengine.addIncludePath(.{ .cwd_relative = "engine/src" });
@@ -36,7 +37,7 @@ pub fn build(b: *std.Build) !void {
                     break true;
             } else false;
             if (include_file) {
-                std.debug.print("Engine: Found C file to compile: '{s}'. path: '{s}'\n", .{ entry.basename, entry.path });
+                std.debug.print("Engine: Found {s} file to compile: '{s}'. path: '{s}'\n", .{ ext, entry.basename, entry.path });
                 libengine.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "engine/src", entry.path })), .flags = &engine_flags });
             }
         }
@@ -55,10 +56,6 @@ pub fn build(b: *std.Build) !void {
         //        })) |dep| {
         //            libengine.linkLibrary(dep.artifact("wayland-headers"));
         //        }
-        libengine.linkSystemLibrary("xcb");
-        libengine.linkSystemLibrary("X11");
-        libengine.linkSystemLibrary("X11-xcb");
-        libengine.linkSystemLibrary("xkbcommon");
         libengine.addLibraryPath(.{ .cwd_relative = "/usr/X11R6/lib" });
     }
 
@@ -130,6 +127,7 @@ pub fn build(b: *std.Build) !void {
         .name = "testbed",
         .target = target,
         .optimize = optimize,
+        .root_source_file = b.path("testbed/src/main.zig"),
     });
 
     exe.addIncludePath(.{ .cwd_relative = "engine/src" });

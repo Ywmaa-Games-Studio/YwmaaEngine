@@ -8,9 +8,10 @@
 extern b8 create_game(GAME* out_game);
 
 /**
- * The main entry point of the application.
+ * The main entry point of the application in C.
+ * This is actually called from the main function in main.zig
  */
-int main(void) {
+int engine_main(void) {
     
     // Request the game instance from the application.
     GAME game_instance;

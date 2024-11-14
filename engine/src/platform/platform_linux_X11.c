@@ -62,23 +62,20 @@ b8 platform_system_startup(
 
     state_ptr = state;
     // Load X11
-    int result = x11_initialize();
-    if (result == 1){
+    X11_LOADER_RESULT result = x11_initialize();
+    if (result == X11_LOADER_LIBX11_ERROR){
         PRINT_ERROR("libX11 not found");
-    } else if (result == 2)
-    {
-        PRINT_ERROR("libxkbcommon not found");
-    } else if (result == 3)
+    } else if (result == X11_LOADER_LIBXCB_ERROR)
     {
         PRINT_ERROR("libxcb not found");
-    } else if (result == 4)
+    } else if (result == X11_LOADER_LIBX11XCB_ERROR)
     {
         PRINT_ERROR("libX11-xcb not found");
     }
     else {
         PRINT_INFO("Loaded X11");
     }
-    YASSERT_MSG(result == 0, "Failed to load X11");
+    YASSERT_MSG(result == X11_LOADER_SUCCESS, "Failed to load X11");
 
     // Connect to X
     state_ptr->display = loader_XOpenDisplay(NULL);
@@ -88,10 +85,10 @@ b8 platform_system_startup(
     
 
     // TODO: Fix this check crashes
-/*     if (loader_xcb_connection_has_error(state_ptr->connection)) {
+    if (loader_xcb_connection_has_error(state_ptr->connection)) {
         PRINT_ERROR("Failed to connect to X server via XCB.");
         return false;
-    } */
+    }
     
     // Get data from the X server
     const struct xcb_setup_t* setup = loader_xcb_get_setup(state_ptr->connection);
@@ -219,9 +216,11 @@ b8 platform_pump_messages() {
                     xcb_key_press_event_t* kb_event = (xcb_key_press_event_t*)event;
                     b8 pressed = event->response_type == XCB_KEY_PRESS;
                     xcb_keycode_t code = kb_event->detail;
-                    // TODO: Fix crash here
-                    KeySym key_sym;
-                    loader_XkbLookupKeySym(state_ptr->display, (KeyCode)code, 1, 0, &key_sym);
+                    KeySym key_sym = loader_XkbKeycodeToKeysym(
+                        state_ptr->display,
+                        (KeyCode)code,  //event.xkey.keycode,
+                        0,
+                        0/* code & ShiftMask ? 1 : 0 */);
 
                     E_KEYS key = translate_keycode(key_sym);
 

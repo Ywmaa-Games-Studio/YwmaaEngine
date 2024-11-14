@@ -2,9 +2,13 @@
 #include "X11_loader.h"
 #include <dlfcn.h>
 
-
+typedef enum X11_LOADER_RESULT {
+    X11_LOADER_SUCCESS,
+    X11_LOADER_LIBX11_ERROR,
+    X11_LOADER_LIBXCB_ERROR,
+    X11_LOADER_LIBX11XCB_ERROR
+} X11_LOADER_RESULT;
 static void* x11_loaded_module = NULL;
-static void* libxkbcommon_loaded_module = NULL;
 static void* libxcb_loaded_module = NULL;
 static void* libx11xcb_loaded_module = NULL;
 int x11_initialize(void)
@@ -15,19 +19,11 @@ int x11_initialize(void)
 	if (!x11_module)
 		x11_module = dlopen("libX11-6.so", RTLD_LAZY | RTLD_LOCAL);
 	if (!x11_module)
-		return 1;
+		return X11_LOADER_LIBX11_ERROR;
 
 	loader_XOpenDisplay = (PFN_XOpenDisplay)dlsym(x11_module, "XOpenDisplay");
-	
-	void* libxkbcommon_module = dlopen("libxkbcommon.so.0", RTLD_LAZY | RTLD_LOCAL);
-	if (!libxkbcommon_module)
-		libxkbcommon_module = dlopen("libxkbcommon.so", RTLD_LAZY | RTLD_LOCAL);
-	if (!libxkbcommon_module)
-		libxkbcommon_module = dlopen("libxkbcommon-0.so", RTLD_LAZY | RTLD_LOCAL);
-	if (!libxkbcommon_module)
-		return 2;
-	loader_XkbKeycodeToKeysym = (PFN_XkbKeycodeToKeysym)dlsym(libxkbcommon_module, "XkbKeycodeToKeysym");
-	loader_XkbLookupKeySym = (PFN_XkbLookupKeySym)dlsym(libxkbcommon_module, "XkbLookupKeySym");
+	loader_XkbKeycodeToKeysym = (PFN_XkbKeycodeToKeysym)dlsym(x11_module, "XkbKeycodeToKeysym");
+	loader_XkbLookupKeySym = (PFN_XkbLookupKeySym)dlsym(x11_module, "XkbLookupKeySym");
 
 	void* libxcb_module = dlopen("libxcb.so.1", RTLD_LAZY | RTLD_LOCAL);
 	if (!libxcb_module)
@@ -35,7 +31,8 @@ int x11_initialize(void)
 	if (!libxcb_module)
 		libxcb_module = dlopen("libxcb-1.so", RTLD_LAZY | RTLD_LOCAL);
 	if (!libxcb_module)
-		return 3;
+		return X11_LOADER_LIBXCB_ERROR;
+	loader_xcb_connection_has_error = (PFN_xcb_connection_has_error)dlsym(libxcb_module, "xcb_connection_has_error");
 	loader_xcb_get_setup = (PFN_xcb_get_setup)dlsym(libxcb_module, "xcb_get_setup");
 	loader_xcb_setup_roots_iterator = (PFN_xcb_setup_roots_iterator)dlsym(libxcb_module, "xcb_setup_roots_iterator");
 	loader_xcb_screen_next = (PFN_xcb_screen_next)dlsym(libxcb_module, "xcb_screen_next");
@@ -55,15 +52,14 @@ int x11_initialize(void)
 	if (!libx11xcb_module)
 		libx11xcb_module = dlopen("libX11-xcb.so.1", RTLD_LAZY | RTLD_LOCAL);
 	if (!libx11xcb_module)
-		return 4;
+		return X11_LOADER_LIBX11XCB_ERROR;
 	loader_XGetXCBConnection = (PFN_XGetXCBConnection)dlsym(libx11xcb_module, "XGetXCBConnection");
 
 	x11_loaded_module = x11_module;
 	libxcb_loaded_module = libxcb_module;
-	libxkbcommon_loaded_module = libxkbcommon_module;
 	libx11xcb_loaded_module = libx11xcb_module;
 
-	return 0;
+	return X11_LOADER_SUCCESS;
 }
 
 void x11_finalize(void)
@@ -72,14 +68,11 @@ void x11_finalize(void)
 		dlclose(x11_loaded_module);
 	if (libxcb_loaded_module)
 		dlclose(libxcb_loaded_module);
-	if (libxkbcommon_loaded_module)
-		dlclose(libxkbcommon_loaded_module);
 	if (libx11xcb_loaded_module)
 		dlclose(libx11xcb_loaded_module);
 
 	x11_loaded_module = NULL;
 	libxcb_loaded_module = NULL;
-	libxkbcommon_loaded_module = NULL;
 	libx11xcb_loaded_module = NULL;
 }
 

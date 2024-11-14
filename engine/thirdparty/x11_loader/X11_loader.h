@@ -4,7 +4,7 @@
 #include <X11/keysym.h>
 // The Xkb extension provides improved keyboard support
 #include <X11/XKBlib.h>
-#include <xkbcommon/xkbcommon.h>
+/* #include <xkbcommon/xkbcommon.h> */
 #include <xcb/xcb.h>
 
 
@@ -167,7 +167,7 @@ typedef	Bool (* PFN_XkbLookupKeySym)(Display*, KeyCode, unsigned int, unsigned i
 //xcb_connection_t *XGetXCBConnection(Display *dpy);
 typedef xcb_connection_t* (* PFN_XGetXCBConnection)(Display*);
 //int xcb_connection_has_error(xcb_connection_t *c);
-typedef int* (* PFN_xcb_connection_has_error)(xcb_connection_t*);
+typedef int (* PFN_xcb_connection_has_error)(xcb_connection_t*);
 typedef void (* PFN_xcb_screen_next)(xcb_screen_iterator_t*);
 typedef const xcb_setup_t* (* PFN_xcb_get_setup)(const xcb_connection_t*);
 typedef xcb_screen_iterator_t (* PFN_xcb_setup_roots_iterator)(const xcb_setup_t*);

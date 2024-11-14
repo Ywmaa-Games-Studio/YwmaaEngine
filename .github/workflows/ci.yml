@@ -44,29 +44,29 @@ jobs:
       #  run: zig build -Dtarget=aarch64-macos
       - name: x86_64-linux -> x86_64-windows
         run: zig build -Dtarget=x86_64-windows -Doptimize=ReleaseFast
-  x86_64-windows:
-    runs-on: windows-latest
-    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
-    # to the branch.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Setup Zig
-        run: |
-          $ProgressPreference = 'SilentlyContinue'
-          Invoke-WebRequest -Uri 'https://ziglang.org/download/0.13.0/zig-windows-x86_64-0.13.0.zip' -OutFile 'C:\zig.zip'
-          cd C:\
-          7z x zig.zip
-          Add-Content $env:GITHUB_PATH 'C:\zig-windows-x86_64-0.13.0\'
-      - name: Install Vulkan Dependencies
-        run: |
-          $ProgressPreference = 'SilentlyContinue'
-          Invoke-WebRequest -Uri 'https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe' -OutFile 'C:\vulkan-sdk.exe'
-          cd C:\
-          .\vulkan-sdk.exe --accept-licenses --default-answer --confirm-command install
-      - name: Build
-        run: zig build -Doptimize=ReleaseFast
+#  x86_64-windows:
+#    runs-on: windows-latest
+#    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
+#    # to the branch.
+#    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v2
+#      - name: Setup Zig
+#        run: |
+#          $ProgressPreference = 'SilentlyContinue'
+#          Invoke-WebRequest -Uri 'https://ziglang.org/download/0.13.0/zig-windows-x86_64-0.13.0.zip' -OutFile 'C:\zig.zip'
+#          cd C:\
+#          7z x zig.zip
+#          Add-Content $env:GITHUB_PATH 'C:\zig-windows-x86_64-0.13.0\'
+#      - name: Install Vulkan Dependencies
+#        run: |
+#          $ProgressPreference = 'SilentlyContinue'
+#          Invoke-WebRequest -Uri 'https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe' -OutFile 'C:\vulkan-sdk.exe'
+#          cd C:\
+#          .\vulkan-sdk.exe --accept-licenses --default-answer --confirm-command install
+#      - name: Build
+#        run: zig build -Doptimize=ReleaseFast
 #  x86_64-macos: #Engine doesn't support mac, yet.
 #    runs-on: macos-12
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push

@@ -83,6 +83,9 @@
         "vulkan_object_shader.h": "c",
         "renderer_types.inl": "c",
         "math_types.h": "c",
-        "entry.h": "c"
+        "entry.h": "c",
+        "x11.h": "c",
+        "x11_loader.h": "c",
+        "stdio.h": "c"
     }
 }

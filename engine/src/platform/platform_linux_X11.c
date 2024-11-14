@@ -9,11 +9,10 @@
 
 #include "variants/darray.h"
 
-#include <xcb/xcb.h>
-#include <X11/keysym.h>
-#include <X11/XKBlib.h>  // sudo apt-get install libx11-dev
-#include <X11/Xlib.h>
-#include <X11/Xlib-xcb.h>  // sudo apt-get install libxkbcommon-x11-dev
+// if X11 is loaded dynamically then define this
+#define X11_DYNAMIC_LOAD_IMPLEMENTATION
+#include "../thirdparty/x11_loader/X11_loader.h"
+
 #include <sys/time.h>
 
 #if _POSIX_C_SOURCE >= 199309L
@@ -62,36 +61,53 @@ b8 platform_system_startup(
     }
 
     state_ptr = state;
+    // Load X11
+    int result = x11_initialize();
+    if (result == 1){
+        PRINT_ERROR("libX11 not found");
+    } else if (result == 2)
+    {
+        PRINT_ERROR("libxkbcommon not found");
+    } else if (result == 3)
+    {
+        PRINT_ERROR("libxcb not found");
+    } else if (result == 4)
+    {
+        PRINT_ERROR("libX11-xcb not found");
+    }
+    else {
+        PRINT_INFO("Loaded X11");
+    }
+    YASSERT_MSG(result == 0, "Failed to load X11");
 
     // Connect to X
-    state_ptr->display = XOpenDisplay(NULL);
+    state_ptr->display = loader_XOpenDisplay(NULL);
 
-    // Turn off key repeats.
-    XAutoRepeatOff(state_ptr->display);
-    XAutoRepeatOn(state_ptr->display);
     // Retrieve the connection from the display.
-    state_ptr->connection = XGetXCBConnection(state_ptr->display);
+    state_ptr->connection = loader_XGetXCBConnection(state_ptr->display);
+    
 
-    if (xcb_connection_has_error(state_ptr->connection)) {
+    // TODO: Fix this check crashes
+/*     if (loader_xcb_connection_has_error(state_ptr->connection)) {
         PRINT_ERROR("Failed to connect to X server via XCB.");
         return false;
-    }
-
+    } */
+    
     // Get data from the X server
-    const struct xcb_setup_t* setup = xcb_get_setup(state_ptr->connection);
+    const struct xcb_setup_t* setup = loader_xcb_get_setup(state_ptr->connection);
 
     // Loop through screens using iterator
-    xcb_screen_iterator_t it = xcb_setup_roots_iterator(setup);
+    xcb_screen_iterator_t it = loader_xcb_setup_roots_iterator(setup);
     int screen_p = 0;
     for (i32 s = screen_p; s > 0; s--) {
-        xcb_screen_next(&it);
+        loader_xcb_screen_next(&it);
     }
 
     // After screens have been looped through, assign it.
     state_ptr->screen = it.data;
 
     // Allocate a XID for the window to be created.
-    state_ptr->window = xcb_generate_id(state_ptr->connection);
+    state_ptr->window = loader_xcb_generate_id(state_ptr->connection);
 
     // Register event types.
     // XCB_CW_BACK_PIXEL = filling then window bg with a single colour
@@ -108,7 +124,7 @@ b8 platform_system_startup(
     u32 value_list[] = {state_ptr->screen->black_pixel, event_values};
 
     // Create the window
-    xcb_void_cookie_t cookie = xcb_create_window(
+    xcb_void_cookie_t cookie = loader_xcb_create_window(
         state_ptr->connection,
         XCB_COPY_FROM_PARENT,  // depth
         state_ptr->window,
@@ -124,7 +140,7 @@ b8 platform_system_startup(
         value_list);
 
     // Change the title
-    xcb_change_property(
+    loader_xcb_change_property(
         state_ptr->connection,
         XCB_PROP_MODE_REPLACE,
         state_ptr->window,
@@ -136,28 +152,28 @@ b8 platform_system_startup(
 
     // Tell the server to notify when the window manager
     // attempts to destroy the window.
-    xcb_intern_atom_cookie_t wm_delete_cookie = xcb_intern_atom(
+    xcb_intern_atom_cookie_t wm_delete_cookie = loader_xcb_intern_atom(
         state_ptr->connection,
         0,
         strlen("WM_DELETE_WINDOW"),
         "WM_DELETE_WINDOW");
-    xcb_intern_atom_cookie_t wm_protocols_cookie = xcb_intern_atom(
+    xcb_intern_atom_cookie_t wm_protocols_cookie = loader_xcb_intern_atom(
         state_ptr->connection,
         0,
         strlen("WM_PROTOCOLS"),
         "WM_PROTOCOLS");
-    xcb_intern_atom_reply_t* wm_delete_reply = xcb_intern_atom_reply(
+    xcb_intern_atom_reply_t* wm_delete_reply = loader_xcb_intern_atom_reply(
         state_ptr->connection,
         wm_delete_cookie,
         NULL);
-    xcb_intern_atom_reply_t* wm_protocols_reply = xcb_intern_atom_reply(
+    xcb_intern_atom_reply_t* wm_protocols_reply = loader_xcb_intern_atom_reply(
         state_ptr->connection,
         wm_protocols_cookie,
         NULL);
     state_ptr->wm_delete_win = wm_delete_reply->atom;
     state_ptr->wm_protocols = wm_protocols_reply->atom;
 
-    xcb_change_property(
+    loader_xcb_change_property(
         state_ptr->connection,
         XCB_PROP_MODE_REPLACE,
         state_ptr->window,
@@ -168,10 +184,10 @@ b8 platform_system_startup(
         &wm_delete_reply->atom);
 
     // Map the window to the screen
-    xcb_map_window(state_ptr->connection, state_ptr->window);
+    loader_xcb_map_window(state_ptr->connection, state_ptr->window);
 
     // Flush the stream
-    i32 stream_result = xcb_flush(state_ptr->connection);
+    i32 stream_result = loader_xcb_flush(state_ptr->connection);
     if (stream_result <= 0) {
         PRINT_ERROR("An error occurred when flusing the stream: %d", stream_result);
         return false;
@@ -182,10 +198,7 @@ b8 platform_system_startup(
 
 void platform_system_shutdown(void* plat_state) {
     if (state_ptr) {
-        // Turn key repeats back on since this is global for the OS... just... wow.
-        XAutoRepeatOn(state_ptr->display);
-
-        xcb_destroy_window(state_ptr->connection, state_ptr->window);
+        loader_xcb_destroy_window(state_ptr->connection, state_ptr->window);
     }
 }
 
@@ -197,12 +210,7 @@ b8 platform_pump_messages() {
         b8 quit_flagged = false;
 
         // Poll for events until null is returned.
-        while (event != 0) {
-            event = xcb_poll_for_event(state_ptr->connection);
-            if (event == 0) {
-                break;
-            }
-
+        while ((event = loader_xcb_poll_for_event(state_ptr->connection))) {
             // Input events
             switch (event->response_type & ~0x80) {
                 case XCB_KEY_PRESS:
@@ -211,11 +219,9 @@ b8 platform_pump_messages() {
                     xcb_key_press_event_t* kb_event = (xcb_key_press_event_t*)event;
                     b8 pressed = event->response_type == XCB_KEY_PRESS;
                     xcb_keycode_t code = kb_event->detail;
-                    KeySym key_sym = XkbKeycodeToKeysym(
-                        state_ptr->display,
-                        (KeyCode)code,  //event.xkey.keycode,
-                        0,
-                        code & ShiftMask ? 1 : 0);
+                    // TODO: Fix crash here
+                    KeySym key_sym;
+                    loader_XkbLookupKeySym(state_ptr->display, (KeyCode)code, 1, 0, &key_sym);
 
                     E_KEYS key = translate_keycode(key_sym);
 

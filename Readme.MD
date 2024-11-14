@@ -62,9 +62,6 @@ TO-DO
 
 Install these via package manager:
  - `zig`
- - `libx11-dev`
- - `libxkbcommon-x11-dev`
- - `libx11-xcb-dev`
 
 You can also check the required dependecies for linux in shell.nix
 

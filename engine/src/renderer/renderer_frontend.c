@@ -20,7 +20,7 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
     state_ptr = state;
 
     // TODO: make this configurable.
-    renderer_backend_create(RENDERER_BACKEND_API_VULKAN, &state_ptr->backend);
+    renderer_backend_create(RENDERER_BACKEND_API_WEBGPU, &state_ptr->backend);
     state_ptr->backend.frame_number = 0;
 
     if (!state_ptr->backend.init(&state_ptr->backend, application_name)) {

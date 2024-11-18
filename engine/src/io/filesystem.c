@@ -49,6 +49,16 @@ void filesystem_close(FILE_HANDLE* handle) {
     }
 }
 
+b8 filesystem_size(FILE_HANDLE* handle, u64* out_size) {
+    if (handle->handle) {
+        fseek((FILE*)handle->handle, 0, SEEK_END);
+        *out_size = ftell((FILE*)handle->handle);
+        rewind((FILE*)handle->handle);
+        return true;
+    }
+    return false;
+}
+
 b8 filesystem_read_line(FILE_HANDLE* handle, char** line_buf) {
     if (handle->handle) {
         // Since we are reading a single line, it should be safe to assume this is enough characters.
@@ -102,6 +112,20 @@ b8 filesystem_read_all_bytes(FILE_HANDLE* handle, u8** out_bytes, u64* out_bytes
             return false;
         }
         return true;
+    }
+    return false;
+}
+
+b8 filesystem_read_all_text(FILE_HANDLE* handle, char* out_text, u64* out_bytes_read) {
+    if (handle->handle && out_text && out_bytes_read) {
+        // File size
+        u64 size = 0;
+        if (!filesystem_size(handle, &size)) {
+            return false;
+        }
+
+        *out_bytes_read = fread(out_text, 1, size, (FILE*)handle->handle);
+        return true; //*out_bytes_read == size;
     }
     return false;
 }

@@ -37,6 +37,15 @@ YAPI b8 filesystem_open(const char* path, E_FILE_MODES mode, b8 binary, FILE_HAN
  */
 YAPI void filesystem_close(FILE_HANDLE* handle);
 
+/**
+ * @brief Attempts to read the size of the file to which handle is attached.
+ *
+ * @param handle The file handle.
+ * @param out_size A pointer to hold the file size.
+ * @return
+ */
+YAPI b8 filesystem_size(FILE_HANDLE* handle, u64* out_size);
+
 /** 
  * Reads up to a newline or EOF. Allocates *line_buf, which must be freed by the caller.
  * @param handle A pointer to a file_handle structure.
@@ -73,6 +82,15 @@ YAPI b8 filesystem_read(FILE_HANDLE* handle, u64 data_size, void* out_data, u64*
  * @returns True if successful; otherwise false.
  */
 YAPI b8 filesystem_read_all_bytes(FILE_HANDLE* handle, u8** out_bytes, u64* out_bytes_read);
+
+/**
+ * @brief Reads all characters of data into out_text.
+ * @param handle A pointer to a file_handle structure.
+ * @param out_text A character array which will be populated by this method.
+ * @param out_bytes_read A pointer to a number which will be populated with the number of bytes actually read from the file.
+ * @returns True if successful; otherwise false.
+ */
+YAPI b8 filesystem_read_all_text(FILE_HANDLE* handle, char* out_text, u64* out_bytes_read);
 
 /** 
  * Writes provided data to the file.

@@ -41,6 +41,57 @@ pub fn build(b: *std.Build) !void {
             }
         }
     }
+    //In The Future I Should replace this with compiling WGPU from source to be able to statically link WGPU
+    var lib_file = b.path("engine/thirdparty/wgpu/bin");
+    if (target.result.os.tag == .linux) {
+        if (target.result.cpu.arch == .aarch64) {
+            lib_file = b.path("engine/thirdparty/wgpu/bin/linux-aarch64");
+        } else if (target.result.cpu.arch == .x86_64) {
+            lib_file = b.path("engine/thirdparty/wgpu/bin/linux-x86_64");
+        }
+    } else if (target.result.os.tag == .windows) {
+        if (target.result.cpu.arch == .aarch64) {
+            lib_file = b.path("engine/thirdparty/wgpu/bin/windows-i686-msvc");
+        } else if (target.result.cpu.arch == .x86_64) {
+            lib_file = b.path("engine/thirdparty/wgpu/bin/windows-x86_64-gnu");
+        }
+    } else if (target.result.os.tag == .macos) {
+        if (target.result.cpu.arch == .aarch64) {
+            lib_file = b.path("engine/thirdparty/wgpu/bin/macos-aarch64");
+        } else if (target.result.cpu.arch == .x86_64) {
+            lib_file = b.path("engine/thirdparty/wgpu/bin/macos-x86_64");
+        }
+    }
+
+    libengine.root_module.addRPathSpecial("$ORIGIN");
+    libengine.root_module.addRPathSpecial("$ORIGIN/lib");
+    libengine.root_module.addRPathSpecial("$ORIGIN/../lib");
+    libengine.root_module.addRPathSpecial(".");
+    if (target.result.os.tag == .windows) {
+        b.installDirectory(.{
+            .source_dir = lib_file,
+            .install_dir = .prefix,
+            .install_subdir = "bin/",
+            .include_extensions = &.{".dll"},
+        });
+        libengine.addLibraryPath(lib_file);
+        libengine.linkSystemLibrary2("wgpu_native.dll", .{
+            .use_pkg_config = .no,
+            .preferred_link_mode = .dynamic,
+        });
+    } else {
+        b.installDirectory(.{
+            .source_dir = lib_file,
+            .install_dir = .prefix,
+            .install_subdir = "lib/",
+            .include_extensions = &.{ ".dylib", ".so" },
+        });
+        libengine.addLibraryPath(lib_file);
+        libengine.linkSystemLibrary2("wgpu_native", .{
+            .use_pkg_config = .no,
+            .preferred_link_mode = .dynamic,
+        });
+    }
 
     if (target.result.os.tag == .linux) {
         if (b.lazyDependency("x11_headers", .{
@@ -63,61 +114,6 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     })) |dep| {
         libengine.linkLibrary(dep.artifact("vulkan-headers"));
-    }
-
-    if (b.lazyDependency("wgpu", .{
-        .target = target,
-        .optimize = optimize,
-    })) |dep| {
-        libengine.addIncludePath(dep.path("include"));
-
-        //In The Future I Should replace this with compiling WGPU from source to support more platforms & statically link WGPU
-        var lib_file = dep.path("bin");
-        if (target.result.os.tag == .linux) {
-            if (target.result.cpu.arch == .aarch64) {
-                lib_file = dep.path("bin/linux-aarch64/libwgpu_native.so");
-            } else if (target.result.cpu.arch == .x86_64) {
-                lib_file = dep.path("bin/linux-x86_64/libwgpu_native.so");
-            }
-        } else if (target.result.os.tag == .windows) {
-            if (target.result.cpu.arch == .aarch64) {
-                lib_file = dep.path("bin/windows-i686");
-            } else if (target.result.cpu.arch == .x86_64) {
-                lib_file = dep.path("bin/windows-x86_64");
-            }
-        } else if (target.result.os.tag == .macos) {
-            if (target.result.cpu.arch == .aarch64) {
-                lib_file = dep.path("bin/macos-aarch64/libwgpu_native.dylib");
-            } else if (target.result.cpu.arch == .x86_64) {
-                lib_file = dep.path("bin/macos-x86_64/libwgpu_native.dylib");
-            }
-        }
-
-        libengine.root_module.addRPathSpecial("$ORIGIN");
-        libengine.root_module.addRPathSpecial("$ORIGIN/lib");
-        libengine.root_module.addRPathSpecial("$ORIGIN/../lib");
-        libengine.root_module.addRPathSpecial(".");
-        if (target.result.os.tag == .windows) {
-            b.installDirectory(.{
-                .source_dir = lib_file,
-                .install_dir = .prefix,
-                .install_subdir = "bin/",
-            });
-            libengine.addLibraryPath(lib_file);
-            libengine.linkSystemLibrary2("wgpu_native.dll", .{
-                .use_pkg_config = .no,
-                .preferred_link_mode = .dynamic,
-            });
-        } else {
-            const wgpu = b.addSharedLibrary(.{
-                .name = "wgpu_native",
-                .target = target,
-                .optimize = optimize,
-            });
-            wgpu.addObjectFile(lib_file);
-            libengine.linkLibrary(wgpu);
-            b.installArtifact(wgpu);
-        }
     }
 
     libengine.linkLibC();

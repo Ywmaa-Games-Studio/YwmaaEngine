@@ -209,7 +209,7 @@ b8 webgpu_pipeline_create(){
     // Read the entire file as binary.
     u64 size = 0;
     u8 extra_size = 1; // This is required to add extra size for empty space
-    const char* code = yallocate(sizeof(char) * file_size +extra_size, MEMORY_TAG_STRING);
+    char* code = yallocate(sizeof(char) * file_size +extra_size, MEMORY_TAG_STRING);
     if (!filesystem_read_all_text(&handle, code, &size)) {
         PRINT_ERROR("Unable to text read shader module: %s.", file_name);
         return false;
@@ -352,23 +352,23 @@ b8 webgpu_device_create(){
 	wgpuAdapterGetLimits(context.adapter, &supported_limits);
 
 #ifdef _DEBUG
-    WGPUAdapterProperties properties = {};
+    WGPUAdapterInfo properties = {};
     properties.nextInChain = NULL;
-    wgpuAdapterGetProperties(context.adapter, &properties);
+    wgpuAdapterGetInfo(context.adapter, &properties);
     PRINT_INFO("Adapter properties:");
     PRINT_INFO(" - vendorID: ", properties.vendorID);
-    if (properties.vendorName) {
-        PRINT_INFO(" - vendorName: ", properties.vendorName);
+    if (properties.vendor) {
+        PRINT_INFO(" - vendorName: ", properties.vendor);
     }
     if (properties.architecture) {
         PRINT_INFO(" - architecture: ", properties.architecture);
     }
     PRINT_INFO(" - deviceID: ", properties.deviceID);
-    if (properties.name) {
-        PRINT_INFO(" - name: ", properties.name);
+    if (properties.device) {
+        PRINT_INFO(" - name: ", properties.device);
     }
-    if (properties.driverDescription) {
-        PRINT_INFO(" - driverDescription: ", properties.driverDescription);
+    if (properties.description) {
+        PRINT_INFO(" - driverDescription: ", properties.description);
     }
     PRINT_INFO(" - adapterType: 0x", properties.adapterType);
     PRINT_INFO(" - backendType: 0x", properties.backendType);
@@ -386,9 +386,13 @@ b8 webgpu_device_create(){
     // [...] Build device descriptor
     context.device = request_device_sync(context.adapter, &device_desc);
 
-    wgpuDeviceSetUncapturedErrorCallback(context.device, on_device_error, NULL /* pUserData */);
+    //wgpuDeviceSetUncapturedErrorCallback(context.device, on_device_error, NULL /* pUserData */);
     PRINT_INFO("Got device: %i", context.device);
-    context.swapchain_format = wgpuSurfaceGetPreferredFormat(context.surface, context.adapter);
+    //context.swapchain_format = wgpuSurfaceGetPreferredFormat(context.surface, context.adapter); This changed to the code below
+    WGPUSurfaceCapabilities capabilities;
+    wgpuSurfaceGetCapabilities( context.surface, context.adapter, &capabilities );
+    context.swapchain_format = capabilities.formats[0];
+    wgpuSurfaceCapabilitiesFreeMembers( capabilities );
     //END Device creation
 
     context.queue = wgpuDeviceGetQueue(context.device);

@@ -88,6 +88,10 @@
         "x11_loader.h": "c",
         "stdio.h": "c",
         "game_types.h": "c",
-        "application.h": "c"
+        "application.h": "c",
+        "webgpu_platform.h": "c",
+        "renderer_backend.h": "c",
+        "wgpu.h": "c",
+        "webgpu.h": "c"
     }
 }

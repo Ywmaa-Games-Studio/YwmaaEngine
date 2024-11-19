@@ -9,11 +9,11 @@
         "README.md",
     },
     .dependencies = .{
-        .wgpu = .{
-            .url = "https://github.com/eliemichel/WebGPU-distribution/archive/54a60379a9d792848a2311856375ceef16db150e.tar.gz",
-            .hash = "1220d79aaa7ed87bbf40d88f62504daca1e80f7e6b89ef761e7098f212a1fe85b312",
-            .lazy = true,
-        },
+        //        .wgpu = .{
+        //            .url = "https://github.com/eliemichel/WebGPU-distribution/archive/54a60379a9d792848a2311856375ceef16db150e.tar.gz",
+        //            .hash = "1220d79aaa7ed87bbf40d88f62504daca1e80f7e6b89ef761e7098f212a1fe85b312",
+        //            .lazy = true,
+        //        },
         .vulkan_headers = .{
             .url = "https://github.com/hexops/vulkan-headers/archive/ae4bb705e6cad613825d9e7d8ffc29ca595f54cb.tar.gz",
             .hash = "122058b98f7d2ac86597363d0c0515c30aea392c605d5976c600196bd2c5b08b95d6",

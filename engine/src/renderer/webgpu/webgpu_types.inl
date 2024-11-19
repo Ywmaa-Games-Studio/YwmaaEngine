@@ -1,9 +1,11 @@
 #pragma once
 
 #include "defines.h"
-#include <webgpu/webgpu.h>
-#include <webgpu/wgpu.h>
-
+//#include <webgpu.h>
+//#include <wgpu.h>
+//#define WGPU_SHARED_LIBRARY
+#include "../thirdparty/wgpu/include/wgpu.h"
+#include "../thirdparty/wgpu/include/webgpu.h"
 
 
 

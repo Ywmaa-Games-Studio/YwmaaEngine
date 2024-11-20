@@ -53,7 +53,7 @@ pub fn build(b: *std.Build) !void {
         if (target.result.cpu.arch == .aarch64) {
             lib_file = b.path("engine/thirdparty/wgpu/bin/windows-i686-msvc");
         } else if (target.result.cpu.arch == .x86_64) {
-            lib_file = b.path("engine/thirdparty/wgpu/bin/windows-x86_64-gnu");
+            lib_file = b.path("engine/thirdparty/wgpu/bin/windows-x86_64-msvc");
         }
     } else if (target.result.os.tag == .macos) {
         if (target.result.cpu.arch == .aarch64) {

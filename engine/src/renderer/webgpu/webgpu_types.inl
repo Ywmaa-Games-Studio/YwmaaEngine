@@ -3,7 +3,7 @@
 #include "defines.h"
 //#include <webgpu.h>
 //#include <wgpu.h>
-//#define WGPU_SHARED_LIBRARY
+#define WGPU_SHARED_LIBRARY
 #include "../thirdparty/wgpu/include/wgpu.h"
 #include "../thirdparty/wgpu/include/webgpu.h"
 

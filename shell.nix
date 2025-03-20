@@ -34,6 +34,10 @@ with pkgs;
   buildInputs = with pkgs; [ # Required packages for build
     freetype
     unstable.zig
+
+    # For Android, only required when building for Android
+    jdk17
+    unstable.sdkmanager
   ];
 
   LD_LIBRARY_PATH="${pkgs.xorg.libX11}/lib:${pkgs.xorg.libxcb}/lib:${pkgs.wayland}/:${pkgs.wayland-protocols}/:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";

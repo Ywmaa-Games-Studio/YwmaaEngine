@@ -1,7 +1,7 @@
 #include "platform.h"
 
 // Linux platform layer.
-#if defined(YPLATFORM_LINUX) && defined(WAYLAND_ENABLED)
+#if defined(YPLATFORM_LINUX) && defined(WAYLAND_ENABLED) && !defined(YPLATFORM_ANDROID)
 
 #include "core/logger.h"
 #include "core/event.h"

@@ -1,5 +1,7 @@
 .{
-    .name = "YwmaaEngine",
+    .name = .YwmaaEngine,
+    .minimum_zig_version = "0.14.0",
+    .fingerprint = 0xbe8bf3332efec0af,
     .version = "0.1.0",
     .paths = .{
         "engine",
@@ -9,6 +11,10 @@
         "README.md",
     },
     .dependencies = .{
+        .android = .{
+            .url = "https://github.com/silbinarywolf/zig-android-sdk/archive/4508072b55a4b90e412d16476c07460b896a18b1.tar.gz",
+            .hash = "android-0.1.0-7iz7QuGTAQDBsVRR04_UIHEFwkL-qr_MHKK1CIib9eV2",
+        },
         //        .wgpu = .{
         //            .url = "https://github.com/eliemichel/WebGPU-distribution/archive/54a60379a9d792848a2311856375ceef16db150e.tar.gz",
         //            .hash = "1220d79aaa7ed87bbf40d88f62504daca1e80f7e6b89ef761e7098f212a1fe85b312",

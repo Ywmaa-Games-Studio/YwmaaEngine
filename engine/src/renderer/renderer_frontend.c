@@ -12,15 +12,14 @@ typedef struct RENDERER_SYSTEM_STATE {
 
 static RENDERER_SYSTEM_STATE* state_ptr;
 
-b8 renderer_system_init(u64* memory_requirement, void* state, const char* application_name) {
+b8 renderer_system_init(u64* memory_requirement, void* state, const char* application_name, E_RENDERER_BACKEND_API rendering_backend_api) {
     *memory_requirement = sizeof(RENDERER_SYSTEM_STATE);
     if (state == 0) {
         return true;
     }
     state_ptr = state;
 
-    // TODO: make this configurable.
-    renderer_backend_create(RENDERER_BACKEND_API_WEBGPU, &state_ptr->backend);
+    renderer_backend_create(rendering_backend_api, &state_ptr->backend);
     state_ptr->backend.frame_number = 0;
 
     if (!state_ptr->backend.init(&state_ptr->backend, application_name)) {

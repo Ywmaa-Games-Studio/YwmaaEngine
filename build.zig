@@ -1,9 +1,34 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const android = @import("android");
 
 pub fn build(b: *std.Build) !void {
+    const exe_name: []const u8 = "testbed";
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const android_targets = android.standardTargets(b, target);
+
+    // If building with Android, initialize the tools / build
+    const android_apk: ?*android.APK = blk: {
+        if (android_targets.len == 0) {
+            break :blk null;
+        }
+        const android_tools = android.Tools.create(b, .{
+            .api_level = .android15,
+            .build_tools_version = "35.0.0",
+            .ndk_version = "28.0.13004108"//"29.0.13113456",//"27.0.12077973",
+        });
+        const apk = android.APK.create(b, android_tools);
+
+        const key_store_file = android_tools.createKeyStore(android.CreateKey.example());
+        apk.setKeyStore(key_store_file);
+        apk.setAndroidManifest(b.path("android/AndroidManifest.xml"));
+        apk.addResourceDirectory(b.path("android/res"));
+
+        // Add Java files
+        apk.addJavaSourceFile(.{ .file = b.path("android/src/NativeInvocationHandler.java") });
+        break :blk apk;
+    };
 
     const engine_flags = [_][]const u8{
         "-DYEXPORT",
@@ -45,9 +70,17 @@ pub fn build(b: *std.Build) !void {
     var lib_file = b.path("engine/thirdparty/wgpu/bin");
     if (target.result.os.tag == .linux) {
         if (target.result.cpu.arch == .aarch64) {
-            lib_file = b.path("engine/thirdparty/wgpu/bin/linux-aarch64");
+            if (target.result.abi == .android) {
+                lib_file = b.path("engine/thirdparty/wgpu/bin/linux-aarch64");
+            } else {
+                lib_file = b.path("engine/thirdparty/wgpu/bin/linux-aarch64");
+            }
         } else if (target.result.cpu.arch == .x86_64) {
-            lib_file = b.path("engine/thirdparty/wgpu/bin/linux-x86_64");
+            if (target.result.abi == .android) {
+                lib_file = b.path("engine/thirdparty/wgpu/bin/linux-x86_64");
+            } else {
+                lib_file = b.path("engine/thirdparty/wgpu/bin/linux-x86_64");
+            }
         }
     } else if (target.result.os.tag == .windows) {
         if (target.result.cpu.arch == .aarch64) {
@@ -93,7 +126,7 @@ pub fn build(b: *std.Build) !void {
         });
     }
 
-    if (target.result.os.tag == .linux) {
+    if (target.result.os.tag == .linux and target.result.abi != .android) {
         if (b.lazyDependency("x11_headers", .{
             .target = target,
             .optimize = optimize,
@@ -118,11 +151,16 @@ pub fn build(b: *std.Build) !void {
 
     libengine.linkLibC();
 
-    const exe = b.addExecutable(.{
-        .name = "testbed",
+    var exe: *std.Build.Step.Compile = if (target.result.abi.isAndroid()) b.addSharedLibrary(.{
+        .name = exe_name,
+        .root_source_file = b.path("testbed/src/main.zig"),
         .target = target,
         .optimize = optimize,
+    }) else b.addExecutable(.{
+        .name = exe_name,
         .root_source_file = b.path("testbed/src/main.zig"),
+        .target = target,
+        .optimize = optimize,
     });
 
     exe.addIncludePath(.{ .cwd_relative = "engine/src" });
@@ -156,6 +194,14 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(libengine); //use this when the engine is compiled as a shared library
 
     b.installArtifact(exe);
+    if (target.result.abi == .android) {
+        const apk: *android.APK = android_apk orelse @panic("Android APK should be initialized");
+        apk.addArtifact(libengine);
+        apk.addArtifact(exe);
+    }
+    if (android_apk) |apk_file| {
+        apk_file.installApk();
+    }
 
     try addShader(b, exe, "builtin.shader.vert.glsl", "builtin.shader.vert.spv", "-fshader-stage=vert");
     try addShader(b, exe, "builtin.shader.frag.glsl", "builtin.shader.frag.spv", "-fshader-stage=frag");

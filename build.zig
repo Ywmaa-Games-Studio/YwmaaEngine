@@ -139,7 +139,7 @@ pub fn build(b: *std.Build) !void {
         //        })) |dep| {
         //            libengine.linkLibrary(dep.artifact("wayland-headers"));
         //        }
-        libengine.addLibraryPath(.{ .cwd_relative = "/usr/X11R6/lib" });
+        //libengine.addLibraryPath(.{ .cwd_relative = "/usr/X11R6/lib" });
     }
 
     if (b.lazyDependency("vulkan_headers", .{

@@ -120,6 +120,8 @@ static const struct xdg_wm_base_listener wm_base_listener = {
 };
 
 // Keyboard input translation
+// I mapped these myself by printing each key's code, not the best but just to get this up and running quickly.
+// Probably needs another method or perhaps just use XKB but I don't want to have such dependecy yet.
 E_KEYS translate_keysym(uint32_t key) {
     // Map Linux input keycodes to engine keycodes
     switch (key) {

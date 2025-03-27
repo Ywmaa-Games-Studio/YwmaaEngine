@@ -4,17 +4,20 @@
     package="com.ywmaa.ywmaaengine">
 
     <application
-        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
         android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
         tools:targetApi="31">
         <activity
             android:name="android.app.NativeActivity"
-            android:exported="true"
-            android:label="@string/app_name">
+            android:label="@string/app_name"
+            android:configChanges="orientation|keyboardHidden"
+            android:exported="true">
+            <meta-data android:name="android.app.lib_name"
+                android:value="game_engine" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

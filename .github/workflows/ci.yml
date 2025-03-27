@@ -27,7 +27,7 @@ jobs:
           sudo sh -c 'wget -c https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
       - name: Install Engine Dependencies
         run: |
-          sudo apt install -y libwayland-dev libwayland-bin
+          sudo apt install -y libwayland-dev
 #libx11-dev libxkbcommon-x11-dev libx11-xcb-dev
       - name: Install Vulkan SDK
         uses: humbletim/install-vulkan-sdk@v1.2
@@ -36,8 +36,8 @@ jobs:
           cache: true
       - name: x86_64-linux
         run: zig build -Doptimize=ReleaseFast
-      - name: x86_64-linux -> x86_64-linux-musl
-        run: zig build -Dtarget=x86_64-linux-musl
+      #- name: x86_64-linux -> x86_64-linux-musl
+      #  run: zig build -Dtarget=x86_64-linux-musl
       #- name: x86_64-linux -> x86_64-macos No mac os backend, yet.
       #  run: zig build -Dtarget=x86_64-macos
       #- name: x86_64-linux -> aarch64-macos No mac os backend, yet.

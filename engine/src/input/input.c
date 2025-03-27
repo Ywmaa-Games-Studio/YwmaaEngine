@@ -80,6 +80,7 @@ void input_process_key(E_KEYS key, b8 pressed) {
 }
 
 void input_process_button(E_BUTTONS button, b8 pressed) {
+    // PRINT_DEBUG("Button %i is pressed", button);
     // If the state changed, fire an event.
     if (state_ptr->mouse_current.buttons[button] != pressed) {
         state_ptr->mouse_current.buttons[button] = pressed;
@@ -110,6 +111,7 @@ void input_process_mouse_move(i16 x, i16 y) {
 
 void input_process_mouse_wheel(i8 z_delta) {
     // NOTE: no internal state to update.
+    // PRINT_DEBUG(z_delta > 0.0 ? "scroll up" : "scroll down");
 
     // Fire the event.
     EVENT_CONTEXT context;

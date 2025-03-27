@@ -14,7 +14,6 @@ with pkgs;
     #Wayland
     wayland #libwayland-client
     wayland-scanner
-    wayland-protocols
     libdecor
 
     #Vulkan
@@ -40,6 +39,6 @@ with pkgs;
     unstable.sdkmanager
   ];
 
-  LD_LIBRARY_PATH="${pkgs.xorg.libX11}/lib:${pkgs.xorg.libxcb}/lib:${pkgs.wayland}/:${pkgs.wayland-protocols}/:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
+  LD_LIBRARY_PATH = "${pkgs.xorg.libX11}/lib:${pkgs.xorg.libxcb}/lib:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
 }
 

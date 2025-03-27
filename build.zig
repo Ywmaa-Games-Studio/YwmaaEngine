@@ -16,7 +16,7 @@ pub fn build(b: *std.Build) !void {
         const android_tools = android.Tools.create(b, .{
             .api_level = .android15,
             .build_tools_version = "35.0.0",
-            .ndk_version = "28.0.13004108"//"29.0.13113456",//"27.0.12077973",
+            .ndk_version = "28.0.13004108", //"29.0.13113456",//"27.0.12077973",
         });
         const apk = android.APK.create(b, android_tools);
 
@@ -133,13 +133,14 @@ pub fn build(b: *std.Build) !void {
         })) |dep| {
             libengine.linkLibrary(dep.artifact("x11-headers"));
         }
-        //        if (b.lazyDependency("wayland_headers", .{
-        //            .target = target,
-        //            .optimize = optimize,
-        //        })) |dep| {
-        //            libengine.linkLibrary(dep.artifact("wayland-headers"));
-        //        }
-        //libengine.addLibraryPath(.{ .cwd_relative = "/usr/X11R6/lib" });
+        if (b.lazyDependency("wayland_headers", .{
+            .target = target,
+            .optimize = optimize,
+        })) |dep| {
+            libengine.linkLibrary(dep.artifact("wayland-headers"));
+        }
+        libengine.linkSystemLibrary("wayland-client");
+        libengine.linkSystemLibrary("wayland-cursor");
     }
 
     if (b.lazyDependency("vulkan_headers", .{
@@ -263,6 +264,45 @@ pub fn build(b: *std.Build) !void {
 
     //const test_step = b.step("test", "Run unit tests");
     //test_step.dependOn(&run_unit_tests.step);
+
+    // Add Android target options
+    //    const target_android = b.standardTargetOptions(.{
+    //        .default_target = .{
+    //            .cpu_arch = .aarch64,
+    //            .os_tag = .android,
+    //            .abi = .android,
+    //        },
+    //    });
+    //
+    //    // Modify the Android library section to use C files instead:
+    //    const android_lib = b.addSharedLibrary(.{
+    //        .name = "game_engine",
+    //        .target = target_android,
+    //        .optimize = optimize,
+    //    });
+    //
+    //    // Add the C source files
+    //    android_lib.addCSourceFile(.{
+    //        .file = .{ .path = "engine/src/platform/android/platform_android_main.c" },
+    //        .flags = &.{"-D_GNU_SOURCE"},
+    //    });
+    //
+    //    android_lib.addCSourceFile(.{
+    //        .file = .{ .path = "engine/src/platform/android/android_native_app_glue.c" },
+    //        .flags = &.{"-D_GNU_SOURCE"},
+    //    });
+    //
+    //    // Add include directories
+    //    android_lib.addIncludePath(.{ .path = "src/platform/android" });
+    //
+    //    // Link against Android libraries
+    //    android_lib.linkSystemLibrary("android");
+    //    android_lib.linkSystemLibrary("EGL");
+    //    android_lib.linkSystemLibrary("GLESv3");
+    //    android_lib.linkSystemLibrary("log");
+    //
+    //    const android_lib_step = b.addInstallArtifact(android_lib);
+    //    b.getInstallStep().dependOn(&android_lib_step.step);
 }
 
 fn addShader(b: *std.Build, exe: anytype, in_file: []const u8, out_file: []const u8, additional_arg: []const u8) !void {

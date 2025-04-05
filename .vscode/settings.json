@@ -92,6 +92,7 @@
         "webgpu_platform.h": "c",
         "renderer_backend.h": "c",
         "wgpu.h": "c",
-        "webgpu.h": "c"
+        "webgpu.h": "c",
+        "platform_linux.h": "c"
     }
 }

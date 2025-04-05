@@ -36,7 +36,7 @@ jobs:
           cache: true
       - name: x86_64-linux
         run: zig build -Doptimize=ReleaseFast
-      #- name: x86_64-linux -> x86_64-linux-musl
+      #- name: x86_64-linux -> x86_64-linux-musl I need to dynamically load wayland
       #  run: zig build -Dtarget=x86_64-linux-musl
       #- name: x86_64-linux -> x86_64-macos No mac os backend, yet.
       #  run: zig build -Dtarget=x86_64-macos

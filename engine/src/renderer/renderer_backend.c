@@ -13,6 +13,8 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->end_frame = vulkan_renderer_backend_end_frame;
         out_renderer_backend->resized = vulkan_renderer_backend_on_resized;
         out_renderer_backend->update_object = vulkan_backend_update_object;
+        out_renderer_backend->create_texture = vulkan_renderer_create_texture;
+        out_renderer_backend->destroy_texture = vulkan_renderer_destroy_texture;
         return true;
     }
 
@@ -24,6 +26,8 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->end_frame = webgpu_renderer_backend_end_frame;
         out_renderer_backend->resized = webgpu_renderer_backend_on_resized;
         out_renderer_backend->update_object = webgpu_backend_update_object;
+        out_renderer_backend->create_texture = webgpu_renderer_create_texture;
+        out_renderer_backend->destroy_texture = webgpu_renderer_destroy_texture;
         return true;
     }
 
@@ -38,4 +42,6 @@ void renderer_backend_destroy(RENDERER_BACKEND* renderer_backend) {
     renderer_backend->end_frame = 0;
     renderer_backend->resized = 0;
     renderer_backend->update_object = 0;
+    renderer_backend->create_texture = 0;
+    renderer_backend->destroy_texture = 0;
 }

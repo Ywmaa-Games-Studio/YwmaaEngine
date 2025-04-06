@@ -187,7 +187,7 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     return true;
 }
 
-void webgpu_backend_update_object(Matrice4 model) {
+void webgpu_backend_update_object(GEOMETRY_RENDER_DATA data) {
     // Set vertex buffer while encoding the render pass
     wgpuRenderPassEncoderSetVertexBuffer(context.render_pass, 0, context.object_vertex_buffer, 0, wgpuBufferGetSize(context.object_vertex_buffer));
 
@@ -728,4 +728,13 @@ WGPURequiredLimits get_required_limits(WGPUAdapter adapter) {
     // [...] Other device limits
 
     return requiredLimits;
+}
+
+
+void webgpu_renderer_create_texture(const char* name, b8 auto_release, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, TEXTURE* out_texture){
+
+}
+
+void webgpu_renderer_destroy_texture(TEXTURE* texture){
+
 }

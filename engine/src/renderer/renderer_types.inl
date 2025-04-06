@@ -2,6 +2,7 @@
 
 #include "defines.h"
 #include "math/math_types.h"
+#include "resources/resource_types.h"
 typedef enum E_RENDERER_BACKEND_API {
     RENDERER_BACKEND_API_VULKAN,
     RENDERER_BACKEND_API_WEBGPU,
@@ -13,6 +14,19 @@ typedef struct GLOBAL_UNIFORM_OBJECT {
     Matrice4 m_reserved0;  // 64 bytes, reserved for future use
     Matrice4 m_reserved1;  // 64 bytes, reserved for future use
 } GLOBAL_UNIFORM_OBJECT;
+
+typedef struct OBJECT_UNIFORM_OBJECT {
+    Vector4 diffuse_color;  // 16 bytes
+    Vector4 v_reserved0;    // 16 bytes, reserved for future use
+    Vector4 v_reserved1;    // 16 bytes, reserved for future use
+    Vector4 v_reserved2;    // 16 bytes, reserved for future use
+} OBJECT_UNIFORM_OBJECT;
+
+typedef struct GEOMETRY_RENDER_DATA {
+    u32 object_id;
+    Matrice4 model;
+    TEXTURE* textures[16];
+} GEOMETRY_RENDER_DATA;
 
 typedef struct RENDERER_BACKEND {
     struct PLATFORM_STATE* platform_state;
@@ -28,7 +42,18 @@ typedef struct RENDERER_BACKEND {
     void (*update_global_state)(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode);
     b8 (*end_frame)(struct RENDERER_BACKEND* backend, f32 delta_time);
 
-    void (*update_object)(Matrice4 model);
+    void (*update_object)(GEOMETRY_RENDER_DATA data);
+
+    void (*create_texture)(
+        const char* name, 
+        b8 auto_release, 
+        i32 width, 
+        i32 height, 
+        i32 channel_count, 
+        const u8* pixels, 
+        b8 has_transparency, 
+        struct TEXTURE* out_texture);
+    void (*destroy_texture)(struct TEXTURE* texture);
 } RENDERER_BACKEND;
 
 typedef struct RENDER_PACKET {

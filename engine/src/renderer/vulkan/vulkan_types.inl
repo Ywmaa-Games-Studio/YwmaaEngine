@@ -130,6 +130,24 @@ typedef struct VULKAN_PIPELINE {
 } VULKAN_PIPELINE;
 
 #define OBJECT_SHADER_STAGE_COUNT 2
+
+
+typedef struct VULKAN_DESCRIPTOR_STATE {
+    // One per frame
+    u32 generations[3];
+} VULKAN_DESCRIPTOR_STATE;
+
+#define VULKAN_OBJECT_SHADER_DESCRIPTOR_COUNT 2
+typedef struct VULKAN_OBJECT_SHADER_OBJECT_STATE {
+    // Per frame
+    VkDescriptorSet descriptor_sets[3];
+
+    // Per descriptor
+    VULKAN_DESCRIPTOR_STATE descriptor_states[VULKAN_OBJECT_SHADER_DESCRIPTOR_COUNT];
+} VULKAN_OBJECT_SHADER_OBJECT_STATE;
+
+// Max number of objects
+#define VULKAN_OBJECT_MAX_OBJECT_COUNT 1024
 typedef struct VULKAN_OBJECT_SHADER {
     // vertex, fragment
     VULKAN_SHADER_STAGE stages[OBJECT_SHADER_STAGE_COUNT];
@@ -147,11 +165,23 @@ typedef struct VULKAN_OBJECT_SHADER {
     // Global uniform buffer.
     VULKAN_BUFFER global_uniform_buffer;
 
+    VkDescriptorPool object_descriptor_pool;
+    VkDescriptorSetLayout object_descriptor_set_layout;
+    // Object uniform buffers.
+    VULKAN_BUFFER object_uniform_buffer;
+    // TODO: manage a free list of some kind here instead.
+    u32 object_uniform_buffer_index;
+
+    // TODO: make dynamic
+    VULKAN_OBJECT_SHADER_OBJECT_STATE object_states[VULKAN_OBJECT_MAX_OBJECT_COUNT];
+
+
     VULKAN_PIPELINE pipeline;
 
 
 } VULKAN_OBJECT_SHADER;
 typedef struct VULKAN_CONTEXT {
+    f32 frame_delta_time;
 
     // The framebuffer's current width.
     u32 framebuffer_width;
@@ -208,3 +238,8 @@ typedef struct VULKAN_CONTEXT {
     VkDebugUtilsMessengerEXT debug_messenger;
 #endif
 } VULKAN_CONTEXT;
+
+typedef struct VULKAN_TEXTURE_DATA {
+    VULKAN_IMAGE image;
+    VkSampler sampler;
+} VULKAN_TEXTURE_DATA;

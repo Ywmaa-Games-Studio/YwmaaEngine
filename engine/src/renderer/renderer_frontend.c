@@ -8,6 +8,10 @@
 
 typedef struct RENDERER_SYSTEM_STATE {
     RENDERER_BACKEND backend;
+    Matrice4 projection;
+    Matrice4 view;
+    f32 near_clip;
+    f32 far_clip;
 } RENDERER_SYSTEM_STATE;
 
 static RENDERER_SYSTEM_STATE* state_ptr;
@@ -26,6 +30,13 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
         PRINT_ERROR("Renderer backend failed to initialize. Shutting down.");
         return false;
     }
+
+    state_ptr->near_clip = 0.1f;
+    state_ptr->far_clip = 1000.0f;
+    state_ptr->projection = Matrice4_perspective(deg_to_rad(45.0f), 1280 / 720.0f, state_ptr->near_clip, state_ptr->far_clip);
+
+    state_ptr->view = Matrice4_translation((Vector3){0, 0, -30.0f});
+    state_ptr->view = Matrice4_inverse(state_ptr->view);
 
     return true;
 }
@@ -64,13 +75,7 @@ void renderer_on_resized(u16 width, u16 height) {
 b8 renderer_draw_frame(RENDER_PACKET* packet) {
     // If the begin frame returned successfully, mid-frame operations may continue.
     if (renderer_begin_frame(packet->delta_time)) {
-        Matrice4 projection = Matrice4_perspective(deg_to_rad(45.0f), 1280 / 720.0f, 0.1f, 1000.0f);
-        static f32 z = 0.0f;
-        z += 0.01f;
-        Matrice4 view = Matrice4_translation((Vector3){0, 0, z}); // -30.0f
-        view = Matrice4_inverse(view);
-
-        state_ptr->backend.update_global_state(projection, view, Vector3_zero(), Vector4_one(), 0);
+        state_ptr->backend.update_global_state(state_ptr->projection, state_ptr->view, Vector3_zero(), Vector4_one(), 0);
 
         // mat4 model = mat4_translation((vec3){0, 0, 0});
         static f32 angle = 0.01f;
@@ -89,4 +94,8 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
     }
 
     return true;
+}
+
+void renderer_set_view(Matrice4 view) {
+    state_ptr->view = view;
 }

@@ -32,6 +32,7 @@ pub fn build(b: *std.Build) !void {
 
     const engine_flags = [_][]const u8{
         "-DYEXPORT",
+        "-DDEBUG",
     };
     const testbed_flags = [_][]const u8{
         "-DYIMPORT",
@@ -66,6 +67,7 @@ pub fn build(b: *std.Build) !void {
             }
         }
     }
+
     //In The Future I Should replace this with compiling WGPU from source to be able to statically link WGPU
     var lib_file = b.path("engine/thirdparty/wgpu/bin");
     if (target.result.os.tag == .linux) {

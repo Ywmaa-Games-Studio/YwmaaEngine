@@ -10,3 +10,7 @@ void vulkan_object_shader_destroy(VULKAN_CONTEXT* context, struct VULKAN_OBJECT_
 void vulkan_object_shader_use(VULKAN_CONTEXT* context, struct VULKAN_OBJECT_SHADER* shader);
 
 void vulkan_object_shader_update_global_state(VULKAN_CONTEXT* context, struct VULKAN_OBJECT_SHADER* shader);
+
+void vulkan_object_shader_update_global_state(VULKAN_CONTEXT* context, struct VULKAN_OBJECT_SHADER* shader);
+
+void vulkan_object_shader_update_object(VULKAN_CONTEXT* context, struct VULKAN_OBJECT_SHADER* shader, Matrice4 model);

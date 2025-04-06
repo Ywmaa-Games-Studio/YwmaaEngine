@@ -38,9 +38,9 @@ b8 platform_system_startup(
         platform_x11_system_startup(&x11_req, 0, 0, 0, 0, 0, 0);
         
         *memory_requirement = wayland_req > x11_req ? wayland_req : x11_req;
-        return true;
-    }
-    
+    return true;
+}
+
     // Store the state pointer globally
     state_ptr = state;
     
@@ -1039,7 +1039,7 @@ static void keyboard_handle_leave(void* data, struct wl_keyboard* keyboard, uint
 
 static void keyboard_handle_key(void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
     // Convert keycode to our key format and forward to input system
-    PRINT_INFO("%i\n", key);
+    // PRINT_INFO("%i\n", key);
     E_KEYS translated_key = translate_keysym(key);
     input_process_key(translated_key, state == WL_KEYBOARD_KEY_STATE_PRESSED);
 }

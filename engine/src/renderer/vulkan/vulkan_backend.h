@@ -11,3 +11,5 @@ b8 vulkan_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
 b8 vulkan_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time);
 
 void vulkan_renderer_update_global_state(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode);
+
+void vulkan_backend_update_object(Matrice4 model);

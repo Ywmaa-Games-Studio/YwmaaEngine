@@ -29,6 +29,7 @@ typedef struct WEBGPU_CONTEXT {
     WGPUInstance instance;
     WGPUAdapter adapter;
     WGPUDevice device;
+    WGPURequiredLimits required_limits;
     WGPUSurface surface;
     WGPUQueue queue;
     WGPUTextureView target_view;
@@ -38,5 +39,8 @@ typedef struct WEBGPU_CONTEXT {
     
     WGPURenderPipeline pipeline;
     WGPUShaderModule shaderModule;
+
+    WGPUBuffer object_vertex_buffer;
+    WGPUBuffer buffer2;
 
 } WEBGPU_CONTEXT;

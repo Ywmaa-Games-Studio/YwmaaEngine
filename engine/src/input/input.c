@@ -49,7 +49,7 @@ void input_update(f64 delta_time) {
 }
 
 void input_process_key(E_KEYS key, b8 pressed) {
-    if (key == KEY_LALT) {
+/*     if (key == KEY_LALT) {
         PRINT_INFO("Left alt %s.", pressed ? "pressed" : "released.");
     } else if (key == KEY_RALT) {
         PRINT_INFO("Right alt %s.", pressed ? "pressed" : "released.");
@@ -65,7 +65,7 @@ void input_process_key(E_KEYS key, b8 pressed) {
         PRINT_INFO("Left shift %s.", pressed ? "pressed" : "released.");
     } else if (key == KEY_RSHIFT) {
         PRINT_INFO("Right shift %s.", pressed ? "pressed" : "released.");
-    }
+    } */
 
     // Only handle this if the state actually changed.
     if (state_ptr->keyboard_current.keys[key] != pressed) {

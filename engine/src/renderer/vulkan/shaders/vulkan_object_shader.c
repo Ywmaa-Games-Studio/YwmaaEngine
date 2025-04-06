@@ -45,14 +45,15 @@ b8 vulkan_object_shader_create(VULKAN_CONTEXT* context, VULKAN_OBJECT_SHADER* ou
     global_pool_info.poolSizeCount = 1;
     global_pool_info.pPoolSizes = &global_pool_size;
     global_pool_info.maxSets = context->swapchain.image_count;
+    global_pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     VK_CHECK(vkCreateDescriptorPool(context->device.logical_device, &global_pool_info, context->allocator, &out_shader->global_descriptor_pool));
 
     // Pipeline creation
     VkViewport viewport;
     viewport.x = 0.0f;
-    viewport.y = (f32)context->framebuffer_height;
+    viewport.y = 0.0f;
     viewport.width = (f32)context->framebuffer_width;
-    viewport.height = -(f32)context->framebuffer_height;
+    viewport.height = (f32)context->framebuffer_height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -115,7 +116,7 @@ b8 vulkan_object_shader_create(VULKAN_CONTEXT* context, VULKAN_OBJECT_SHADER* ou
     // Create uniform buffer.
     if (!vulkan_buffer_create(
             context,
-            sizeof(global_uniform_object) * 3,
+            sizeof(GLOBAL_UNIFORM_OBJECT) * 3,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
             true,
@@ -170,30 +171,35 @@ void vulkan_object_shader_update_global_state(VULKAN_CONTEXT* context, struct VU
     u32 image_index = context->image_index;
     VkCommandBuffer command_buffer = context->graphics_command_buffers[image_index].handle;
     VkDescriptorSet global_descriptor = shader->global_descriptor_sets[image_index];
-    if (!shader->descriptor_updated[image_index]){
-        // Configure the descriptors for the given index.
-        u32 range = sizeof(global_uniform_object);
-        u64 offset = sizeof(global_uniform_object)*image_index;
+    // Configure the descriptors for the given index.
+    u32 range = sizeof(GLOBAL_UNIFORM_OBJECT);
+    u64 offset = sizeof(GLOBAL_UNIFORM_OBJECT)*image_index;
 
-        // Copy data to buffer
-        vulkan_buffer_load_data(context, &shader->global_uniform_buffer, offset, range, 0, &shader->global_ubo);
+    // Copy data to buffer
+    vulkan_buffer_load_data(context, &shader->global_uniform_buffer, offset, range, 0, &shader->global_ubo);
 
-        VkDescriptorBufferInfo bufferInfo;
-        bufferInfo.buffer = shader->global_uniform_buffer.handle;
-        bufferInfo.offset = offset;
-        bufferInfo.range = range;
+    VkDescriptorBufferInfo bufferInfo;
+    bufferInfo.buffer = shader->global_uniform_buffer.handle;
+    bufferInfo.offset = offset;
+    bufferInfo.range = range;
 
-        // Update descriptor sets.
-        VkWriteDescriptorSet descriptor_write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        descriptor_write.dstSet = shader->global_descriptor_sets[image_index];
-        descriptor_write.dstBinding = 0;
-        descriptor_write.dstArrayElement = 0;
-        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptor_write.descriptorCount = 1;
-        descriptor_write.pBufferInfo = &bufferInfo;
+    // Update descriptor sets.
+    VkWriteDescriptorSet descriptor_write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    descriptor_write.dstSet = shader->global_descriptor_sets[image_index];
+    descriptor_write.dstBinding = 0;
+    descriptor_write.dstArrayElement = 0;
+    descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptor_write.descriptorCount = 1;
+    descriptor_write.pBufferInfo = &bufferInfo;
 
-        vkUpdateDescriptorSets(context->device.logical_device, 1, &descriptor_write, 0, 0);
-    }
+    vkUpdateDescriptorSets(context->device.logical_device, 1, &descriptor_write, 0, 0);
     // Bind the global descriptor set to be updated.
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader->pipeline.pipeline_layout, 0, 1, &global_descriptor, 0, 0);
+}
+
+void vulkan_object_shader_update_object(VULKAN_CONTEXT* context, struct VULKAN_OBJECT_SHADER* shader, Matrice4 model) {
+    u32 image_index = context->image_index;
+    VkCommandBuffer command_buffer = context->graphics_command_buffers[image_index].handle;
+
+    vkCmdPushConstants(command_buffer, shader->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Matrice4), &model);
 }

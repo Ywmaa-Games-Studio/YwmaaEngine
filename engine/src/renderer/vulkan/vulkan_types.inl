@@ -142,7 +142,7 @@ typedef struct VULKAN_OBJECT_SHADER {
     b8 descriptor_updated[3];
 
     // Global uniform object.
-    global_uniform_object global_ubo;
+    GLOBAL_UNIFORM_OBJECT global_ubo;
 
     // Global uniform buffer.
     VULKAN_BUFFER global_uniform_buffer;

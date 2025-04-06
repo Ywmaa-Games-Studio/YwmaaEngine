@@ -18,24 +18,17 @@ typedef union Vector2_u {
     };
 } Vector2;
 
-typedef struct Vector3_u {
-    // An array of x, y, z
-    f32 elements[3];
-    struct {
-        union {
-            // The first element.
-            f32 x, r, s, u;
-        };
-        union {
-            // The second element.
-            f32 y, g, t, v;
-        };
-        union {
-            // The third element.
-            f32 z, b, p, w;
-        };
+#pragma pack(push, 1)  // Remove all padding
+typedef struct Vector3 {
+    union {
+        struct { f32 x, y, z; };
+        struct { f32 r, g, b; };
+        struct { f32 s, t, p; };
+        struct { f32 u, v, w; };
+        f32 elements[3];
     };
 } Vector3;
+#pragma pack(pop)  // Restore default packing
 
 typedef union Vector4_u {
     // An array of x, y, z, w

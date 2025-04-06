@@ -14,6 +14,11 @@
 
 #include "platform/platform.h"
 
+WGPURequiredLimits get_required_limits(WGPUAdapter adapter);
+
+b8 webgpu_create_buffers();
+void webgpu_destroy_buffers();
+
 b8 webgpu_pipeline_create();
 void webgpu_pipeline_destroy();
 
@@ -60,6 +65,8 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
 
     webgpu_pipeline_create();
 
+    webgpu_create_buffers();
+
     PRINT_INFO("WebGPU renderer initialized successfully.");
     return true;
 }
@@ -67,6 +74,8 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
 void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
     // Destroy in the opposite order of creation.
     // We no longer need to access the shader module
+
+    webgpu_destroy_buffers();
     
     webgpu_pipeline_destroy();
 
@@ -148,8 +157,6 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
 
         // Select which render pipeline to use
     wgpuRenderPassEncoderSetPipeline(context.render_pass, context.pipeline);
-    // Draw 1 instance of a 3-vertices shape
-    wgpuRenderPassEncoderDraw(context.render_pass, 3, 1, 0, 0);
 
     return true;
 }
@@ -178,6 +185,14 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     wgpuSurfacePresent(context.surface);
 
     return true;
+}
+
+void webgpu_backend_update_object(Matrice4 model) {
+    // Set vertex buffer while encoding the render pass
+    wgpuRenderPassEncoderSetVertexBuffer(context.render_pass, 0, context.object_vertex_buffer, 0, wgpuBufferGetSize(context.object_vertex_buffer));
+
+    // Draw 1 instance of a 3-vertices shape
+    wgpuRenderPassEncoderDraw(context.render_pass, 3, 1, 0, 0);
 }
 
 b8 webgpu_pipeline_create(){
@@ -226,14 +241,28 @@ b8 webgpu_pipeline_create(){
     context.shaderModule = wgpuDeviceCreateShaderModule(context.device, &shaderDesc);
     PRINT_INFO("Got shader module: %i", &context.shaderModule);
 
+    WGPUVertexBufferLayout vertex_buffer_layout;
+    WGPUVertexAttribute position_attribute;
+    // == For each attribute, describe its layout, i.e., how to interpret the raw data ==
+    // Corresponds to @location(...)
+    position_attribute.shaderLocation = 0;
+    // Means vec2f in the shader
+    position_attribute.format = WGPUVertexFormat_Float32x3;
+    // Index of the first element
+    position_attribute.offset = 0;
+    
+    vertex_buffer_layout.attributeCount = 1;
+    vertex_buffer_layout.attributes = &position_attribute;
+    vertex_buffer_layout.arrayStride = sizeof(Vertex3D);
+    vertex_buffer_layout.stepMode = WGPUVertexStepMode_Vertex;
 
     // [...] Describe render pipeline
     WGPURenderPipelineDescriptor pipelineDesc = {};
     pipelineDesc.nextInChain = NULL;
 // [...] Describe vertex pipeline state
     // We do not use any vertex buffer for this first simplistic example
-    pipelineDesc.vertex.bufferCount = 0;
-    pipelineDesc.vertex.buffers = NULL;
+    pipelineDesc.vertex.bufferCount = 1;
+    pipelineDesc.vertex.buffers = &vertex_buffer_layout;
     // NB: We define the 'shaderModule' in the second part of this chapter.
     // Here we tell that the programmable vertex shader stage is described
     // by the function called 'vs_main' in that module.
@@ -348,38 +377,37 @@ b8 webgpu_device_create(){
 
     PRINT_INFO("Got adapter: %i", context.adapter);
 
-	WGPUSupportedLimits supported_limits;
-	wgpuAdapterGetLimits(context.adapter, &supported_limits);
-
 #ifdef _DEBUG
     WGPUAdapterInfo properties = {};
     properties.nextInChain = NULL;
     wgpuAdapterGetInfo(context.adapter, &properties);
     PRINT_INFO("Adapter properties:");
-    PRINT_INFO(" - vendorID: ", properties.vendorID);
+    PRINT_INFO(" - vendorID: %i", properties.vendorID);
     if (properties.vendor) {
-        PRINT_INFO(" - vendorName: ", properties.vendor);
+        PRINT_INFO(" - vendorName: %s", properties.vendor);
     }
     if (properties.architecture) {
-        PRINT_INFO(" - architecture: ", properties.architecture);
+        PRINT_INFO(" - architecture: %s", properties.architecture);
     }
-    PRINT_INFO(" - deviceID: ", properties.deviceID);
+    PRINT_INFO(" - deviceID: %i", properties.deviceID);
     if (properties.device) {
-        PRINT_INFO(" - name: ", properties.device);
+        PRINT_INFO(" - name: %s", properties.device);
     }
     if (properties.description) {
-        PRINT_INFO(" - driverDescription: ", properties.description);
+        PRINT_INFO(" - driverDescription: %s", properties.description);
     }
-    PRINT_INFO(" - adapterType: 0x", properties.adapterType);
-    PRINT_INFO(" - backendType: 0x", properties.backendType);
+    PRINT_INFO(" - adapterType: 0x%i", properties.adapterType);
+    PRINT_INFO(" - backendType: 0x%i", properties.backendType);
+
 #endif
 
+    WGPURequiredLimits required_limits = get_required_limits(context.adapter);
     // Device
     PRINT_DEBUG("Requesting device...");
     WGPUDeviceDescriptor device_desc = {};
     device_desc.label = "My Device"; // anything works here, that's your call
     device_desc.requiredFeatureCount = 0; // we do not require any specific feature
-    device_desc.requiredLimits = NULL; // we do not require any specific limit
+    device_desc.requiredLimits = NULL;//&required_limits;
     device_desc.defaultQueue.nextInChain = NULL;
     device_desc.defaultQueue.label = "The default queue";
     device_desc.deviceLostCallback = on_device_lost;
@@ -388,6 +416,11 @@ b8 webgpu_device_create(){
 
     //wgpuDeviceSetUncapturedErrorCallback(context.device, on_device_error, NULL /* pUserData */);
     PRINT_INFO("Got device: %i", context.device);
+
+	WGPUSupportedLimits device_supported_limits;
+    wgpuDeviceGetLimits(context.device, &device_supported_limits);
+    PRINT_INFO("device.maxVertexAttributes: %i", device_supported_limits.limits.maxVertexAttributes);
+
     //context.swapchain_format = wgpuSurfaceGetPreferredFormat(context.surface, context.adapter); This changed to the code below
     WGPUSurfaceCapabilities capabilities;
     wgpuSurfaceGetCapabilities( context.surface, context.adapter, &capabilities );
@@ -623,4 +656,76 @@ WGPUTextureView get_next_surface_texture_view() {
     view_descriptor.aspect = WGPUTextureAspect_All;
     WGPUTextureView target_view = wgpuTextureCreateView(surface_texture.texture, &view_descriptor);
     return target_view;
+}
+
+
+b8 webgpu_create_buffers() {
+    
+    // TODO: temporary test code
+    const u32 vert_count = 3;
+    Vertex3D verts[vert_count];
+    yzero_memory(verts, sizeof(Vertex3D) * vert_count);
+    
+    verts[0].position.x = -0.5;
+    verts[0].position.y = -0.5;
+    
+    verts[1].position.x = 0.5;
+    verts[1].position.y = -0.5;
+    
+    verts[2].position.x = 0.0;
+    verts[2].position.y = 0.5;
+
+    
+    //verts[3].position.x = 0.5 * f;
+    //verts[3].position.y = -0.5 * f;
+    // TODO: end temp code
+
+    WGPUBufferDescriptor bufferDesc = {};
+    bufferDesc.nextInChain = NULL;
+    bufferDesc.label = "Vertex Buffer";
+    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
+    bufferDesc.size = vert_count * sizeof(Vertex3D);
+    bufferDesc.mappedAtCreation = false;
+    context.object_vertex_buffer = wgpuDeviceCreateBuffer(context.device, &bufferDesc);
+
+    // Upload geometry data to the buffer
+    wgpuQueueWriteBuffer(context.queue, context.object_vertex_buffer, 0, verts, bufferDesc.size);
+
+    return true;
+}
+
+void webgpu_destroy_buffers(){
+    wgpuBufferRelease(context.object_vertex_buffer);
+    wgpuBufferDestroy(context.object_vertex_buffer);
+
+}
+
+void webgpu_set_default(WGPULimits limits) {
+    limits.maxTextureDimension1D = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxTextureDimension2D = WGPU_LIMIT_U32_UNDEFINED;
+    limits.maxTextureDimension3D = WGPU_LIMIT_U32_UNDEFINED;
+    // [...] Set everything to WGPU_LIMIT_U32_UNDEFINED or WGPU_LIMIT_U64_UNDEFINED to mean no limit
+}
+
+WGPURequiredLimits get_required_limits(WGPUAdapter adapter) {
+    // Get adapter supported limits, in case we need them
+	WGPUSupportedLimits adapter_supported_limits;
+	wgpuAdapterGetLimits(context.adapter, &adapter_supported_limits);
+    PRINT_INFO("adapter.maxVertexAttributes: %i", adapter_supported_limits.limits.maxVertexAttributes);
+
+    WGPURequiredLimits requiredLimits;
+    webgpu_set_default(requiredLimits.limits);
+
+    // We use at most 1 vertex attribute for now
+    requiredLimits.limits.maxVertexAttributes = 1;
+    // We should also tell that we use 1 vertex buffers
+    requiredLimits.limits.maxVertexBuffers = 1;
+    // Maximum size of a buffer is 6 vertices of 3 float each
+    requiredLimits.limits.maxBufferSize = 6 * sizeof(Vertex3D);
+    // Maximum stride between 2 consecutive vertices in the vertex buffer
+    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(Vertex3D);
+
+    // [...] Other device limits
+
+    return requiredLimits;
 }

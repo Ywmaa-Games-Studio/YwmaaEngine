@@ -65,11 +65,20 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
     // If the begin frame returned successfully, mid-frame operations may continue.
     if (renderer_begin_frame(packet->delta_time)) {
         Matrice4 projection = Matrice4_perspective(deg_to_rad(45.0f), 1280 / 720.0f, 0.1f, 1000.0f);
-        static f32 z = -1.0f;
-        z -= 0.005f;
-        Matrice4 view = Matrice4_translation((Vector3){0, 0, z});
+        static f32 z = 0.0f;
+        z += 0.01f;
+        Matrice4 view = Matrice4_translation((Vector3){0, 0, z}); // -30.0f
+        view = Matrice4_inverse(view);
 
         state_ptr->backend.update_global_state(projection, view, Vector3_zero(), Vector4_one(), 0);
+
+        // mat4 model = mat4_translation((vec3){0, 0, 0});
+        static f32 angle = 0.01f;
+        angle += 0.001f;
+        Quaternion rotation = Quaternion_from_axis_angle(Vector3_forward(), angle, false);
+        Matrice4 model = Quaternion_to_rotation_matrix(rotation, Vector3_zero());
+        state_ptr->backend.update_object(model);
+
         // End the frame. If this fails, it is likely unrecoverable.
         b8 result = renderer_end_frame(packet->delta_time);
 

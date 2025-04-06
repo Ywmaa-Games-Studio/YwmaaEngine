@@ -176,7 +176,7 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     Vertex3D verts[vert_count];
     yzero_memory(verts, sizeof(Vertex3D) * vert_count);
 
-    const f32 f = 10.0f;
+    const f32 f = 10.0;
 
     verts[0].position.x = -0.5 * f;
     verts[0].position.y = -0.5 * f;
@@ -358,9 +358,9 @@ b8 vulkan_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     // Dynamic state
     VkViewport viewport;
     viewport.x = 0.0f;
-    viewport.y = (f32)context.framebuffer_height;//(f32)context.framebuffer_height
+    viewport.y = 0.0f;
     viewport.width = (f32)context.framebuffer_width;
-    viewport.height = -(f32)context.framebuffer_height;
+    viewport.height = (f32)context.framebuffer_height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -396,19 +396,6 @@ void vulkan_renderer_update_global_state(Matrice4 projection, Matrice4 view, Vec
     // TODO: other ubo properties
 
     vulkan_object_shader_update_global_state(&context, &context.object_shader);
-    // TODO: temporary test code
-    vulkan_object_shader_use(&context, &context.object_shader);
-
-    // Bind vertex buffer at offset.
-    VkDeviceSize offsets[1] = {0};
-    vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &context.object_vertex_buffer.handle, (VkDeviceSize*)offsets);
-
-    // Bind index buffer at offset.
-    vkCmdBindIndexBuffer(command_buffer->handle, context.object_index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
-
-    // Issue the draw.
-    vkCmdDrawIndexed(command_buffer->handle, 6, 1, 0, 0, 0);
-    // TODO: end temporary test code
 }
 
 b8 vulkan_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
@@ -480,6 +467,26 @@ b8 vulkan_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
 
 
     return true;
+}
+
+void vulkan_backend_update_object(Matrice4 model) {
+    VULKAN_COMMAND_BUFFER* command_buffer = &context.graphics_command_buffers[context.image_index];
+    
+    vulkan_object_shader_update_object(&context, &context.object_shader, model);
+
+    // TODO: temporary test code
+    vulkan_object_shader_use(&context, &context.object_shader);
+
+    // Bind vertex buffer at offset.
+    VkDeviceSize offsets[1] = {0};
+    vkCmdBindVertexBuffers(command_buffer->handle, 0, 1, &context.object_vertex_buffer.handle, (VkDeviceSize*)offsets);
+
+    // Bind index buffer at offset.
+    vkCmdBindIndexBuffer(command_buffer->handle, context.object_index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
+
+    // Issue the draw.
+    vkCmdDrawIndexed(command_buffer->handle, 6, 1, 0, 0, 0);
+    // TODO: end temporary test code
 }
 
 i32 find_memory_index(u32 type_filter, u32 property_flags) {

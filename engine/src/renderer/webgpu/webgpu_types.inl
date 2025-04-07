@@ -24,8 +24,18 @@ typedef struct WEBGPU_OBJECT_SHADER {
     GLOBAL_UNIFORM_OBJECT global_ubo;
 
     // Global uniform buffer.
-    WGPUBufferDescriptor global_descriptor;
+    WGPUBufferDescriptor global_buffer_descriptor;
     WGPUBuffer global_uniform_buffer;
+
+    // Global uniform buffer.
+    WGPUBufferDescriptor model_buffer_descriptor;
+    WGPUBuffer model_uniform_buffer;
+
+    // Object uniform buffer.
+    WGPUBufferDescriptor object_buffer_descriptor;
+    WGPUBuffer object_uniform_buffer;
+
+    
 
 
 } WEBGPU_OBJECT_SHADER;

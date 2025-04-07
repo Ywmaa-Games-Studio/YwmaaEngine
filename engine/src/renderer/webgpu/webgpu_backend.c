@@ -115,6 +115,7 @@ void webgpu_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u1
 }
 
 b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+    context.frame_delta_time = delta_time;
     // Check if recreating swap chain and boot out.
     if (context.recreating_swapchain) {
         PRINT_INFO("Recreating swapchain, booting.");
@@ -297,7 +298,7 @@ b8 webgpu_create_buffers() {
     Vertex3D verts[vert_count];
     yzero_memory(verts, sizeof(Vertex3D) * vert_count);
     
-    const f32 f = 1.0;
+    const f32 f = 10.0;
 
     verts[0].position.x = -0.5 * f;
     verts[0].position.y = -0.5 * f;

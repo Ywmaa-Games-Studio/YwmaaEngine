@@ -1,5 +1,5 @@
 #pragma once
-
+#include "renderer/renderer_types.inl"
 #include "defines.h"
 //#include <webgpu.h>
 //#include <wgpu.h>
@@ -8,6 +8,12 @@
 #include "../thirdparty/wgpu/include/webgpu.h"
 
 
+typedef struct WEBGPU_PIPELINE {
+    WGPURenderPipeline handle;
+    WGPUPipelineLayout layout;
+    WGPUBindGroup bind_group;
+    WGPUBindGroupLayout bind_group_layout;
+} WEBGPU_PIPELINE;
 
 typedef struct WEBGPU_CONTEXT {
     // The framebuffer's current width.
@@ -37,10 +43,16 @@ typedef struct WEBGPU_CONTEXT {
     WGPURenderPassEncoder render_pass;
     WGPUTextureFormat swapchain_format;
     
-    WGPURenderPipeline pipeline;
+    WEBGPU_PIPELINE pipeline;
     WGPUShaderModule shaderModule;
 
     WGPUBuffer object_vertex_buffer;
-    WGPUBuffer buffer2;
+    WGPUBuffer object_index_buffer;
+    // Global uniform object.
+    GLOBAL_UNIFORM_OBJECT global_ubo;
+
+    // Global uniform buffer.
+    WGPUBufferDescriptor global_descriptor;
+    WGPUBuffer global_uniform_buffer;
 
 } WEBGPU_CONTEXT;

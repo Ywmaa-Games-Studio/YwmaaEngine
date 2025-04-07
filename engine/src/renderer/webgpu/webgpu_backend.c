@@ -1,45 +1,19 @@
+#include "webgpu_types.inl"
+
 #include "webgpu_backend.h"
 #include "webgpu_platform.h"
+#include "webgpu_swapchain.h"
+#include "webgpu_pipeline.h"
+#include "webgpu_device.h"
 
-#include "webgpu_types.inl"
 #include "core/logger.h"
-#include "core/ystring.h"
 #include "core/ymemory.h"
-#include "core/asserts.h"
 #include "core/application.h"
-
-#include "io/filesystem.h"
-
-#include "variants/darray.h"
-
-#include "platform/platform.h"
-
-WGPURequiredLimits get_required_limits(WGPUAdapter adapter);
 
 b8 webgpu_create_buffers();
 void webgpu_destroy_buffers();
 
-b8 webgpu_pipeline_create();
-void webgpu_pipeline_destroy();
-
-b8 webgpu_device_create();
-void webgpu_device_destroy();
-
-WGPUAdapter request_adapter_sync(WGPUInstance instance, WGPURequestAdapterOptions const * options);
-void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapter, char const * message, void * pUserData);
-
-WGPUDevice request_device_sync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor);
-void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, char const * message, void * pUserData);
-void on_device_lost(WGPUDeviceLostReason reason, char const* message, void* /* pUserData */);
-void on_device_error(WGPUErrorType type, char const* message, void* /* pUserData */);
-
-void on_queue_work_done(WGPUQueueWorkDoneStatus status, void* /* pUserData */);
-
-b8 webgpu_swapchain_create(
-    u32 width,
-    u32 height);
-void webgpu_swapchain_destroy();
-b8 webgpu_recreate_swapchain(RENDERER_BACKEND* backend);
+b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend);
 
 WGPUTextureView get_next_surface_texture_view();
 // static WebGPU context
@@ -55,15 +29,43 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     cached_framebuffer_width = 0;
     cached_framebuffer_height = 0;
 
-    if (!webgpu_device_create()){
+    // We create a descriptor
+    WGPUInstanceDescriptor desc = {};
+    desc.nextInChain = NULL;
+
+// We create the instance using this descriptor
+#ifdef WEBGPU_BACKEND_EMSCRIPTEN
+    PRINT_INFO("Detected Web Build Use EMSCRIPTEN.");
+    context->instance = wgpuCreateInstance(nullptr);
+#else //  WEBGPU_BACKEND_EMSCRIPTEN
+    context.instance = wgpuCreateInstance(&desc);
+#endif //  WEBGPU_BACKEND_EMSCRIPTEN
+
+
+    // We can check whether there is actually an instance created
+    if (!context.instance) {
+        PRINT_ERROR("Could not initialize WebGPU!");
         return false;
     }
 
-    if (!webgpu_swapchain_create(context.framebuffer_width, context.framebuffer_height)){
+    //START Surface
+    PRINT_DEBUG("Creating WebGPU surface...");
+    if (!platform_create_webgpu_surface(&context)) {
+        PRINT_ERROR("Failed to create platform surface!");
+        return false;
+    }
+    PRINT_DEBUG("WebGPU surface created.");
+    //END
+
+    if (!webgpu_device_create(&context)){
         return false;
     }
 
-    webgpu_pipeline_create();
+    if (!webgpu_swapchain_create(&context, context.framebuffer_width, context.framebuffer_height)){
+        return false;
+    }
+
+    webgpu_pipeline_create(&context);
 
     webgpu_create_buffers();
 
@@ -77,11 +79,18 @@ void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
 
     webgpu_destroy_buffers();
     
-    webgpu_pipeline_destroy();
+    webgpu_pipeline_destroy(&context);
 
-    webgpu_swapchain_destroy();
+    webgpu_swapchain_destroy(&context);
 
-    webgpu_device_destroy();
+    webgpu_device_destroy(&context);
+
+    PRINT_DEBUG("Destroying WebGPU Surface...");
+    wgpuSurfaceRelease(context.surface);
+
+    PRINT_DEBUG("Destroying WebGPU instance...");
+    // We clean up the WebGPU instance
+    wgpuInstanceRelease(context.instance);
 
 }
 
@@ -106,9 +115,15 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     if (context.framebuffer_size_generation != context.framebuffer_size_last_generation) {
         // If the swapchain recreation failed (because, for example, the window was minimized),
         // boot out before unsetting the flag.
-        if (!webgpu_recreate_swapchain(backend)) {
+        if (!wgpu_recreate_swapchain(backend)) {
             return false;
         }
+
+        // Sync the framebuffer size with the cached sizes.
+        context.framebuffer_width = cached_framebuffer_width;
+        context.framebuffer_height = cached_framebuffer_height;
+        cached_framebuffer_width = 0;
+        cached_framebuffer_height = 0;
 
         PRINT_INFO("Resized, booting.");
         return false;
@@ -156,12 +171,16 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     // [...] Use Render Pass
 
         // Select which render pipeline to use
-    wgpuRenderPassEncoderSetPipeline(context.render_pass, context.pipeline);
+    wgpuRenderPassEncoderSetPipeline(context.render_pass, context.pipeline.handle);
 
     return true;
 }
 void webgpu_renderer_update_global_state(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode) {
+    context.global_ubo.projection = projection;
+    context.global_ubo.view = view;
 
+    // Update uniform buffer
+    wgpuQueueWriteBuffer(context.queue, context.global_uniform_buffer, 0, &context.global_ubo, sizeof(GLOBAL_UNIFORM_OBJECT));
 }
 b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
 
@@ -188,411 +207,19 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
 }
 
 void webgpu_backend_update_object(GEOMETRY_RENDER_DATA data) {
+
     // Set vertex buffer while encoding the render pass
     wgpuRenderPassEncoderSetVertexBuffer(context.render_pass, 0, context.object_vertex_buffer, 0, wgpuBufferGetSize(context.object_vertex_buffer));
+    wgpuRenderPassEncoderSetIndexBuffer(context.render_pass, context.object_index_buffer, WGPUIndexFormat_Uint32, 0, wgpuBufferGetSize(context.object_index_buffer));
 
-    // Draw 1 instance of a 3-vertices shape
-    wgpuRenderPassEncoderDraw(context.render_pass, 3, 1, 0, 0);
+    // Set binding group here!
+    wgpuRenderPassEncoderSetBindGroup(context.render_pass, 0, context.pipeline.bind_group, 0, NULL);
+
+    wgpuRenderPassEncoderDrawIndexed(context.render_pass, 6, 1, 0, 0, 0);
 }
 
-b8 webgpu_pipeline_create(){
-    WGPUShaderModuleDescriptor shaderDesc = {};
-    shaderDesc.hintCount = 0;
-    shaderDesc.hints = NULL;
 
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc = {};
-    // Set the chained struct's header
-    shaderCodeDesc.chain.next = NULL;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-    // Build file name.
-    char file_name[512] = "assets/shaders/shader.wgsl";
-
-    // Obtain file handle.
-    FILE_HANDLE handle;
-    if (!filesystem_open(file_name, FILE_MODE_READ, false, &handle)) {
-        PRINT_ERROR("Unable to read wgsl shader: %s.", file_name);
-        return false;
-    }
-
-    u64 file_size = 0;
-    if (!filesystem_size(&handle, &file_size)) {
-        PRINT_ERROR("Unable to wgsl shader file: %s.", file_name);
-        filesystem_close(&handle);
-        return false;
-    }
-
-    // Read the entire file as binary.
-    u64 size = 0;
-    u8 extra_size = 1; // This is required to add extra size for empty space
-    char* code = yallocate(sizeof(char) * file_size +extra_size, MEMORY_TAG_STRING);
-    if (!filesystem_read_all_text(&handle, code, &size)) {
-        PRINT_ERROR("Unable to text read shader module: %s.", file_name);
-        return false;
-    }
-
-    // Close the file.
-    filesystem_close(&handle);
-
-    // Connect the chain
-    shaderDesc.nextInChain = &shaderCodeDesc.chain;
-
-    shaderCodeDesc.code = code;
-    PRINT_INFO("Got shader module: ");
-    context.shaderModule = wgpuDeviceCreateShaderModule(context.device, &shaderDesc);
-    PRINT_INFO("Got shader module: %i", &context.shaderModule);
-
-    WGPUVertexBufferLayout vertex_buffer_layout;
-    WGPUVertexAttribute position_attribute;
-    // == For each attribute, describe its layout, i.e., how to interpret the raw data ==
-    // Corresponds to @location(...)
-    position_attribute.shaderLocation = 0;
-    // Means vec2f in the shader
-    position_attribute.format = WGPUVertexFormat_Float32x3;
-    // Index of the first element
-    position_attribute.offset = 0;
-    
-    vertex_buffer_layout.attributeCount = 1;
-    vertex_buffer_layout.attributes = &position_attribute;
-    vertex_buffer_layout.arrayStride = sizeof(Vertex3D);
-    vertex_buffer_layout.stepMode = WGPUVertexStepMode_Vertex;
-
-    // [...] Describe render pipeline
-    WGPURenderPipelineDescriptor pipelineDesc = {};
-    pipelineDesc.nextInChain = NULL;
-// [...] Describe vertex pipeline state
-    // We do not use any vertex buffer for this first simplistic example
-    pipelineDesc.vertex.bufferCount = 1;
-    pipelineDesc.vertex.buffers = &vertex_buffer_layout;
-    // NB: We define the 'shaderModule' in the second part of this chapter.
-    // Here we tell that the programmable vertex shader stage is described
-    // by the function called 'vs_main' in that module.
-    pipelineDesc.vertex.module = context.shaderModule;
-    pipelineDesc.vertex.entryPoint = "vs_main";
-    pipelineDesc.vertex.constantCount = 0;
-    pipelineDesc.vertex.constants = NULL;
-// [...] Describe primitive pipeline state
-    // Each sequence of 3 vertices is considered as a triangle
-    pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-
-    // We'll see later how to specify the order in which vertices should be
-    // connected. When not specified, vertices are considered sequentially.
-    pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-
-    // The face orientation is defined by assuming that when looking
-    // from the front of the face, its corner vertices are enumerated
-    // in the counter-clockwise (CCW) order.
-    pipelineDesc.primitive.frontFace = WGPUFrontFace_CCW;
-
-    // But the face orientation does not matter much because we do not
-    // cull (i.e. "hide") the faces pointing away from us (which is often
-    // used for optimization).
-    pipelineDesc.primitive.cullMode = WGPUCullMode_None;
-// [...] Describe fragment pipeline state
-    // We tell that the programmable fragment shader stage is described
-    // by the function called 'fs_main' in the shader module.
-    WGPUFragmentState fragmentState = {};
-    fragmentState.module = context.shaderModule;
-    fragmentState.entryPoint = "fs_main";
-    fragmentState.constantCount = 0;
-    fragmentState.constants = NULL;
-// [...] We'll configure the blending stage here
-    WGPUBlendState blendState = {};
-// [...] Configure color blending equation
-    blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-    blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-    blendState.color.operation = WGPUBlendOperation_Add;
-// [...] Configure alpha blending equation
-    blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
-    blendState.alpha.dstFactor = WGPUBlendFactor_One;
-    blendState.alpha.operation = WGPUBlendOperation_Add;
-    WGPUColorTargetState colorTarget = {};
-    colorTarget.format = context.swapchain_format;
-    colorTarget.blend = &blendState;
-    colorTarget.writeMask = WGPUColorWriteMask_All; // We could write to only some of the color channels.
-
-    // We have only one target because our render pass has only one output color
-    // attachment.
-    fragmentState.targetCount = 1;
-    fragmentState.targets = &colorTarget;
-    pipelineDesc.fragment = &fragmentState;
-// [...] Describe stencil/depth pipeline state
-    // We do not use stencil/depth testing for now
-    pipelineDesc.depthStencil = NULL;
-// [...] Describe multi-sampling state
-    // Samples per pixel
-    pipelineDesc.multisample.count = 1;
-    // Default value for the mask, meaning "all bits on"
-    pipelineDesc.multisample.mask = ~0u;
-    // Default value as well (irrelevant for count = 1 anyways)
-    pipelineDesc.multisample.alphaToCoverageEnabled = false;
-// [...] Describe pipeline layout
-    pipelineDesc.layout = NULL;
-    context.pipeline = wgpuDeviceCreateRenderPipeline(context.device, &pipelineDesc);
-    wgpuShaderModuleRelease(context.shaderModule);
-    return true;
-}
-
-void webgpu_pipeline_destroy()
-{
-    
-}
-
-b8 webgpu_device_create(){
-    // We create a descriptor
-    WGPUInstanceDescriptor desc = {};
-    desc.nextInChain = NULL;
-
-// We create the instance using this descriptor
-#ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    PRINT_INFO("Detected Web Build Use EMSCRIPTEN.");
-    context.instance = wgpuCreateInstance(nullptr);
-#else //  WEBGPU_BACKEND_EMSCRIPTEN
-    context.instance = wgpuCreateInstance(&desc);
-#endif //  WEBGPU_BACKEND_EMSCRIPTEN
-
-
-    // We can check whether there is actually an instance created
-    if (!context.instance) {
-        PRINT_ERROR("Could not initialize WebGPU!");
-        return false;
-    }
-
-    //START Surface
-    PRINT_DEBUG("Creating WebGPU surface...");
-    if (!platform_create_webgpu_surface(&context)) {
-        PRINT_ERROR("Failed to create platform surface!");
-        return false;
-    }
-    PRINT_DEBUG("WebGPU surface created.");
-    //END
-
-    //START Device creation
-    //Adapter
-    PRINT_DEBUG("Requesting adapter...");
-
-    WGPURequestAdapterOptions adapter_opts = {};
-    adapter_opts.nextInChain = NULL;
-    adapter_opts.compatibleSurface = context.surface;
-    context.adapter = request_adapter_sync(context.instance, &adapter_opts);
-
-    PRINT_INFO("Got adapter: %i", context.adapter);
-
-#ifdef _DEBUG
-    WGPUAdapterInfo properties = {};
-    properties.nextInChain = NULL;
-    wgpuAdapterGetInfo(context.adapter, &properties);
-    PRINT_INFO("Adapter properties:");
-    PRINT_INFO(" - vendorID: %i", properties.vendorID);
-    if (properties.vendor) {
-        PRINT_INFO(" - vendorName: %s", properties.vendor);
-    }
-    if (properties.architecture) {
-        PRINT_INFO(" - architecture: %s", properties.architecture);
-    }
-    PRINT_INFO(" - deviceID: %i", properties.deviceID);
-    if (properties.device) {
-        PRINT_INFO(" - name: %s", properties.device);
-    }
-    if (properties.description) {
-        PRINT_INFO(" - driverDescription: %s", properties.description);
-    }
-    PRINT_INFO(" - adapterType: 0x%i", properties.adapterType);
-    PRINT_INFO(" - backendType: 0x%i", properties.backendType);
-
-#endif
-
-    WGPURequiredLimits required_limits = get_required_limits(context.adapter);
-    // Device
-    PRINT_DEBUG("Requesting device...");
-    WGPUDeviceDescriptor device_desc = {};
-    device_desc.label = "My Device"; // anything works here, that's your call
-    device_desc.requiredFeatureCount = 0; // we do not require any specific feature
-    device_desc.requiredLimits = NULL;//&required_limits;
-    device_desc.defaultQueue.nextInChain = NULL;
-    device_desc.defaultQueue.label = "The default queue";
-    device_desc.deviceLostCallback = on_device_lost;
-    // [...] Build device descriptor
-    context.device = request_device_sync(context.adapter, &device_desc);
-
-    //wgpuDeviceSetUncapturedErrorCallback(context.device, on_device_error, NULL /* pUserData */);
-    PRINT_INFO("Got device: %i", context.device);
-
-	WGPUSupportedLimits device_supported_limits;
-    wgpuDeviceGetLimits(context.device, &device_supported_limits);
-    PRINT_INFO("device.maxVertexAttributes: %i", device_supported_limits.limits.maxVertexAttributes);
-
-    //context.swapchain_format = wgpuSurfaceGetPreferredFormat(context.surface, context.adapter); This changed to the code below
-    WGPUSurfaceCapabilities capabilities;
-    wgpuSurfaceGetCapabilities( context.surface, context.adapter, &capabilities );
-    context.swapchain_format = capabilities.formats[0];
-    wgpuSurfaceCapabilitiesFreeMembers( capabilities );
-    //END Device creation
-
-    context.queue = wgpuDeviceGetQueue(context.device);
-
-    PRINT_INFO("Queues obtained.");
-    wgpuQueueOnSubmittedWorkDone(context.queue, on_queue_work_done, NULL /* pUserData */);
-
-    PRINT_DEBUG("Destroying WebGPU Adapter...");
-    wgpuAdapterRelease(context.adapter);
-    
-    return context.device != NULL;
-}
-void webgpu_device_destroy(){
-    PRINT_DEBUG("Destroying WebGPU Queue...");
-    wgpuQueueRelease(context.queue);
-
-    PRINT_DEBUG("Destroying WebGPU Device...");
-    wgpuDeviceRelease(context.device);
-
-    PRINT_DEBUG("Destroying WebGPU Surface...");
-    wgpuSurfaceRelease(context.surface);
-
-    PRINT_DEBUG("Destroying WebGPU instance...");
-    // We clean up the WebGPU instance
-    wgpuInstanceRelease(context.instance);
-}
-
-/**
- * Utility function to get a WebGPU adapter, so that
- *     WGPUAdapter adapter = requestAdapterSync(options);
- * is roughly equivalent to
- *     const adapter = await navigator.gpu.requestAdapter(options);
- */
-// A simple structure holding the local information shared with the
-// onAdapterRequestEnded callback.
-struct adapter_request_data {
-    WGPUAdapter adapter;
-    b8 requestEnded;
-};
-WGPUAdapter request_adapter_sync(WGPUInstance instance, WGPURequestAdapterOptions const * options) {
-    struct adapter_request_data adapter_data;
-
-    // Call to the WebGPU request adapter procedure
-    wgpuInstanceRequestAdapter(
-        instance /* equivalent of navigator.gpu */,
-        options,
-        on_adapter_request_ended,
-        &adapter_data
-    );
-
-    // We wait until userData.requestEnded gets true
-    // [...] Wait for request to end
-    YASSERT(adapter_data.requestEnded);
-
-    return adapter_data.adapter;
-}
-
-// Callback called by wgpuInstanceRequestAdapter when the request returns
-// This is a C++ lambda function, but could be any function defined in the
-// global scope. It must be non-capturing (the brackets [] are empty) so
-// that it behaves like a regular C function pointer, which is what
-// wgpuInstanceRequestAdapter expects (WebGPU being a C API). The workaround
-// is to convey what we want to capture through the pUserData pointer,
-// provided as the last argument of wgpuInstanceRequestAdapter and received
-// by the callback as its last argument.
-void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapter, char const * message, void * pUserData) {
-    struct adapter_request_data* adapter_data = (pUserData);
-    if (status == WGPURequestAdapterStatus_Success) {
-        adapter_data->adapter = adapter;
-    } else {
-        PRINT_ERROR("Could not get WebGPU adapter: ", message);
-    }
-    adapter_data->requestEnded = true;
-};
-
-
-
-
-/**
- * Utility function to get a WebGPU device, so that
- *     WGPUAdapter device = requestDeviceSync(adapter, options);
- * is roughly equivalent to
- *     const device = await adapter.requestDevice(descriptor);
- * It is very similar to requestAdapter
- */
-struct device_request_data {
-    WGPUDevice device;
-    b8 requestEnded;
-};
-
-WGPUDevice request_device_sync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor) {
-    struct device_request_data device_data;
-
-    wgpuAdapterRequestDevice(
-        adapter,
-        descriptor,
-        on_device_request_ended,
-        &device_data
-    );
-
-#ifdef __EMSCRIPTEN__
-    while (!device_data.requestEnded) {
-        emscripten_sleep(100);
-    }
-#endif // __EMSCRIPTEN__
-
-    YASSERT(device_data.requestEnded);
-
-    return device_data.device;
-}
-
-void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, char const * message, void * pUserData) {
-    struct device_request_data* device_data = (pUserData);
-    if (status == WGPURequestDeviceStatus_Success) {
-        device_data->device = device;
-    } else {
-        PRINT_ERROR("Could not get WebGPU device: ", message);
-    }
-    device_data->requestEnded = true;
-};
-
-
-
-void on_device_lost(WGPUDeviceLostReason reason, char const* message, void* /* pUserData */) {
-    PRINT_ERROR("Device lost: reason ", reason);
-    if (message) PRINT_ERROR("message: ", message);
-};
-
-void on_device_error(WGPUErrorType type, char const* message, void* /* pUserData */) {
-    PRINT_ERROR("Uncaptured device error: type %i", type);
-    if (message) PRINT_ERROR("message: %s", message);
-};
-
-
-
-void on_queue_work_done(WGPUQueueWorkDoneStatus status, void* /* pUserData */) {
-    PRINT_DEBUG("Queued work finished with status: ", status);
-};
-
-
-
-b8 webgpu_swapchain_create(
-    u32 width,
-    u32 height) {
-    WGPUSurfaceConfiguration config = {};
-    config.nextInChain = NULL;
-    config.width = width;
-    config.height = height;
-    config.usage = WGPUTextureUsage_RenderAttachment;
-    config.format = context.swapchain_format;
-    // And we do not need any particular view format:
-    config.viewFormatCount = 0;
-    config.viewFormats = NULL;
-    config.device = context.device;
-    config.presentMode = WGPUPresentMode_Fifo;
-    config.alphaMode = WGPUCompositeAlphaMode_Auto;
-    wgpuSurfaceConfigure(context.surface, &config);
-    
-
-    return context.surface != NULL;
-}
-
-void webgpu_swapchain_destroy(){
-    wgpuSurfaceUnconfigure(context.surface);
-}
-
-b8 webgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
+b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     // If already being recreated, do not try again.
     if (context.recreating_swapchain) {
         PRINT_DEBUG("recreate_swapchain called when already recreating. Booting.");
@@ -608,22 +235,13 @@ b8 webgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     // Mark as recreating if the dimensions are valid.
     context.recreating_swapchain = true;
 
-    webgpu_swapchain_destroy();
-    
-    // Re-init
-    // Swapchain
-    if (!webgpu_swapchain_create(cached_framebuffer_width, cached_framebuffer_height)){
-        PRINT_DEBUG("Failed to recreate swapchain");
-        return false;
-    }   
-
+    webgpu_recreate_swapchain(&context, backend, cached_framebuffer_width, cached_framebuffer_height);
 
     // Sync the framebuffer size with the cached sizes.
     context.framebuffer_width = cached_framebuffer_width;
     context.framebuffer_height = cached_framebuffer_height;
     cached_framebuffer_width = 0;
     cached_framebuffer_height = 0;
-
 
     // Update framebuffer size generation.
     context.framebuffer_size_last_generation = context.framebuffer_size_generation;
@@ -662,73 +280,69 @@ WGPUTextureView get_next_surface_texture_view() {
 b8 webgpu_create_buffers() {
     
     // TODO: temporary test code
-    const u32 vert_count = 3;
+    const u32 vert_count = 4;
     Vertex3D verts[vert_count];
     yzero_memory(verts, sizeof(Vertex3D) * vert_count);
     
-    verts[0].position.x = -0.5;
-    verts[0].position.y = -0.5;
-    
-    verts[1].position.x = 0.5;
-    verts[1].position.y = -0.5;
-    
-    verts[2].position.x = 0.0;
-    verts[2].position.y = 0.5;
+    const f32 f = 1.0;
 
-    
-    //verts[3].position.x = 0.5 * f;
-    //verts[3].position.y = -0.5 * f;
+    verts[0].position.x = -0.5 * f;
+    verts[0].position.y = -0.5 * f;
+    verts[0].texcoord.x = 0.0;
+    verts[0].texcoord.y = 0.0;
+
+    verts[1].position.x = 0.5 * f;
+    verts[1].position.y = 0.5 * f;
+    verts[1].texcoord.x = 1.0;
+    verts[1].texcoord.y = 1.0;
+
+    verts[2].position.x = -0.5 * f;
+    verts[2].position.y = 0.5 * f;
+    verts[2].texcoord.x = 0.0;
+    verts[2].texcoord.y = 1.0;
+
+    verts[3].position.x = 0.5 * f;
+    verts[3].position.y = -0.5 * f;
+    verts[3].texcoord.x = 1.0;
+    verts[3].texcoord.y = 0.0;
+
+    const u32 index_count = 6;
+    u32 indices[index_count] = {0, 1, 2, 0, 3, 1};
     // TODO: end temp code
 
-    WGPUBufferDescriptor bufferDesc = {};
-    bufferDesc.nextInChain = NULL;
-    bufferDesc.label = "Vertex Buffer";
-    bufferDesc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
-    bufferDesc.size = vert_count * sizeof(Vertex3D);
-    bufferDesc.mappedAtCreation = false;
-    context.object_vertex_buffer = wgpuDeviceCreateBuffer(context.device, &bufferDesc);
+    WGPUBufferDescriptor vertex_buffer_desc = {};
+    vertex_buffer_desc.nextInChain = NULL;
+    vertex_buffer_desc.label = "Vertex Buffer";
+    vertex_buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
+    vertex_buffer_desc.size = sizeof(Vertex3D) * vert_count;
+    vertex_buffer_desc.mappedAtCreation = false;
+    context.object_vertex_buffer = wgpuDeviceCreateBuffer(context.device, &vertex_buffer_desc);
+
+    WGPUBufferDescriptor index_buffer_desc = {};
+    index_buffer_desc.nextInChain = NULL;
+    index_buffer_desc.label = "Index Buffer";
+    index_buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
+    index_buffer_desc.size = sizeof(u32) * index_count;
+    index_buffer_desc.mappedAtCreation = false;
+    context.object_index_buffer = wgpuDeviceCreateBuffer(context.device, &index_buffer_desc);
 
     // Upload geometry data to the buffer
-    wgpuQueueWriteBuffer(context.queue, context.object_vertex_buffer, 0, verts, bufferDesc.size);
+    wgpuQueueWriteBuffer(context.queue, context.object_vertex_buffer, 0, verts, vertex_buffer_desc.size);
+    wgpuQueueWriteBuffer(context.queue, context.object_index_buffer, 0, indices, index_buffer_desc.size);
 
+    //wgpuBufferRelease(context.object_vertex_buffer);
+    //wgpuBufferRelease(context.object_index_buffer);
+    
     return true;
 }
 
 void webgpu_destroy_buffers(){
-    wgpuBufferRelease(context.object_vertex_buffer);
     wgpuBufferDestroy(context.object_vertex_buffer);
+    wgpuBufferDestroy(context.object_index_buffer);
+    wgpuBufferDestroy(context.global_uniform_buffer);
 
 }
 
-void webgpu_set_default(WGPULimits limits) {
-    limits.maxTextureDimension1D = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxTextureDimension2D = WGPU_LIMIT_U32_UNDEFINED;
-    limits.maxTextureDimension3D = WGPU_LIMIT_U32_UNDEFINED;
-    // [...] Set everything to WGPU_LIMIT_U32_UNDEFINED or WGPU_LIMIT_U64_UNDEFINED to mean no limit
-}
-
-WGPURequiredLimits get_required_limits(WGPUAdapter adapter) {
-    // Get adapter supported limits, in case we need them
-	WGPUSupportedLimits adapter_supported_limits;
-	wgpuAdapterGetLimits(context.adapter, &adapter_supported_limits);
-    PRINT_INFO("adapter.maxVertexAttributes: %i", adapter_supported_limits.limits.maxVertexAttributes);
-
-    WGPURequiredLimits requiredLimits;
-    webgpu_set_default(requiredLimits.limits);
-
-    // We use at most 1 vertex attribute for now
-    requiredLimits.limits.maxVertexAttributes = 1;
-    // We should also tell that we use 1 vertex buffers
-    requiredLimits.limits.maxVertexBuffers = 1;
-    // Maximum size of a buffer is 6 vertices of 3 float each
-    requiredLimits.limits.maxBufferSize = 6 * sizeof(Vertex3D);
-    // Maximum stride between 2 consecutive vertices in the vertex buffer
-    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(Vertex3D);
-
-    // [...] Other device limits
-
-    return requiredLimits;
-}
 
 
 void webgpu_renderer_create_texture(const char* name, b8 auto_release, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, TEXTURE* out_texture){

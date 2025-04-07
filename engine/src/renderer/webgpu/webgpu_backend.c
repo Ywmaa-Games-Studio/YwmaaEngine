@@ -3,8 +3,8 @@
 #include "webgpu_backend.h"
 #include "webgpu_platform.h"
 #include "webgpu_swapchain.h"
-#include "webgpu_pipeline.h"
 #include "webgpu_device.h"
+#include "shaders/webgpu_object_shader.h"
 
 #include "core/logger.h"
 #include "core/ymemory.h"
@@ -65,9 +65,19 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
         return false;
     }
 
-    webgpu_pipeline_create(&context);
+    // Create builtin shaders
+    if (!webgpu_object_shader_create(&context, &context.object_shader)) {
+        PRINT_ERROR("Error loading built-in basic_lighting shader.");
+        return false;
+    }
 
     webgpu_create_buffers();
+
+    u32 object_id = 0;
+    if (!webgpu_object_shader_acquire_resources(&context, &context.object_shader, &object_id)) {
+        PRINT_ERROR("Failed to acquire shader resources.");
+        return false;
+    }
 
     PRINT_INFO("WebGPU renderer initialized successfully.");
     return true;
@@ -75,11 +85,11 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
 
 void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
     // Destroy in the opposite order of creation.
-    // We no longer need to access the shader module
+
 
     webgpu_destroy_buffers();
-    
-    webgpu_pipeline_destroy(&context);
+
+    webgpu_object_shader_destroy(&context, &context.object_shader);
 
     webgpu_swapchain_destroy(&context);
 
@@ -171,16 +181,18 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     // [...] Use Render Pass
 
         // Select which render pipeline to use
-    wgpuRenderPassEncoderSetPipeline(context.render_pass, context.pipeline.handle);
+    wgpuRenderPassEncoderSetPipeline(context.render_pass, context.object_shader.pipeline.handle);
 
     return true;
 }
 void webgpu_renderer_update_global_state(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode) {
-    context.global_ubo.projection = projection;
-    context.global_ubo.view = view;
 
-    // Update uniform buffer
-    wgpuQueueWriteBuffer(context.queue, context.global_uniform_buffer, 0, &context.global_ubo, sizeof(GLOBAL_UNIFORM_OBJECT));
+    webgpu_object_shader_use(&context, &context.object_shader);
+
+    context.object_shader.global_ubo.projection = projection;
+    context.object_shader.global_ubo.view = view;
+
+    webgpu_object_shader_update_global_state(&context, &context.object_shader, context.frame_delta_time);
 }
 b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
 
@@ -207,13 +219,14 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
 }
 
 void webgpu_backend_update_object(GEOMETRY_RENDER_DATA data) {
+    webgpu_object_shader_update_object(&context, &context.object_shader, data);
+
+    // TODO: temporary test code
+    webgpu_object_shader_use(&context, &context.object_shader);
 
     // Set vertex buffer while encoding the render pass
     wgpuRenderPassEncoderSetVertexBuffer(context.render_pass, 0, context.object_vertex_buffer, 0, wgpuBufferGetSize(context.object_vertex_buffer));
     wgpuRenderPassEncoderSetIndexBuffer(context.render_pass, context.object_index_buffer, WGPUIndexFormat_Uint32, 0, wgpuBufferGetSize(context.object_index_buffer));
-
-    // Set binding group here!
-    wgpuRenderPassEncoderSetBindGroup(context.render_pass, 0, context.pipeline.bind_group, 0, NULL);
 
     wgpuRenderPassEncoderDrawIndexed(context.render_pass, 6, 1, 0, 0, 0);
 }
@@ -339,7 +352,6 @@ b8 webgpu_create_buffers() {
 void webgpu_destroy_buffers(){
     wgpuBufferDestroy(context.object_vertex_buffer);
     wgpuBufferDestroy(context.object_index_buffer);
-    wgpuBufferDestroy(context.global_uniform_buffer);
 
 }
 

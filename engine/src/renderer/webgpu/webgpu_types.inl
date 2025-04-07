@@ -7,7 +7,6 @@
 #include "../thirdparty/wgpu/include/wgpu.h"
 #include "../thirdparty/wgpu/include/webgpu.h"
 
-
 typedef struct WEBGPU_PIPELINE {
     WGPURenderPipeline handle;
     WGPUPipelineLayout layout;
@@ -15,7 +14,25 @@ typedef struct WEBGPU_PIPELINE {
     WGPUBindGroupLayout bind_group_layout;
 } WEBGPU_PIPELINE;
 
+// Max number of objects
+#define WEBGPU_OBJECT_MAX_OBJECT_COUNT 1024
+typedef struct WEBGPU_OBJECT_SHADER {
+    WEBGPU_PIPELINE pipeline;
+    WGPUShaderModule shader_module;
+
+    // Global uniform object.
+    GLOBAL_UNIFORM_OBJECT global_ubo;
+
+    // Global uniform buffer.
+    WGPUBufferDescriptor global_descriptor;
+    WGPUBuffer global_uniform_buffer;
+
+
+} WEBGPU_OBJECT_SHADER;
+
 typedef struct WEBGPU_CONTEXT {
+    f32 frame_delta_time;
+
     // The framebuffer's current width.
     u32 framebuffer_width;
 
@@ -42,17 +59,10 @@ typedef struct WEBGPU_CONTEXT {
     WGPUCommandEncoder encoder;
     WGPURenderPassEncoder render_pass;
     WGPUTextureFormat swapchain_format;
-    
-    WEBGPU_PIPELINE pipeline;
-    WGPUShaderModule shaderModule;
 
     WGPUBuffer object_vertex_buffer;
     WGPUBuffer object_index_buffer;
-    // Global uniform object.
-    GLOBAL_UNIFORM_OBJECT global_ubo;
 
-    // Global uniform buffer.
-    WGPUBufferDescriptor global_descriptor;
-    WGPUBuffer global_uniform_buffer;
+    WEBGPU_OBJECT_SHADER object_shader;
 
 } WEBGPU_CONTEXT;

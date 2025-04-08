@@ -27,13 +27,13 @@ jobs:
           sudo sh -c 'wget -c https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
       - name: Install Engine Dependencies
         run: |
-          sudo apt install -y libwayland-dev
+          sudo apt install -y libwayland-dev shaderc
 #libx11-dev libxkbcommon-x11-dev libx11-xcb-dev
-      - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.2
-        with:
-          version: latest
-          cache: true
+#      - name: Install Vulkan SDK
+#        uses: humbletim/install-vulkan-sdk@v1.2
+#        with:
+#          version: latest
+#          cache: true
       - name: x86_64-linux
         run: zig build -Doptimize=ReleaseFast
       #- name: x86_64-linux -> x86_64-linux-musl I need to dynamically load wayland

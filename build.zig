@@ -9,7 +9,7 @@ pub fn build(b: *std.Build) !void {
     const android_targets = android.standardTargets(b, target);
 
     const shader_compiler = b.dependency("shader_compiler", .{
-        .target = target,
+        .target = b.graph.host,
         .optimize = optimize,
     }).artifact("shader_compiler"); // Inspired by https://github.com/andrewrk/zig-vulkan-triangle/blob/master/build.zig
 

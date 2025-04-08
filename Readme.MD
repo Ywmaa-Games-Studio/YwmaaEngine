@@ -64,7 +64,6 @@ extracted from https://ziglang.org/documentation/master/#Build-Mode
 Install these via package manager:
  - `zig`
  - `libwayland-dev`
- - Setup Vulkan SDK for your distro.
 
 You can also check the required dependecies for linux in shell.nix
 

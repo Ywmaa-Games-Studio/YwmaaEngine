@@ -35,5 +35,9 @@
             .hash = "1220ddf168c855cf69b4f8c5284403106a3c681913e34453df10cc5a588d9bd1d005",
             .lazy = true,
         },
+        .shader_compiler = .{
+            .url = "git+https://github.com/Games-by-Mason/shader_compiler.git#712049c2a96d3be1c221294a3eee908752305bdc",
+            .hash = "12202e1e133faf54f2825bb9bc66527453cf43b31628ccb024c14b4aa55be473f51b",
+        },
     },
 }

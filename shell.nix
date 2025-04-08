@@ -21,7 +21,6 @@ with pkgs;
     vulkan-validation-layers
     vulkan-tools        # vulkaninfo
 
-    shaderc             # GLSL to SPIRV compiler - glslc
     renderdoc           # Graphics debugger
     #tracy               # Graphics profiler
     vulkan-tools-lunarg # vkconfig
@@ -31,7 +30,6 @@ with pkgs;
   ];
 
   buildInputs = with pkgs; [ # Required packages for build
-    freetype
     unstable.zig
 
     # For Android, only required when building for Android
@@ -39,6 +37,6 @@ with pkgs;
     unstable.sdkmanager
   ];
 
-  LD_LIBRARY_PATH = "${pkgs.xorg.libX11}/lib:${pkgs.xorg.libxcb}/lib:${freetype}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
+  LD_LIBRARY_PATH = "${pkgs.xorg.libX11}/lib:${pkgs.xorg.libxcb}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
 }
 

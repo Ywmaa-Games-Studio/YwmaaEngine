@@ -8,6 +8,11 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
     const android_targets = android.standardTargets(b, target);
 
+    const shader_compiler = b.dependency("shader_compiler", .{
+        .target = target,
+        .optimize = optimize,
+    }).artifact("shader_compiler"); // Inspired by https://github.com/andrewrk/zig-vulkan-triangle/blob/master/build.zig
+
     // If building with Android, initialize the tools / build
     const android_apk: ?*android.APK = blk: {
         if (android_targets.len == 0) {
@@ -206,8 +211,11 @@ pub fn build(b: *std.Build) !void {
         apk_file.installApk();
     }
 
-    try addShader(b, exe, "builtin.shader.vert.glsl", "builtin.shader.vert.spv", "-fshader-stage=vert");
-    try addShader(b, exe, "builtin.shader.frag.glsl", "builtin.shader.frag.spv", "-fshader-stage=frag");
+    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin-shader.vert"), "builtin.shader.vert.spv"), "bin/assets/shaders/builtin.shader.vert.spv").step);
+    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin-shader.frag"), "builtin.shader.frag.spv"), "bin/assets/shaders/builtin.shader.frag.spv").step);
+
+    //try addShader(b, exe, "builtin.shader.vert.glsl", "builtin.shader.vert.spv", "-fshader-stage=vert");
+    //try addShader(b, exe, "builtin.shader.frag.glsl", "builtin.shader.frag.spv", "-fshader-stage=frag");
     b.installDirectory(.{
         .source_dir = b.path("assets"),
         .install_dir = .prefix,
@@ -215,7 +223,8 @@ pub fn build(b: *std.Build) !void {
     });
 
     const run_cmd = b.addRunArtifact(exe);
-
+    //run_cmd.cwd = "zig-out/bin"; // (relative to project root)
+    run_cmd.cwd = .{ .cwd_relative = b.exe_dir };
     run_cmd.step.dependOn(b.getInstallStep());
 
     if (b.args) |args| {
@@ -321,4 +330,35 @@ fn addShader(b: *std.Build, exe: anytype, in_file: []const u8, out_file: []const
         full_out,
     });
     exe.step.dependOn(&run_cmd.step);
+}
+
+fn compileShader(
+    b: *std.Build,
+    optimize: std.builtin.OptimizeMode,
+    shader_compiler: *std.Build.Step.Compile,
+    src: std.Build.LazyPath,
+    out_basename: []const u8,
+) std.Build.LazyPath {
+    const compile_shader = b.addRunArtifact(shader_compiler);
+    compile_shader.addArgs(&.{
+        "--target", "Vulkan-1.3",
+    });
+    switch (optimize) {
+        .Debug => compile_shader.addArgs(&.{
+            "--robust-access",
+        }),
+        .ReleaseSafe => compile_shader.addArgs(&.{
+            "--optimize-perf",
+            "--robust-access",
+        }),
+        .ReleaseFast => compile_shader.addArgs(&.{
+            "--optimize-perf",
+        }),
+        .ReleaseSmall => compile_shader.addArgs(&.{
+            "--optimize-perf",
+            "--optimize-small",
+        }),
+    }
+    compile_shader.addFileArg(src);
+    return compile_shader.addOutputFileArg(out_basename);
 }

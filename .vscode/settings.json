@@ -97,6 +97,8 @@
         "webgpu_swapchain.h": "c",
         "webgpu_pipeline.h": "c",
         "vulkan_buffer.h": "c",
-        "webgpu_shader_utils.h": "c"
+        "webgpu_shader_utils.h": "c",
+        "webgpu_object_shader.h": "c",
+        "webgpu_device.h": "c"
     }
 }

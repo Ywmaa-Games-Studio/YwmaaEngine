@@ -6,9 +6,6 @@
 
 #include "io/filesystem.h"
 
-void webgpu_create_bind_group(WEBGPU_CONTEXT* context);
-void bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout);
-
 b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader_module) {
 
     WGPUShaderModuleDescriptor shaderDesc = {};

@@ -7,11 +7,26 @@
 #include "../thirdparty/wgpu/include/wgpu.h"
 #include "../thirdparty/wgpu/include/webgpu.h"
 
+typedef struct WEBGPU_IMAGE {
+    WGPUTexture handle;
+    WGPUTextureView view;
+    u32 width;
+    u32 height;
+} WEBGPU_IMAGE;
+
+typedef struct WEBGPU_TEXTURE_DATA {
+    WEBGPU_IMAGE image;
+    WGPUSampler sampler;
+} WEBGPU_TEXTURE_DATA;
+
+
 typedef struct WEBGPU_PIPELINE {
     WGPURenderPipeline handle;
     WGPUPipelineLayout layout;
     WGPUBindGroup bind_group;
+    WGPUBindGroup texture_bind_group;
     WGPUBindGroupLayout bind_group_layout;
+    WGPUBindGroupLayout texture_bind_group_layout;
 } WEBGPU_PIPELINE;
 
 // Max number of objects

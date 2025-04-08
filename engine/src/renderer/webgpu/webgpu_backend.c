@@ -4,6 +4,7 @@
 #include "webgpu_platform.h"
 #include "webgpu_swapchain.h"
 #include "webgpu_device.h"
+#include "webgpu_image.h"
 #include "shaders/webgpu_object_shader.h"
 
 #include "core/logger.h"
@@ -222,7 +223,6 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
 void webgpu_backend_update_object(GEOMETRY_RENDER_DATA data) {
     webgpu_object_shader_update_object(&context, &context.object_shader, data);
 
-    // TODO: temporary test code
     webgpu_object_shader_use(&context, &context.object_shader);
 
     // Set vertex buffer while encoding the render pass
@@ -344,8 +344,6 @@ b8 webgpu_create_buffers() {
     wgpuQueueWriteBuffer(context.queue, context.object_vertex_buffer, 0, verts, vertex_buffer_desc.size);
     wgpuQueueWriteBuffer(context.queue, context.object_index_buffer, 0, indices, index_buffer_desc.size);
 
-    //wgpuBufferRelease(context.object_vertex_buffer);
-    //wgpuBufferRelease(context.object_index_buffer);
     
     return true;
 }
@@ -353,15 +351,66 @@ b8 webgpu_create_buffers() {
 void webgpu_destroy_buffers(){
     wgpuBufferDestroy(context.object_vertex_buffer);
     wgpuBufferDestroy(context.object_index_buffer);
+    wgpuBufferRelease(context.object_vertex_buffer);
+    wgpuBufferRelease(context.object_index_buffer);
 
 }
 
 
 
 void webgpu_renderer_create_texture(const char* name, b8 auto_release, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, TEXTURE* out_texture){
+    out_texture->width = width;
+    out_texture->height = height;
+    out_texture->channel_count = channel_count;
+    out_texture->generation = 0;
+    // Internal data creation.
+    // TODO: Use an allocator for this.
+    out_texture->internal_data = (WEBGPU_TEXTURE_DATA*)yallocate(sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+    WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)out_texture->internal_data;
 
+    webgpu_image_create(
+        &context,
+        WGPUTextureDimension_2D,
+        width,
+        height,
+        WGPUTextureFormat_RGBA8Unorm,
+        WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst,
+        true,
+        WGPUTextureAspect_All,
+        &data->image);
+
+    // Copy the data from the buffer.
+    webgpu_image_copy_from_buffer(&context, &data->image, pixels, channel_count);
+
+    // Create a sampler
+    WGPUSamplerDescriptor sampler_desc;
+    // TODO: These filters should be configurable.
+    sampler_desc.addressModeU = WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeV = WGPUAddressMode_ClampToEdge;
+    sampler_desc.addressModeW = WGPUAddressMode_ClampToEdge;
+    sampler_desc.magFilter = WGPUFilterMode_Linear;
+    sampler_desc.minFilter = WGPUFilterMode_Linear;
+    sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    sampler_desc.lodMinClamp = 0.0f;
+    sampler_desc.lodMaxClamp = 1.0f;
+    sampler_desc.compare = WGPUCompareFunction_Undefined;
+    sampler_desc.maxAnisotropy = 1;
+    data->sampler = wgpuDeviceCreateSampler(context.device, &sampler_desc);
+
+
+    out_texture->has_transparency = has_transparency;
+    out_texture->generation++;
 }
 
 void webgpu_renderer_destroy_texture(TEXTURE* texture){
+    WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)texture->internal_data;
+    
+    webgpu_image_destroy(&data->image);
+    yzero_memory(&data->image, sizeof(WEBGPU_IMAGE));
+    wgpuSamplerRelease(data->sampler);
+    data->sampler = 0;
 
+    yfree(texture->internal_data, sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+    yzero_memory(texture, sizeof(struct TEXTURE));
+    
 }

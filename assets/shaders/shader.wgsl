@@ -26,6 +26,8 @@ struct object_uniform_object {
 @group(0) @binding(0) var<uniform> global_ubo: global_uniform_object;
 @group(0) @binding(1) var<uniform> model_ubo: model_uniform_object;
 @group(0) @binding(2) var<uniform> object_ubo: object_uniform_object;
+@group(1) @binding(0) var diffuse_texture: texture_2d<f32>;
+@group(1) @binding(1) var diffuse_sampler: sampler;
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
@@ -41,5 +43,6 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return object_ubo.diffuse_color;
+    let color = textureLoad(diffuse_texture, vec2<i32>(in.tex_coord), 0).rgb;
+    return object_ubo.diffuse_color * textureSample(diffuse_texture, diffuse_sampler, in.tex_coord); //* object_ubo.diffuse_color * textureSample(diffuse_texture, diffuse_sampler, in.tex_coord);
 }

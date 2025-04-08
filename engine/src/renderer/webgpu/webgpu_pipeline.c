@@ -4,7 +4,7 @@
 #include "core/ymemory.h"
 
 
-b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex_buffer_layout){
+b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex_buffer_layout, WEBGPU_OBJECT_SHADER* shader){
 
     
     // [...] Describe render pipeline
@@ -13,7 +13,7 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     // [...] Describe vertex pipeline state
     pipelineDesc.vertex.bufferCount = 1;
     pipelineDesc.vertex.buffers = &vertex_buffer_layout;
-    pipelineDesc.vertex.module = context->object_shader.shader_module;
+    pipelineDesc.vertex.module = shader->shader_module;
     pipelineDesc.vertex.entryPoint = "vs_main";
     pipelineDesc.vertex.constantCount = 0;
     pipelineDesc.vertex.constants = NULL;
@@ -39,7 +39,7 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     // We tell that the programmable fragment shader stage is described
     // by the function called 'fs_main' in the shader module.
     WGPUFragmentState fragmentState = {};
-    fragmentState.module = context->object_shader.shader_module;
+    fragmentState.module = shader->shader_module;
     fragmentState.entryPoint = "fs_main";
     fragmentState.constantCount = 0;
     fragmentState.constants = NULL;
@@ -74,14 +74,14 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     // Default value as well (irrelevant for count = 1 anyways)
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
 
-    pipelineDesc.layout = context->object_shader.pipeline.layout;
-    context->object_shader.pipeline.handle = wgpuDeviceCreateRenderPipeline(context->device, &pipelineDesc);
-    wgpuShaderModuleRelease(context->object_shader.shader_module);
+    pipelineDesc.layout = shader->pipeline.layout;
+    shader->pipeline.handle = wgpuDeviceCreateRenderPipeline(context->device, &pipelineDesc);
+    wgpuShaderModuleRelease(shader->shader_module);
 
     return true;
 }
 
-void webgpu_pipeline_destroy(WEBGPU_CONTEXT* context)
+void webgpu_pipeline_destroy(WEBGPU_CONTEXT* context, WEBGPU_OBJECT_SHADER* shader)
 {
-    wgpuRenderPipelineRelease(context->object_shader.pipeline.handle);
+    wgpuRenderPipelineRelease(shader->pipeline.handle);
 }

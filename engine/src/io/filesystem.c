@@ -8,8 +8,13 @@
 #include <sys/stat.h>
 
 b8 filesystem_exists(const char* path) {
+#ifdef _MSC_VER
+    struct _stat buffer;
+    return _stat(path, &buffer);
+#else
     struct stat buffer;
     return stat(path, &buffer) == 0;
+#endif
 }
 
 b8 filesystem_open(const char* path, E_FILE_MODES mode, b8 binary, FILE_HANDLE* out_handle) {
@@ -59,18 +64,14 @@ b8 filesystem_size(FILE_HANDLE* handle, u64* out_size) {
     return false;
 }
 
-b8 filesystem_read_line(FILE_HANDLE* handle, char** line_buf) {
-    if (handle->handle) {
-        // Since we are reading a single line, it should be safe to assume this is enough characters.
-        char buffer[32000];
-        if (fgets(buffer, 32000, (FILE*)handle->handle) != 0) {
-            u64 length = strlen(buffer);
-            *line_buf = yallocate_aligned((sizeof(char) * length) + 1, 4, MEMORY_TAG_STRING);
-            strcpy(*line_buf, buffer);
+b8 filesystem_read_line(FILE_HANDLE* handle, u64 max_length, char** line_buf, u64* out_line_length) {
+    if (handle->handle && line_buf && out_line_length && max_length > 0) {
+        char* buf = *line_buf;
+        if (fgets(buf, max_length, (FILE*)handle->handle) != 0) {
+            *out_line_length = strlen(*line_buf);
             return true;
         }
     }
-    return false;
 }
 
 b8 filesystem_write_line(FILE_HANDLE* handle, const char* text) {

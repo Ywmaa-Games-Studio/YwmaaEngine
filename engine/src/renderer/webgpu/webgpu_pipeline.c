@@ -4,7 +4,7 @@
 #include "core/ymemory.h"
 
 
-b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex_buffer_layout, WEBGPU_OBJECT_SHADER* shader){
+b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex_buffer_layout, WEBGPU_MATERIAL_SHADER* shader){
 
     
     // [...] Describe render pipeline
@@ -81,7 +81,7 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     return true;
 }
 
-void webgpu_pipeline_destroy(WEBGPU_CONTEXT* context, WEBGPU_OBJECT_SHADER* shader)
+void webgpu_pipeline_destroy(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER* shader)
 {
     wgpuRenderPipelineRelease(shader->pipeline.handle);
 }

@@ -14,12 +14,11 @@ YAPI void renderer_set_view(Matrice4 view);
 
 void renderer_create_texture(
     const char* name,
-    b8 auto_release,
     i32 width,
     i32 height,
     i32 channel_count,
     const u8* pixels,
     b8 has_transparency,
-    struct TEXTURE* out_texture);
+    TEXTURE* out_texture);
 
 void renderer_destroy_texture(struct TEXTURE* texture);

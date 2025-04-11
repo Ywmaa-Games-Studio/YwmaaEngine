@@ -45,6 +45,7 @@ typedef struct VULKAN_DEVICE {
     VkPhysicalDeviceProperties properties;
     VkPhysicalDeviceFeatures features;
     VkPhysicalDeviceMemoryProperties memory;
+    b8 supports_device_local_host_visible;
 
     VkFormat depth_format;
 } VULKAN_DEVICE;
@@ -135,6 +136,7 @@ typedef struct VULKAN_PIPELINE {
 typedef struct VULKAN_DESCRIPTOR_STATE {
     // One per frame
     u32 generations[3];
+    u32 ids[3];
 } VULKAN_DESCRIPTOR_STATE;
 
 #define VULKAN_OBJECT_SHADER_DESCRIPTOR_COUNT 2
@@ -148,7 +150,7 @@ typedef struct VULKAN_OBJECT_SHADER_OBJECT_STATE {
 
 // Max number of objects
 #define VULKAN_OBJECT_MAX_OBJECT_COUNT 1024
-typedef struct VULKAN_OBJECT_SHADER {
+typedef struct VULKAN_MATERIAL_SHADER {
     // vertex, fragment
     VULKAN_SHADER_STAGE stages[OBJECT_SHADER_STAGE_COUNT];
 
@@ -179,7 +181,7 @@ typedef struct VULKAN_OBJECT_SHADER {
     VULKAN_PIPELINE pipeline;
 
 
-} VULKAN_OBJECT_SHADER;
+} VULKAN_MATERIAL_SHADER;
 typedef struct VULKAN_CONTEXT {
     f32 frame_delta_time;
 
@@ -228,7 +230,7 @@ typedef struct VULKAN_CONTEXT {
 
     b8 recreating_swapchain;
 
-    VULKAN_OBJECT_SHADER object_shader;
+    VULKAN_MATERIAL_SHADER material_shader;
 
     u64 geometry_vertex_offset;
     u64 geometry_index_offset;

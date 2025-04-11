@@ -52,6 +52,7 @@ b8 vulkan_swapchain_acquire_next_image_index(
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
         // Trigger swapchain recreation, then boot out of the render loop.
         vulkan_swapchain_recreate(context, context->framebuffer_width, context->framebuffer_height, swapchain);
+        PRINT_DEBUG("Swapchain recreated because swapchain returned out of date or suboptimal.");
         return false;
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         PRINT_ERROR("Failed to acquire swapchain image!");
@@ -183,10 +184,10 @@ void create(VULKAN_CONTEXT* context, u32 width, u32 height, VULKAN_SWAPCHAIN* sw
     swapchain->image_count = 0;
     VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, 0));
     if (!swapchain->images) {
-        swapchain->images = (VkImage*)yallocate(sizeof(VkImage) * swapchain->image_count, MEMORY_TAG_RENDERER);
+        swapchain->images = (VkImage*)yallocate_aligned(sizeof(VkImage) * swapchain->image_count, 4, MEMORY_TAG_RENDERER);
     }
     if (!swapchain->views) {
-        swapchain->views = (VkImageView*)yallocate(sizeof(VkImageView) * swapchain->image_count, MEMORY_TAG_RENDERER);
+        swapchain->views = (VkImageView*)yallocate_aligned(sizeof(VkImageView) * swapchain->image_count, 4, MEMORY_TAG_RENDERER);
     }
     VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, swapchain->images));
 

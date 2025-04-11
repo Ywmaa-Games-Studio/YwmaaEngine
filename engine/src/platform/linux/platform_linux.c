@@ -319,7 +319,7 @@ b8 platform_x11_system_startup(
     u32 value_list[] = {platform_state->screen->black_pixel, event_values};
 
     // Create the window
-    xcb_void_cookie_t cookie = loader_xcb_create_window(
+    loader_xcb_create_window(
         platform_state->connection,
         XCB_COPY_FROM_PARENT,  // depth
         platform_state->window,

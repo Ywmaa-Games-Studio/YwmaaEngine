@@ -8,6 +8,12 @@
 
 #include "resources/resource_types.h"
 
+#include "core/ystring.h"
+#include "core/event.h"
+
+#include "systems/texture_system.h"
+
+
 typedef struct RENDERER_SYSTEM_STATE {
     RENDERER_BACKEND backend;
     Matrice4 projection;
@@ -15,10 +21,37 @@ typedef struct RENDERER_SYSTEM_STATE {
     f32 near_clip;
     f32 far_clip;
 
-    TEXTURE default_texture;
+    // TODO: temporary
+    TEXTURE* test_diffuse;
+    // TODO: end temporary
 } RENDERER_SYSTEM_STATE;
 
 static RENDERER_SYSTEM_STATE* state_ptr;
+
+// TODO: temp
+b8 event_on_debug_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT data) {
+    const char* names[3] = {
+        "cobblestone",
+        "paving",
+        "paving2"};
+    static i8 choice = 2;
+
+    // Save off the old name.
+    const char* old_name = names[choice];
+
+    choice++;
+    choice %= 3;
+
+    // Acquire the new texture.
+    state_ptr->test_diffuse = texture_system_acquire(names[choice], true);
+
+    // Release the old texture.
+    texture_system_release(old_name);
+
+    return true;
+}
+// TODO: end temp
+
 
 b8 renderer_system_init(u64* memory_requirement, void* state, const char* application_name, E_RENDERER_BACKEND_API rendering_backend_api) {
     *memory_requirement = sizeof(RENDERER_SYSTEM_STATE);
@@ -27,7 +60,16 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
     }
     state_ptr = state;
 
-    renderer_backend_create(rendering_backend_api, &state_ptr->backend);
+    // TODO: temp
+    event_register(EVENT_CODE_DEBUG0, state_ptr, event_on_debug_event);
+    // TODO: end temp
+
+
+    if (!renderer_backend_create(rendering_backend_api, &state_ptr->backend)){
+        PRINT_ERROR("failed to create backend. Shutting down.");
+        return false;
+    }
+
     state_ptr->backend.frame_number = 0;
 
     if (!state_ptr->backend.init(&state_ptr->backend, application_name)) {
@@ -42,51 +84,14 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
     state_ptr->view = Matrice4_translation((Vector3){0, 0, -30.0f});
     state_ptr->view = Matrice4_inverse(state_ptr->view);
 
-    // NOTE: Create default texture, a 256x256 blue/white checkerboard pattern.
-    // This is done in code to eliminate asset dependencies.
-    PRINT_DEBUG("Creating default texture...");
-    const u32 tex_dimension = 256;
-    const u32 channels = 4;
-    const u32 pixel_count = tex_dimension * tex_dimension;
-    u8 pixels[pixel_count * channels];
-    //u8* pixels = kallocate(sizeof(u8) * pixel_count * bpp, MEMORY_TAG_TEXTURE);
-    yset_memory(pixels, 255, sizeof(u8) * pixel_count * channels);
-
-    // Each pixel.
-    for (u64 row = 0; row < tex_dimension; ++row) {
-        for (u64 col = 0; col < tex_dimension; ++col) {
-            u64 index = (row * tex_dimension) + col;
-            u64 index_bpp = index * channels;
-            if (row % 2) {
-                if (col % 2) {
-                    pixels[index_bpp + 0] = 0;
-                    pixels[index_bpp + 1] = 0;
-                }
-            } else {
-                if (!(col % 2)) {
-                    pixels[index_bpp + 0] = 0;
-                    pixels[index_bpp + 1] = 0;
-                }
-            }
-        }
-    }
-    renderer_create_texture(
-        "default",
-        false,
-        tex_dimension,
-        tex_dimension,
-        4,
-        pixels,
-        false,
-        &state_ptr->default_texture);
-
-
     return true;
 }
 
 void renderer_system_shutdown(void* state) {
     if (state_ptr) {
-        renderer_destroy_texture(&state_ptr->default_texture);
+        // TODO: temp
+        event_unregister(EVENT_CODE_DEBUG0, state_ptr, event_on_debug_event);
+        // TODO: end temp
 
         state_ptr->backend.shutdown(&state_ptr->backend);
     }
@@ -130,7 +135,13 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
         GEOMETRY_RENDER_DATA data = {};
         data.object_id = 0;  // TODO: actual object id
         data.model = model;
-        data.textures[0] = &state_ptr->default_texture;
+        // TODO: temporary.
+        // Grab the default if does not exist.
+        if (!state_ptr->test_diffuse) {
+            state_ptr->test_diffuse = texture_system_get_default_texture();
+        }
+
+        data.textures[0] = state_ptr->test_diffuse;
         state_ptr->backend.update_object(data);
 
         // End the frame. If this fails, it is likely unrecoverable.
@@ -149,10 +160,18 @@ void renderer_set_view(Matrice4 view) {
     state_ptr->view = view;
 }
 
-void renderer_create_texture(const char* name, b8 auto_release, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, struct TEXTURE* out_texture) {
-    state_ptr->backend.create_texture(name, auto_release, width, height, channel_count, pixels, has_transparency, out_texture);
+void renderer_create_texture(const char* name, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, TEXTURE* out_texture) {
+    if (!state_ptr || !state_ptr->backend.create_texture) {
+        PRINT_ERROR("Renderer backend not initialized!");
+        return;
+    }
+
+    state_ptr->backend.create_texture(name, width, height, channel_count, pixels, has_transparency, out_texture);
 }
 
 void renderer_destroy_texture(struct TEXTURE* texture) {
+    if (!state_ptr) {
+        return;
+    }
     state_ptr->backend.destroy_texture(texture);
 }

@@ -18,7 +18,8 @@ b8 create_game(GAME* out_game) {
     out_game->on_resize = game_on_resize;
 
     // Create the game state.
-    out_game->state = yallocate(sizeof(GAME_STATE), MEMORY_TAG_GAME);
+    out_game->state_memory_requirement = sizeof(GAME_STATE);
+    out_game->state = 0;
     //PRINT_INFO(get_memory_usage_str());
 
     out_game->application_state = 0;

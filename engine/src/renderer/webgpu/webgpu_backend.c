@@ -5,7 +5,7 @@
 #include "webgpu_swapchain.h"
 #include "webgpu_device.h"
 #include "webgpu_image.h"
-#include "shaders/webgpu_object_shader.h"
+#include "shaders/webgpu_material_shader.h"
 
 #include "core/logger.h"
 #include "core/ymemory.h"
@@ -67,7 +67,7 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     }
 
     // Create builtin shaders
-    if (!webgpu_object_shader_create(&context, &context.object_shader)) {
+    if (!webgpu_material_shader_create(&context, &context.material_shader)) {
         PRINT_ERROR("Error loading built-in basic_lighting shader.");
         return false;
     }
@@ -75,7 +75,7 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     webgpu_create_buffers();
 
     u32 object_id = 0;
-    if (!webgpu_object_shader_acquire_resources(&context, &context.object_shader, &object_id)) {
+    if (!webgpu_material_shader_acquire_resources(&context, &context.material_shader, &object_id)) {
         PRINT_ERROR("Failed to acquire shader resources.");
         return false;
     }
@@ -90,7 +90,7 @@ void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
 
     webgpu_destroy_buffers();
 
-    webgpu_object_shader_destroy(&context, &context.object_shader);
+    webgpu_material_shader_destroy(&context, &context.material_shader);
 
     webgpu_swapchain_destroy(&context);
 
@@ -183,18 +183,18 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     // [...] Use Render Pass
 
         // Select which render pipeline to use
-    wgpuRenderPassEncoderSetPipeline(context.render_pass, context.object_shader.pipeline.handle);
+    wgpuRenderPassEncoderSetPipeline(context.render_pass, context.material_shader.pipeline.handle);
 
     return true;
 }
 void webgpu_renderer_update_global_state(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode) {
 
-    webgpu_object_shader_use(&context, &context.object_shader);
+    webgpu_material_shader_use(&context, &context.material_shader);
 
-    context.object_shader.global_ubo.projection = projection;
-    context.object_shader.global_ubo.view = view;
+    context.material_shader.global_ubo.projection = projection;
+    context.material_shader.global_ubo.view = view;
 
-    webgpu_object_shader_update_global_state(&context, &context.object_shader, context.frame_delta_time);
+    webgpu_material_shader_update_global_state(&context, &context.material_shader, context.frame_delta_time);
 }
 b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
 
@@ -221,9 +221,9 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
 }
 
 void webgpu_backend_update_object(GEOMETRY_RENDER_DATA data) {
-    webgpu_object_shader_update_object(&context, &context.object_shader, data);
+    webgpu_material_shader_update_object(&context, &context.material_shader, data);
 
-    webgpu_object_shader_use(&context, &context.object_shader);
+    webgpu_material_shader_use(&context, &context.material_shader);
 
     // Set vertex buffer while encoding the render pass
     wgpuRenderPassEncoderSetVertexBuffer(context.render_pass, 0, context.object_vertex_buffer, 0, wgpuBufferGetSize(context.object_vertex_buffer));
@@ -358,14 +358,15 @@ void webgpu_destroy_buffers(){
 
 
 
-void webgpu_renderer_create_texture(const char* name, b8 auto_release, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, TEXTURE* out_texture){
+void webgpu_renderer_create_texture(const char* name, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, struct TEXTURE* out_texture){
+    PRINT_INFO("creating texture: %s", name);
     out_texture->width = width;
     out_texture->height = height;
     out_texture->channel_count = channel_count;
-    out_texture->generation = 0;
+    out_texture->generation = INVALID_ID;
     // Internal data creation.
     // TODO: Use an allocator for this.
-    out_texture->internal_data = (WEBGPU_TEXTURE_DATA*)yallocate(sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+    out_texture->internal_data = (WEBGPU_TEXTURE_DATA*)yallocate_aligned(sizeof(WEBGPU_TEXTURE_DATA), 4, MEMORY_TAG_TEXTURE);
     WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)out_texture->internal_data;
 
     webgpu_image_create(
@@ -385,16 +386,16 @@ void webgpu_renderer_create_texture(const char* name, b8 auto_release, i32 width
     // Create a sampler
     WGPUSamplerDescriptor sampler_desc;
     // TODO: These filters should be configurable.
-    sampler_desc.addressModeU = WGPUAddressMode_ClampToEdge;
-    sampler_desc.addressModeV = WGPUAddressMode_ClampToEdge;
-    sampler_desc.addressModeW = WGPUAddressMode_ClampToEdge;
     sampler_desc.magFilter = WGPUFilterMode_Linear;
     sampler_desc.minFilter = WGPUFilterMode_Linear;
+    sampler_desc.addressModeU = WGPUAddressMode_Repeat;
+    sampler_desc.addressModeV = WGPUAddressMode_Repeat;
+    sampler_desc.addressModeW = WGPUAddressMode_Repeat;
     sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Linear;
     sampler_desc.lodMinClamp = 0.0f;
     sampler_desc.lodMaxClamp = 1.0f;
     sampler_desc.compare = WGPUCompareFunction_Undefined;
-    sampler_desc.maxAnisotropy = 1;
+    sampler_desc.maxAnisotropy = 16;
     data->sampler = wgpuDeviceCreateSampler(context.device, &sampler_desc);
 
 
@@ -404,13 +405,18 @@ void webgpu_renderer_create_texture(const char* name, b8 auto_release, i32 width
 
 void webgpu_renderer_destroy_texture(TEXTURE* texture){
     WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)texture->internal_data;
-    
-    webgpu_image_destroy(&data->image);
-    yzero_memory(&data->image, sizeof(WEBGPU_IMAGE));
-    wgpuSamplerRelease(data->sampler);
-    data->sampler = 0;
 
-    yfree(texture->internal_data, sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+
+    if (data) {
+        webgpu_image_destroy(&data->image);
+        yzero_memory(&data->image, sizeof(WEBGPU_IMAGE));
+        wgpuSamplerRelease(data->sampler);
+        data->sampler = 0;
+        
+        yfree(texture->internal_data, sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+    }
+    
+
     yzero_memory(texture, sizeof(struct TEXTURE));
     
 }

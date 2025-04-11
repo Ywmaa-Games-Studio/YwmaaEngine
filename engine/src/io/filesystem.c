@@ -65,7 +65,7 @@ b8 filesystem_read_line(FILE_HANDLE* handle, char** line_buf) {
         char buffer[32000];
         if (fgets(buffer, 32000, (FILE*)handle->handle) != 0) {
             u64 length = strlen(buffer);
-            *line_buf = yallocate((sizeof(char) * length) + 1, MEMORY_TAG_STRING);
+            *line_buf = yallocate_aligned((sizeof(char) * length) + 1, 4, MEMORY_TAG_STRING);
             strcpy(*line_buf, buffer);
             return true;
         }
@@ -106,7 +106,7 @@ b8 filesystem_read_all_bytes(FILE_HANDLE* handle, u8** out_bytes, u64* out_bytes
         u64 size = ftell((FILE*)handle->handle);
         rewind((FILE*)handle->handle);
 
-        *out_bytes = yallocate(sizeof(u8) * size, MEMORY_TAG_STRING);
+        *out_bytes = yallocate_aligned(sizeof(u8) * size, 4, MEMORY_TAG_STRING);
         *out_bytes_read = fread(*out_bytes, 1, size, (FILE*)handle->handle);
         if (*out_bytes_read != size) {
             return false;

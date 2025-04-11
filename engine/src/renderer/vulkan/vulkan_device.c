@@ -67,7 +67,7 @@ void vulkan_device_query_swapchain_support(
 
     if (out_support_info->format_count != 0) {
         if (!out_support_info->formats) {
-            out_support_info->formats = yallocate(sizeof(VkSurfaceFormatKHR) * out_support_info->format_count, MEMORY_TAG_RENDERER);
+            out_support_info->formats = yallocate_aligned(sizeof(VkSurfaceFormatKHR) * out_support_info->format_count, 4, MEMORY_TAG_RENDERER);
         }
         VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(
             physical_device,
@@ -84,7 +84,7 @@ void vulkan_device_query_swapchain_support(
         0));
     if (out_support_info->present_mode_count != 0) {
         if (!out_support_info->present_modes) {
-            out_support_info->present_modes = yallocate(sizeof(VkPresentModeKHR) * out_support_info->present_mode_count, MEMORY_TAG_RENDERER);
+            out_support_info->present_modes = yallocate_aligned(sizeof(VkPresentModeKHR) * out_support_info->present_mode_count, 4, MEMORY_TAG_RENDERER);
         }
         VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(
             physical_device,
@@ -126,8 +126,8 @@ b8 select_physical_device(VULKAN_CONTEXT* context) {
         PRINT_ERROR("No devices which support Vulkan were found.");
         return false;
     }
-    const u32 max_device_count = 32;
-    VkPhysicalDevice physical_devices[max_device_count];
+
+    VkPhysicalDevice physical_devices[32];
     VK_CHECK(vkEnumeratePhysicalDevices(context->instance, &physical_device_count, physical_devices));
     for (u32 i = 0; i < physical_device_count; ++i) {
         VkPhysicalDeviceProperties properties;
@@ -139,6 +139,21 @@ b8 select_physical_device(VULKAN_CONTEXT* context) {
         VkPhysicalDeviceMemoryProperties memory;
         vkGetPhysicalDeviceMemoryProperties(physical_devices[i], &memory);
 
+        PRINT_INFO("Evaluating device: '%s', index %u.", properties.deviceName, i);
+
+        // Check if device supports local/host visible combo
+        b8 supports_device_local_host_visible = false;
+        for (u32 i = 0; i < memory.memoryTypeCount; ++i) {
+            // Check each memory type to see if its bit is set to 1.
+            if (
+                ((memory.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0) &&
+                ((memory.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)) {
+                supports_device_local_host_visible = true;
+                break;
+            }
+        }
+
+
         // TODO: These requirements should probably be driven by engine
         // configuration.
         VULKAN_PHYSICAL_DEVICE_REQUIREMENTS requirements = {};
@@ -148,11 +163,11 @@ b8 select_physical_device(VULKAN_CONTEXT* context) {
         // NOTE: Enable this if compute will be required.
         // requirements.compute = true;
         requirements.sampler_anisotropy = true;
-    #if YPLATFORM_APPLE
+#if YPLATFORM_APPLE
         requirements.discrete_gpu = false;
-    #else
+#else
         requirements.discrete_gpu = true;
-    #endif
+#endif
         requirements.device_extension_names = darray_create(const char*);
         darray_push(requirements.device_extension_names, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
@@ -221,6 +236,7 @@ b8 select_physical_device(VULKAN_CONTEXT* context) {
             context->device.properties = properties;
             context->device.features = features;
             context->device.memory = memory;
+            context->device.supports_device_local_host_visible = supports_device_local_host_visible;
             break;
         }
     }
@@ -344,7 +360,7 @@ b8 physical_device_meets_requirements(
                 &available_extension_count,
                 0));
             if (available_extension_count != 0) {
-                available_extensions = yallocate(sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
+                available_extensions = yallocate_aligned(sizeof(VkExtensionProperties) * available_extension_count, 4, MEMORY_TAG_RENDERER);
                 VK_CHECK(vkEnumerateDeviceExtensionProperties(
                     device,
                     0,
@@ -431,7 +447,7 @@ void create_logical_device(VULKAN_CONTEXT* context){
     VkExtensionProperties* available_extensions = 0;
     VK_CHECK(vkEnumerateDeviceExtensionProperties(context->device.physical_device, 0, &available_extension_count, 0));
     if (available_extension_count != 0) {
-        available_extensions = yallocate(sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
+        available_extensions = yallocate_aligned(sizeof(VkExtensionProperties) * available_extension_count, 4, MEMORY_TAG_RENDERER);
         VK_CHECK(vkEnumerateDeviceExtensionProperties(context->device.physical_device, 0, &available_extension_count, available_extensions));
         for (u32 i = 0; i < available_extension_count; ++i) {
             if (strings_equal(available_extensions[i].extensionName, "VK_KHR_portability_subset")) {

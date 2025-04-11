@@ -1,6 +1,6 @@
 # AMRT Engine / YWMAA Engine
 
-Made with C & Zig
+Made with C & Zig, the goal is to write a neat engine that is 1000% usable, low dependency, future proof for Zig Programming Language.
 
 # why AMRT as a name 
 

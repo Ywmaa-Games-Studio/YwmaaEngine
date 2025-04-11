@@ -1,4 +1,4 @@
-#include "webgpu_object_shader.h"
+#include "webgpu_material_shader.h"
 
 #include "core/logger.h"
 #include "core/ymemory.h"
@@ -12,11 +12,11 @@
 #define BINDINGS_ENTRY_COUNT 3
 #define TEXTURES_BINDINGS_ENTRY_COUNT 2
 
-void webgpu_create_bind_group(WEBGPU_CONTEXT* context, WEBGPU_OBJECT_SHADER* shader);
-void webgpu_create_textures_bind_group(WEBGPU_CONTEXT* context, WGPUTextureView* view, WGPUSampler* sampler, WEBGPU_OBJECT_SHADER* shader);
+void webgpu_create_bind_group(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER* shader);
+void webgpu_create_textures_bind_group(WEBGPU_CONTEXT* context, WGPUTextureView* view, WGPUSampler* sampler, WEBGPU_MATERIAL_SHADER* shader);
 void bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout);
 
-b8 webgpu_object_shader_create(WEBGPU_CONTEXT* context, WEBGPU_OBJECT_SHADER* out_shader) {
+b8 webgpu_material_shader_create(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER* out_shader) {
 
 
     if (!webgpu_create_shader_module(context, &out_shader->shader_module)) {
@@ -77,9 +77,8 @@ b8 webgpu_object_shader_create(WEBGPU_CONTEXT* context, WEBGPU_OBJECT_SHADER* ou
     bind_group_layout_desc.nextInChain = NULL;
     bind_group_layout_desc.entryCount = sizeof(binding_layout)/sizeof(WGPUBindGroupLayoutEntry);
     bind_group_layout_desc.entries = binding_layout;
-    PRINT_INFO("passes");
+
     out_shader->pipeline.bind_group_layout = wgpuDeviceCreateBindGroupLayout(context->device, &bind_group_layout_desc);
-    PRINT_INFO("passes2");
 
     // Define texture binding layout
     WGPUBindGroupLayoutEntry texture_binding_layout[TEXTURES_BINDINGS_ENTRY_COUNT] = {};
@@ -104,7 +103,6 @@ b8 webgpu_object_shader_create(WEBGPU_CONTEXT* context, WEBGPU_OBJECT_SHADER* ou
     texture_bind_group_layout_desc.entryCount = sizeof(texture_binding_layout)/sizeof(WGPUBindGroupLayoutEntry);
     texture_bind_group_layout_desc.entries = texture_binding_layout;
     out_shader->pipeline.texture_bind_group_layout = wgpuDeviceCreateBindGroupLayout(context->device, &texture_bind_group_layout_desc);
-    PRINT_INFO("fails");
     
 
     WGPUBindGroupLayout bind_layouts[2] = {};
@@ -158,7 +156,7 @@ b8 webgpu_object_shader_create(WEBGPU_CONTEXT* context, WEBGPU_OBJECT_SHADER* ou
     return true;
 }
 
-void webgpu_object_shader_destroy(WEBGPU_CONTEXT* context, struct WEBGPU_OBJECT_SHADER* shader) {
+void webgpu_material_shader_destroy(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader) {
     wgpuBufferDestroy(shader->object_uniform_buffer);
     wgpuBufferDestroy(shader->model_uniform_buffer);
     wgpuBufferDestroy(shader->global_uniform_buffer);
@@ -170,18 +168,18 @@ void webgpu_object_shader_destroy(WEBGPU_CONTEXT* context, struct WEBGPU_OBJECT_
     wgpuBindGroupLayoutRelease(shader->pipeline.texture_bind_group_layout);
 }
 
-void webgpu_object_shader_use(WEBGPU_CONTEXT* context, struct WEBGPU_OBJECT_SHADER* shader) {
+void webgpu_material_shader_use(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader) {
     // Set binding group here!
     u32 dynamic_offsets[3] = {0, 0, sizeof(OBJECT_UNIFORM_OBJECT)};
     wgpuRenderPassEncoderSetBindGroup(context->render_pass, 0, shader->pipeline.bind_group, 1, dynamic_offsets);
 }
 
-void webgpu_object_shader_update_global_state(WEBGPU_CONTEXT* context, struct WEBGPU_OBJECT_SHADER* shader, f32 delta_time) {
+void webgpu_material_shader_update_global_state(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, f32 delta_time) {
     // Update uniform buffer
     wgpuQueueWriteBuffer(context->queue, shader->global_uniform_buffer, 0, &shader->global_ubo, sizeof(GLOBAL_UNIFORM_OBJECT));
 }
 
-void webgpu_object_shader_update_object(WEBGPU_CONTEXT* context, struct WEBGPU_OBJECT_SHADER* shader, GEOMETRY_RENDER_DATA data) {
+void webgpu_material_shader_update_object(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, GEOMETRY_RENDER_DATA data) {
     wgpuQueueWriteBuffer(context->queue, shader->model_uniform_buffer, 0, &data.model, sizeof(Matrice4));
     
     u32 range = sizeof(OBJECT_UNIFORM_OBJECT);
@@ -213,14 +211,14 @@ void webgpu_object_shader_update_object(WEBGPU_CONTEXT* context, struct WEBGPU_O
     
 }
 
-b8 webgpu_object_shader_acquire_resources(WEBGPU_CONTEXT* context, struct WEBGPU_OBJECT_SHADER* shader, u32* out_object_id) {
+b8 webgpu_material_shader_acquire_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, u32* out_object_id) {
     // TODO: free list
 
 
     return true;
 }
 
-void webgpu_object_shader_release_resources(WEBGPU_CONTEXT* context, struct WEBGPU_OBJECT_SHADER* shader, u32 object_id) {
+void webgpu_material_shader_release_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, u32 object_id) {
     
 }
 
@@ -244,7 +242,7 @@ void bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout) {
     bindingLayout->texture.viewDimension = WGPUTextureViewDimension_Undefined;
 }
 
-void webgpu_create_bind_group(WEBGPU_CONTEXT* context, WEBGPU_OBJECT_SHADER* shader){
+void webgpu_create_bind_group(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER* shader){
 
     // Create a binding
     WGPUBindGroupEntry binding[BINDINGS_ENTRY_COUNT] = {};
@@ -292,7 +290,7 @@ void webgpu_create_bind_group(WEBGPU_CONTEXT* context, WEBGPU_OBJECT_SHADER* sha
     shader->pipeline.bind_group = wgpuDeviceCreateBindGroup(context->device, &bindGroupDesc);
 }
 
-void webgpu_create_textures_bind_group(WEBGPU_CONTEXT* context, WGPUTextureView* view, WGPUSampler* sampler, WEBGPU_OBJECT_SHADER* shader){
+void webgpu_create_textures_bind_group(WEBGPU_CONTEXT* context, WGPUTextureView* view, WGPUSampler* sampler, WEBGPU_MATERIAL_SHADER* shader){
     // Create a binding
     WGPUBindGroupEntry binding[TEXTURES_BINDINGS_ENTRY_COUNT] = {};
     binding[0].nextInChain = NULL;

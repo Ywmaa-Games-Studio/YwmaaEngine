@@ -2,6 +2,7 @@
 
 #include <core/logger.h>
 #include <input/input.h>
+#include <core/event.h>
 
 #include <math/ymath.h>
 
@@ -53,6 +54,14 @@ b8 game_init(GAME* game_instance) {
 
 b8 game_update(GAME* game_instance, f32 delta_time) {
     // PRINT_DEBUG("game_update() called!");
+    // TODO: temp
+    if (input_is_key_released('T') && input_was_key_pressed('T')) {
+        PRINT_DEBUG("Swapping texture!");
+        EVENT_CONTEXT context = {};
+        event_fire(EVENT_CODE_DEBUG0, game_instance, context);
+    }
+    // TODO: end temp
+
 
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 

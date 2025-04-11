@@ -31,7 +31,7 @@ typedef struct WEBGPU_PIPELINE {
 
 // Max number of objects
 #define WEBGPU_OBJECT_MAX_OBJECT_COUNT 1024
-typedef struct WEBGPU_OBJECT_SHADER {
+typedef struct WEBGPU_MATERIAL_SHADER {
     WEBGPU_PIPELINE pipeline;
     WGPUShaderModule shader_module;
 
@@ -53,7 +53,7 @@ typedef struct WEBGPU_OBJECT_SHADER {
     
 
 
-} WEBGPU_OBJECT_SHADER;
+} WEBGPU_MATERIAL_SHADER;
 
 typedef struct WEBGPU_CONTEXT {
     f32 frame_delta_time;
@@ -88,6 +88,6 @@ typedef struct WEBGPU_CONTEXT {
     WGPUBuffer object_vertex_buffer;
     WGPUBuffer object_index_buffer;
 
-    WEBGPU_OBJECT_SHADER object_shader;
+    WEBGPU_MATERIAL_SHADER material_shader;
 
 } WEBGPU_CONTEXT;

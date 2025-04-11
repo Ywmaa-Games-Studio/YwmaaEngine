@@ -98,7 +98,11 @@
         "webgpu_pipeline.h": "c",
         "vulkan_buffer.h": "c",
         "webgpu_shader_utils.h": "c",
-        "webgpu_object_shader.h": "c",
-        "webgpu_device.h": "c"
+        "webgpu_material_shader.h": "c",
+        "webgpu_device.h": "c",
+        "texture_system.h": "c",
+        "strings.h": "c",
+        "vulkan_utils.h": "c",
+        "vulkan_image.h": "c"
     }
 }

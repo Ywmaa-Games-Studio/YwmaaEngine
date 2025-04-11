@@ -12,6 +12,10 @@
 #include "memory/linear_allocator.h"
 
 #include "renderer/renderer_frontend.h"
+
+// systems
+#include "systems/texture_system.h"
+
 typedef struct APPLICATION_STATE {
     GAME* game_instance;
     b8 is_running;
@@ -25,9 +29,6 @@ typedef struct APPLICATION_STATE {
     u64 event_system_memory_requirement;
     void* event_system_state;
 
-    u64 memory_system_memory_requirement;
-    void* memory_system_state;
-
     u64 logging_system_memory_requirement;
     void* logging_system_state;
 
@@ -39,6 +40,9 @@ typedef struct APPLICATION_STATE {
 
     u64 renderer_system_memory_requirement;
     void* renderer_system_state;
+
+    u64 texture_system_memory_requirement;
+    void* texture_system_state;
 } APPLICATION_STATE;
 
 static APPLICATION_STATE* app_state;
@@ -54,26 +58,33 @@ b8 application_create(GAME* game_instance) {
         return false;
     }
 
+    // Memory system must be the first thing to be stood up.
+    MEMORY_SYSTEM_CONFIG memory_system_config = {};
+    memory_system_config.total_alloc_size = GIBIBYTES(1);
+    if (!memory_system_init(memory_system_config)) {
+        PRINT_ERROR("Failed to initialize memory system; shutting down.");
+        return false;
+    }
+
+    // Allocate the game state.
+    game_instance->state = yallocate_aligned(game_instance->state_memory_requirement, 8, MEMORY_TAG_GAME);
+
     game_instance->application_state = yallocate(sizeof(APPLICATION_STATE), MEMORY_TAG_APPLICATION);
     app_state = game_instance->application_state;
     app_state->game_instance = game_instance;
     app_state->is_running = false;
     app_state->is_suspended = false;
 
-    u64 systems_allocator_total_size = 64 * 1024 * 1024;  // 64 mb
+    // Create a linear allocator for all systems (except memory) to use.
+    u64 systems_allocator_total_size = MEBIBYTES(64);
     linear_allocator_create(systems_allocator_total_size, 0, &app_state->systems_allocator);
 
-    // Initialize subsystems.
+    // Initialize other subsystems.
 
     // Events
     event_system_init(&app_state->event_system_memory_requirement, 0);
     app_state->event_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->event_system_memory_requirement);
     event_system_init(&app_state->event_system_memory_requirement, app_state->event_system_state);
-
-    // Memory
-    memory_system_init(&app_state->memory_system_memory_requirement, 0);
-    app_state->memory_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->memory_system_memory_requirement);
-    memory_system_init(&app_state->memory_system_memory_requirement, app_state->memory_system_state);
 
     // Logging
     init_logging(&app_state->logging_system_memory_requirement, 0);
@@ -98,22 +109,37 @@ b8 application_create(GAME* game_instance) {
     platform_system_startup(&app_state->platform_system_memory_requirement, 0, 0, 0, 0, 0, 0);
     app_state->platform_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->platform_system_memory_requirement);
     if (!platform_system_startup(
-            &app_state->platform_system_memory_requirement,
-            app_state->platform_system_state,
-            game_instance->app_config.name,
-            game_instance->app_config.start_pos_x,
-            game_instance->app_config.start_pos_y,
-            game_instance->app_config.start_width,
-            game_instance->app_config.start_height)) {
-        return false;
+        &app_state->platform_system_memory_requirement,
+        app_state->platform_system_state,
+        game_instance->app_config.name,
+        game_instance->app_config.start_pos_x,
+        game_instance->app_config.start_pos_y,
+        game_instance->app_config.start_width,
+        game_instance->app_config.start_height)) {
+            return false;
     }
+    
+
+    // Allocate the texture system memory before the renderer to not overflow the renderer's memory
+    TEXTURE_SYSTEM_CONFIG texture_sys_config;
+    //texture_sys_config.max_texture_count = 65536;
+    texture_sys_config.max_texture_count = 4096;
+    texture_system_init(&app_state->texture_system_memory_requirement, 0, texture_sys_config);
+    app_state->texture_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->texture_system_memory_requirement);
 
     // Renderer system
     app_state->renderer_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_system_memory_requirement);
-    if (!renderer_system_init(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_instance->app_config.name, RENDERER_BACKEND_API_WEBGPU)) { //RENDERER_BACKEND_API_WEBGPU|RENDERER_BACKEND_API_VULKAN
+    if (!renderer_system_init(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_instance->app_config.name, RENDERER_BACKEND_API_VULKAN)) { //RENDERER_BACKEND_API_WEBGPU|RENDERER_BACKEND_API_VULKAN
         PRINT_ERROR("Failed to initialize renderer. Aborting application.");
         return false;
     }
+
+    // Texture system.
+    if (!texture_system_init(&app_state->texture_system_memory_requirement, app_state->texture_system_state, texture_sys_config)) {
+        PRINT_ERROR("Failed to initialize texture system. Application cannot continue.");
+        return false;
+    }
+
 
     // Initialize the game.
     if (!app_state->game_instance->init(app_state->game_instance)) {
@@ -136,7 +162,7 @@ b8 application_run() {
     u8 frame_count = 0;
     f64 target_frame_seconds = 1.0f / 60;
 
-    PRINT_INFO(get_memory_usage_str());
+    //PRINT_INFO(get_memory_usage_str());
     while (app_state->is_running) { // Game Loop
         if(!platform_pump_messages()) {
             app_state->is_running = false;
@@ -205,13 +231,15 @@ b8 application_run() {
 
     input_system_shutdown(app_state->input_system_state);
 
+    texture_system_shutdown(app_state->texture_system_state);
+
     renderer_system_shutdown(app_state->renderer_system_state);
 
     platform_system_shutdown(app_state->platform_system_state);
 
-    memory_system_shutdown(app_state->memory_system_state);
-
     event_system_shutdown(app_state->event_system_state);
+
+    memory_system_shutdown();
 
     return true;
 }

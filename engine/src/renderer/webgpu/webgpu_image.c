@@ -22,6 +22,7 @@ void webgpu_image_create(
     // Creation info.
     WGPUTextureDescriptor textureDesc;
     textureDesc.nextInChain = NULL;
+    textureDesc.label = "Texture Desc";
     textureDesc.size.width = width;
     textureDesc.size.height = height;
     textureDesc.format = format;

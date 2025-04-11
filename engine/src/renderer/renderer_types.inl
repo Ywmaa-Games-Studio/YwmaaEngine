@@ -45,15 +45,14 @@ typedef struct RENDERER_BACKEND {
     void (*update_object)(GEOMETRY_RENDER_DATA data);
 
     void (*create_texture)(
-        const char* name, 
-        b8 auto_release, 
+        const char* name,
         i32 width, 
         i32 height, 
         i32 channel_count, 
         const u8* pixels, 
         b8 has_transparency, 
-        struct TEXTURE* out_texture);
-    void (*destroy_texture)(struct TEXTURE* texture);
+        TEXTURE* out_texture);
+    void (*destroy_texture)(TEXTURE* texture);
 } RENDERER_BACKEND;
 
 typedef struct RENDER_PACKET {

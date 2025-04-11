@@ -11,7 +11,7 @@ void linear_allocator_create(u64 total_size, void* memory, LINEAR_ALLOCATOR* out
         if (memory) {
             out_allocator->memory = memory;
         } else {
-            out_allocator->memory = yallocate(total_size, MEMORY_TAG_LINEAR_ALLOCATOR);
+            out_allocator->memory = yallocate_aligned(total_size, 4, MEMORY_TAG_LINEAR_ALLOCATOR);
         }
     }
 }

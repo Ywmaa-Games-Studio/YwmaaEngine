@@ -789,8 +789,6 @@ void vulkan_setup_debugger(){
 
 
 void vulkan_renderer_create_texture(const char* name, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, TEXTURE* out_texture) {
-    PRINT_INFO("width %i, height %i", width, height);
-    PRINT_INFO("channels %i, pixels ptr %p", channel_count, pixels);
     out_texture->width = width;
     out_texture->height = height;
     out_texture->channel_count = channel_count;
@@ -800,7 +798,6 @@ void vulkan_renderer_create_texture(const char* name, i32 width, i32 height, i32
     out_texture->internal_data = (VULKAN_TEXTURE_DATA*)yallocate_aligned(sizeof(VULKAN_TEXTURE_DATA), 4, MEMORY_TAG_TEXTURE);
     VULKAN_TEXTURE_DATA* data = (VULKAN_TEXTURE_DATA*)out_texture->internal_data;
     VkDeviceSize image_size = width * height * channel_count;
-    PRINT_INFO("texture data ptr %p", data);
     
     // NOTE: Assumes 8 bits per channel.
     VkFormat image_format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -815,7 +812,6 @@ void vulkan_renderer_create_texture(const char* name, i32 width, i32 height, i32
     
     // NOTE: Lots of assumptions here, different texture types will require
     // different options here.
-    PRINT_INFO("creating texture: %s", name);
     vulkan_image_create(
         &context,
         VK_IMAGE_TYPE_2D,

@@ -359,7 +359,6 @@ void webgpu_destroy_buffers(){
 
 
 void webgpu_renderer_create_texture(const char* name, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, struct TEXTURE* out_texture){
-    PRINT_INFO("creating texture: %s", name);
     out_texture->width = width;
     out_texture->height = height;
     out_texture->channel_count = channel_count;
@@ -412,7 +411,7 @@ void webgpu_renderer_destroy_texture(TEXTURE* texture){
         yzero_memory(&data->image, sizeof(WEBGPU_IMAGE));
         wgpuSamplerRelease(data->sampler);
         data->sampler = 0;
-        
+
         yfree(texture->internal_data, sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
     }
     

@@ -103,6 +103,7 @@
         "texture_system.h": "c",
         "strings.h": "c",
         "vulkan_utils.h": "c",
-        "vulkan_image.h": "c"
+        "vulkan_image.h": "c",
+        "hashtable.h": "c"
     }
 }

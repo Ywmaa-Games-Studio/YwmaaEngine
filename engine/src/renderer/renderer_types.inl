@@ -15,17 +15,17 @@ typedef struct GLOBAL_UNIFORM_OBJECT {
     Matrice4 m_reserved1;  // 64 bytes, reserved for future use
 } GLOBAL_UNIFORM_OBJECT;
 
-typedef struct OBJECT_UNIFORM_OBJECT {
+typedef struct MATERIAL_UNIFORM_OBJECT {
     Vector4 diffuse_color;  // 16 bytes
     Vector4 v_reserved0;    // 16 bytes, reserved for future use
     Vector4 v_reserved1;    // 16 bytes, reserved for future use
     Vector4 v_reserved2;    // 16 bytes, reserved for future use
-} OBJECT_UNIFORM_OBJECT;
+} MATERIAL_UNIFORM_OBJECT;
 
 typedef struct GEOMETRY_RENDER_DATA {
     u32 object_id;
     Matrice4 model;
-    TEXTURE* textures[16];
+    MATERIAL* material;
 } GEOMETRY_RENDER_DATA;
 
 typedef struct RENDERER_BACKEND {
@@ -44,15 +44,11 @@ typedef struct RENDERER_BACKEND {
 
     void (*update_object)(GEOMETRY_RENDER_DATA data);
 
-    void (*create_texture)(
-        const char* name,
-        i32 width, 
-        i32 height, 
-        i32 channel_count, 
-        const u8* pixels, 
-        b8 has_transparency, 
-        TEXTURE* out_texture);
+    void (*create_texture)(const u8* pixels, struct TEXTURE* texture);
     void (*destroy_texture)(TEXTURE* texture);
+
+    b8 (*create_material)(struct MATERIAL* material);
+    void (*destroy_material)(struct MATERIAL* material);
 } RENDERER_BACKEND;
 
 typedef struct RENDER_PACKET {

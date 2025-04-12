@@ -13,5 +13,5 @@ void vulkan_material_shader_update_global_state(VULKAN_CONTEXT* context, struct 
 
 void vulkan_material_shader_update_object(VULKAN_CONTEXT* context, struct VULKAN_MATERIAL_SHADER* shader, GEOMETRY_RENDER_DATA data);
 
-b8 vulkan_material_shader_acquire_resources(VULKAN_CONTEXT* context, struct VULKAN_MATERIAL_SHADER* shader, u32* out_object_id);
-void vulkan_material_shader_release_resources(VULKAN_CONTEXT* context, struct VULKAN_MATERIAL_SHADER* shader, u32 object_id);
+b8 vulkan_material_shader_acquire_resources(VULKAN_CONTEXT* context, struct VULKAN_MATERIAL_SHADER* shader, MATERIAL* material);
+void vulkan_material_shader_release_resources(VULKAN_CONTEXT* context, struct VULKAN_MATERIAL_SHADER* shader, MATERIAL* material);

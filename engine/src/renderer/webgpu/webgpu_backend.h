@@ -14,5 +14,8 @@ void webgpu_renderer_update_global_state(Matrice4 projection, Matrice4 view, Vec
 
 void webgpu_backend_update_object(GEOMETRY_RENDER_DATA data);
 
-void webgpu_renderer_create_texture(const char* name, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, struct TEXTURE* out_texture);
+void webgpu_renderer_create_texture(const u8* pixels, TEXTURE* texture);
 void webgpu_renderer_destroy_texture(TEXTURE* texture);
+
+b8 webgpu_renderer_create_material(struct MATERIAL* material);
+void webgpu_renderer_destroy_material(struct MATERIAL* material);

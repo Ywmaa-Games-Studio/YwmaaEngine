@@ -25,6 +25,8 @@ b8 webgpu_material_shader_create(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER
     }
     PRINT_INFO("Got shader module: %i", &out_shader->shader_module);
     
+    // Sampler uses.
+    out_shader->sampler_uses[0] = TEXTURE_USE_MAP_DIFFUSE;
 
     // Attributes
     WGPUVertexBufferLayout vertex_buffer_layout;
@@ -68,7 +70,7 @@ b8 webgpu_material_shader_create(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER
     bind_layout_set_default(&binding_layout[2]);
     binding_layout[2].binding = 2;
     binding_layout[2].buffer.type = WGPUBufferBindingType_Uniform;
-    binding_layout[2].buffer.minBindingSize = sizeof(OBJECT_UNIFORM_OBJECT);
+    binding_layout[2].buffer.minBindingSize = sizeof(MATERIAL_UNIFORM_OBJECT);
     binding_layout[2].visibility = WGPUShaderStage_Fragment;
     binding_layout[2].buffer.hasDynamicOffset = true;
 
@@ -136,7 +138,7 @@ b8 webgpu_material_shader_create(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER
     model_uniform_buffer_desc.nextInChain = NULL;
     model_uniform_buffer_desc.label = "Model Uniform Buffer";
     model_uniform_buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    model_uniform_buffer_desc.size = sizeof(OBJECT_UNIFORM_OBJECT);
+    model_uniform_buffer_desc.size = sizeof(MATERIAL_UNIFORM_OBJECT);
     model_uniform_buffer_desc.mappedAtCreation = false;
     out_shader->model_buffer_descriptor = model_uniform_buffer_desc;
     out_shader->model_uniform_buffer = wgpuDeviceCreateBuffer(context->device, &out_shader->model_buffer_descriptor);
@@ -146,7 +148,7 @@ b8 webgpu_material_shader_create(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER
     object_uniform_buffer_desc.nextInChain = NULL;
     object_uniform_buffer_desc.label = "Object Uniform Buffer";
     object_uniform_buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
-    object_uniform_buffer_desc.size = sizeof(OBJECT_UNIFORM_OBJECT);
+    object_uniform_buffer_desc.size = sizeof(MATERIAL_UNIFORM_OBJECT);
     object_uniform_buffer_desc.mappedAtCreation = false;
     out_shader->object_buffer_descriptor = object_uniform_buffer_desc;
     out_shader->object_uniform_buffer = wgpuDeviceCreateBuffer(context->device, &out_shader->object_buffer_descriptor);
@@ -170,7 +172,7 @@ void webgpu_material_shader_destroy(WEBGPU_CONTEXT* context, struct WEBGPU_MATER
 
 void webgpu_material_shader_use(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader) {
     // Set binding group here!
-    u32 dynamic_offsets[3] = {0, 0, sizeof(OBJECT_UNIFORM_OBJECT)};
+    u32 dynamic_offsets[3] = {0, 0, sizeof(MATERIAL_UNIFORM_OBJECT)};
     wgpuRenderPassEncoderSetBindGroup(context->render_pass, 0, shader->pipeline.bind_group, 1, dynamic_offsets);
 }
 
@@ -182,23 +184,34 @@ void webgpu_material_shader_update_global_state(WEBGPU_CONTEXT* context, struct 
 void webgpu_material_shader_update_object(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, GEOMETRY_RENDER_DATA data) {
     wgpuQueueWriteBuffer(context->queue, shader->model_uniform_buffer, 0, &data.model, sizeof(Matrice4));
     
-    u32 range = sizeof(OBJECT_UNIFORM_OBJECT);
-    u64 offset = sizeof(OBJECT_UNIFORM_OBJECT) * data.object_id;  // also the index into the array.
-    OBJECT_UNIFORM_OBJECT obo;
+    u32 range = sizeof(MATERIAL_UNIFORM_OBJECT);
+    u64 offset = sizeof(MATERIAL_UNIFORM_OBJECT) * data.object_id;  // also the index into the array.
+    MATERIAL_UNIFORM_OBJECT obo;
     
     // TODO: get diffuse colour from a material.
-    static f32 accumulator = 0.0f;
-    accumulator += context->frame_delta_time;
-    f32 s = (ysin(accumulator) + 1.0f) / 2.0f;  // scale from -1, 1 to 0, 1
-    obo.diffuse_color = Vector4_create(s, s, s, 1.0f);
+    // // TODO: get diffuse colour from a material.
+    // static f32 accumulator = 0.0f;
+    // accumulator += context->frame_delta_time;
+    // f32 s = (ksin(accumulator) + 1.0f) / 2.0f;  // scale from -1, 1 to 0, 1
+    // obo.diffuse_color = vec4_create(s, s, s, 1.0f);
+    obo.diffuse_color = data.material->diffuse_colour;
 
     // Load the data into the buffer.
-    wgpuQueueWriteBuffer(context->queue, shader->object_uniform_buffer, offset, &obo, sizeof(OBJECT_UNIFORM_OBJECT));
+    wgpuQueueWriteBuffer(context->queue, shader->object_uniform_buffer, offset, &obo, sizeof(MATERIAL_UNIFORM_OBJECT));
 
-    // TODO: samplers.
+    // Samplers.
     const u32 sampler_count = 1;
     for (u32 sampler_index = 0; sampler_index < sampler_count; ++sampler_index) {
-        TEXTURE* t = data.textures[sampler_index];
+        E_TEXTURE_USE use = shader->sampler_uses[sampler_index];
+        TEXTURE* t = 0;
+        switch (use) {
+            case TEXTURE_USE_MAP_DIFFUSE:
+                t = data.material->diffuse_map.texture;
+                break;
+            default:
+                PRINT_ERROR("Unable to bind sampler to unknown use.");
+                return;
+        }
         
         WEBGPU_TEXTURE_DATA* internal_data = (WEBGPU_TEXTURE_DATA*)t->internal_data;
         
@@ -211,15 +224,16 @@ void webgpu_material_shader_update_object(WEBGPU_CONTEXT* context, struct WEBGPU
     
 }
 
-b8 webgpu_material_shader_acquire_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, u32* out_object_id) {
-    // TODO: free list
+b8 webgpu_material_shader_acquire_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, MATERIAL* material) {
+    material->internal_id = shader->object_uniform_buffer_index;
+    shader->object_uniform_buffer_index++;
 
 
     return true;
 }
 
-void webgpu_material_shader_release_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, u32 object_id) {
-    
+void webgpu_material_shader_release_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, MATERIAL* material) {
+    material->internal_id = INVALID_ID; 
 }
 
 void bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout) {
@@ -278,7 +292,7 @@ void webgpu_create_bind_group(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER* s
     // multiple uniform blocks.
     binding[2].offset = 0;
     // And we specify again the size of the buffer.
-    binding[2].size = sizeof(OBJECT_UNIFORM_OBJECT);
+    binding[2].size = sizeof(MATERIAL_UNIFORM_OBJECT);
 
     // A bind group contains one or multiple bindings
     WGPUBindGroupDescriptor bindGroupDesc = {};

@@ -13,5 +13,5 @@ void webgpu_material_shader_update_global_state(WEBGPU_CONTEXT* context, struct 
 
 void webgpu_material_shader_update_object(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, GEOMETRY_RENDER_DATA data);
 
-b8 webgpu_material_shader_acquire_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, u32* out_object_id);
-void webgpu_material_shader_release_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, u32 object_id);
+b8 webgpu_material_shader_acquire_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, MATERIAL* material);
+void webgpu_material_shader_release_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, MATERIAL* material);

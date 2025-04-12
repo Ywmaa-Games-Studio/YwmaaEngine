@@ -142,7 +142,7 @@ i32 string_index_of(char* str, char c) {
     return -1;
 }
 
-b8 string_to_vec4(char* str, Vector4* out_vector) {
+b8 string_to_vector4(char* str, Vector4* out_vector) {
     if (!str) {
         return false;
     }
@@ -152,7 +152,7 @@ b8 string_to_vec4(char* str, Vector4* out_vector) {
     return result != -1;
 }
 
-b8 string_to_vec3(char* str, Vector3* out_vector) {
+b8 string_to_vector3(char* str, Vector3* out_vector) {
     if (!str) {
         return false;
     }

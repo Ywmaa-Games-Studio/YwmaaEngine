@@ -134,7 +134,7 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #endif
 
 /** @brief Gets the number of bytes from amount of gibibytes (GiB) (1024*1024*1024) */
-#define GIBIBYTES(amount) amount * 1024 * 1024 * 1024
+#define GIBIBYTES(amount) amount * (u64)1024 * (u64)1024 * (u64)1024
 /** @brief Gets the number of bytes from amount of mebibytes (MiB) (1024*1024) */
 #define MEBIBYTES(amount) amount * 1024 * 1024
 /** @brief Gets the number of bytes from amount of kibibytes (KiB) (1024) */

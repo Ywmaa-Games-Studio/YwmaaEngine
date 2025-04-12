@@ -130,7 +130,7 @@ typedef struct VULKAN_PIPELINE {
     VkPipelineLayout pipeline_layout;
 } VULKAN_PIPELINE;
 
-#define OBJECT_SHADER_STAGE_COUNT 2
+#define MATERIAL_SHADER_STAGE_COUNT 2
 
 
 typedef struct VULKAN_DESCRIPTOR_STATE {
@@ -139,20 +139,21 @@ typedef struct VULKAN_DESCRIPTOR_STATE {
     u32 ids[3];
 } VULKAN_DESCRIPTOR_STATE;
 
-#define VULKAN_OBJECT_SHADER_DESCRIPTOR_COUNT 2
-typedef struct VULKAN_OBJECT_SHADER_OBJECT_STATE {
+#define VULKAN_MATERIAL_SHADER_DESCRIPTOR_COUNT 2
+#define VULKAN_MATERIAL_SHADER_SAMPLER_COUNT 1
+typedef struct VULKAN_MATERIAL_SHADER_INSTANCE_STATE {
     // Per frame
     VkDescriptorSet descriptor_sets[3];
 
     // Per descriptor
-    VULKAN_DESCRIPTOR_STATE descriptor_states[VULKAN_OBJECT_SHADER_DESCRIPTOR_COUNT];
-} VULKAN_OBJECT_SHADER_OBJECT_STATE;
+    VULKAN_DESCRIPTOR_STATE descriptor_states[VULKAN_MATERIAL_SHADER_DESCRIPTOR_COUNT];
+} VULKAN_MATERIAL_SHADER_INSTANCE_STATE;
 
 // Max number of objects
-#define VULKAN_OBJECT_MAX_OBJECT_COUNT 1024
+#define VULKAN_MAX_MATERIAL_COUNT 1024
 typedef struct VULKAN_MATERIAL_SHADER {
     // vertex, fragment
-    VULKAN_SHADER_STAGE stages[OBJECT_SHADER_STAGE_COUNT];
+    VULKAN_SHADER_STAGE stages[MATERIAL_SHADER_STAGE_COUNT];
 
     VkDescriptorPool global_descriptor_pool;
     VkDescriptorSetLayout global_descriptor_set_layout;
@@ -174,8 +175,10 @@ typedef struct VULKAN_MATERIAL_SHADER {
     // TODO: manage a free list of some kind here instead.
     u32 object_uniform_buffer_index;
 
+    E_TEXTURE_USE sampler_uses[VULKAN_MATERIAL_SHADER_SAMPLER_COUNT];
+
     // TODO: make dynamic
-    VULKAN_OBJECT_SHADER_OBJECT_STATE object_states[VULKAN_OBJECT_MAX_OBJECT_COUNT];
+    VULKAN_MATERIAL_SHADER_INSTANCE_STATE instance_states[VULKAN_MAX_MATERIAL_COUNT];
 
 
     VULKAN_PIPELINE pipeline;

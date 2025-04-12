@@ -15,6 +15,7 @@
 
 // systems
 #include "systems/texture_system.h"
+#include "systems/material_system.h"
 
 typedef struct APPLICATION_STATE {
     GAME* game_instance;
@@ -43,6 +44,9 @@ typedef struct APPLICATION_STATE {
 
     u64 texture_system_memory_requirement;
     void* texture_system_state;
+
+    u64 material_system_memory_requirement;
+    void* material_system_state;
 } APPLICATION_STATE;
 
 static APPLICATION_STATE* app_state;
@@ -120,16 +124,21 @@ b8 application_create(GAME* game_instance) {
     }
     
 
-    // Allocate the texture system memory before the renderer to not overflow the renderer's memory
+    // Allocate the texture & material systems memory before the renderer to not overflow the renderer's memory
     TEXTURE_SYSTEM_CONFIG texture_sys_config;
-    //texture_sys_config.max_texture_count = 65536;
-    texture_sys_config.max_texture_count = 4096;
+    texture_sys_config.max_texture_count = 65536;
     texture_system_init(&app_state->texture_system_memory_requirement, 0, texture_sys_config);
     app_state->texture_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->texture_system_memory_requirement);
 
+    MATERIAL_SYSTEM_CONFIG material_sys_config;
+    material_sys_config.max_material_count = 4096;
+    material_system_initialize(&app_state->material_system_memory_requirement, 0, material_sys_config);
+    app_state->material_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->material_system_memory_requirement);
+
+
     // Renderer system
     app_state->renderer_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_system_memory_requirement);
-    if (!renderer_system_init(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_instance->app_config.name, RENDERER_BACKEND_API_VULKAN)) { //RENDERER_BACKEND_API_WEBGPU|RENDERER_BACKEND_API_VULKAN
+    if (!renderer_system_init(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_instance->app_config.name, RENDERER_BACKEND_API_WEBGPU)) { //RENDERER_BACKEND_API_WEBGPU|RENDERER_BACKEND_API_VULKAN
         PRINT_ERROR("Failed to initialize renderer. Aborting application.");
         return false;
     }
@@ -139,6 +148,13 @@ b8 application_create(GAME* game_instance) {
         PRINT_ERROR("Failed to initialize texture system. Application cannot continue.");
         return false;
     }
+
+    // Material system.
+    if (!material_system_initialize(&app_state->material_system_memory_requirement, app_state->material_system_state, material_sys_config)) {
+        PRINT_ERROR("Failed to initialize material system. Application cannot continue.");
+        return false;
+    }
+
 
 
     // Initialize the game.
@@ -230,6 +246,8 @@ b8 application_run() {
     event_unregister(EVENT_CODE_KEY_RELEASED, 0, application_on_key);
 
     input_system_shutdown(app_state->input_system_state);
+
+    material_system_shutdown(app_state->material_system_state);
 
     texture_system_shutdown(app_state->texture_system_state);
 

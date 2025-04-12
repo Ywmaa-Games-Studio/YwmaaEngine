@@ -28,9 +28,9 @@ typedef struct WEBGPU_PIPELINE {
     WGPUBindGroupLayout bind_group_layout;
     WGPUBindGroupLayout texture_bind_group_layout;
 } WEBGPU_PIPELINE;
-
+#define WEBGPU_MATERIAL_SHADER_SAMPLER_COUNT 1
 // Max number of objects
-#define WEBGPU_OBJECT_MAX_OBJECT_COUNT 1024
+#define WEBGPU_MAX_MATERIAL_COUNT 1024
 typedef struct WEBGPU_MATERIAL_SHADER {
     WEBGPU_PIPELINE pipeline;
     WGPUShaderModule shader_module;
@@ -49,8 +49,9 @@ typedef struct WEBGPU_MATERIAL_SHADER {
     // Object uniform buffer.
     WGPUBufferDescriptor object_buffer_descriptor;
     WGPUBuffer object_uniform_buffer;
+    u32 object_uniform_buffer_index;
 
-    
+    E_TEXTURE_USE sampler_uses[WEBGPU_MATERIAL_SHADER_SAMPLER_COUNT];
 
 
 } WEBGPU_MATERIAL_SHADER;

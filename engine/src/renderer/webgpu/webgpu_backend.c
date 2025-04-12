@@ -74,11 +74,6 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
 
     webgpu_create_buffers();
 
-    u32 object_id = 0;
-    if (!webgpu_material_shader_acquire_resources(&context, &context.material_shader, &object_id)) {
-        PRINT_ERROR("Failed to acquire shader resources.");
-        return false;
-    }
 
     PRINT_INFO("WebGPU renderer initialized successfully.");
     return true;
@@ -358,21 +353,17 @@ void webgpu_destroy_buffers(){
 
 
 
-void webgpu_renderer_create_texture(const char* name, i32 width, i32 height, i32 channel_count, const u8* pixels, b8 has_transparency, struct TEXTURE* out_texture){
-    out_texture->width = width;
-    out_texture->height = height;
-    out_texture->channel_count = channel_count;
-    out_texture->generation = INVALID_ID;
+void webgpu_renderer_create_texture(const u8* pixels, TEXTURE* texture){
     // Internal data creation.
     // TODO: Use an allocator for this.
-    out_texture->internal_data = (WEBGPU_TEXTURE_DATA*)yallocate_aligned(sizeof(WEBGPU_TEXTURE_DATA), 4, MEMORY_TAG_TEXTURE);
-    WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)out_texture->internal_data;
+    texture->internal_data = (WEBGPU_TEXTURE_DATA*)yallocate_aligned(sizeof(WEBGPU_TEXTURE_DATA), 4, MEMORY_TAG_TEXTURE);
+    WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)texture->internal_data;
 
     webgpu_image_create(
         &context,
         WGPUTextureDimension_2D,
-        width,
-        height,
+        texture->width,
+        texture->height,
         WGPUTextureFormat_RGBA8Unorm,
         WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst,
         true,
@@ -380,7 +371,7 @@ void webgpu_renderer_create_texture(const char* name, i32 width, i32 height, i32
         &data->image);
 
     // Copy the data from the buffer.
-    webgpu_image_copy_from_buffer(&context, &data->image, pixels, channel_count);
+    webgpu_image_copy_from_buffer(&context, &data->image, pixels, texture->channel_count);
 
     // Create a sampler
     WGPUSamplerDescriptor sampler_desc;
@@ -397,9 +388,7 @@ void webgpu_renderer_create_texture(const char* name, i32 width, i32 height, i32
     sampler_desc.maxAnisotropy = 16;
     data->sampler = wgpuDeviceCreateSampler(context.device, &sampler_desc);
 
-
-    out_texture->has_transparency = has_transparency;
-    out_texture->generation++;
+    texture->generation++;
 }
 
 void webgpu_renderer_destroy_texture(TEXTURE* texture){
@@ -418,4 +407,31 @@ void webgpu_renderer_destroy_texture(TEXTURE* texture){
 
     yzero_memory(texture, sizeof(struct TEXTURE));
     
+}
+
+b8 webgpu_renderer_create_material(struct MATERIAL* material) {
+    if (material) {
+        if (!webgpu_material_shader_acquire_resources(&context, &context.material_shader, material)) {
+            PRINT_ERROR("webgpu_renderer_create_material - Failed to acquire shader resources.");
+            return false;
+        }
+
+        PRINT_DEBUG("Renderer: Material created.");
+        return true;
+    }
+
+    PRINT_ERROR("webgpu_renderer_create_material called with nullptr. Creation failed.");
+    return false;
+}
+
+void webgpu_renderer_destroy_material(struct MATERIAL* material) {
+    if (material) {
+        if (material->internal_id != INVALID_ID) {
+            webgpu_material_shader_release_resources(&context, &context.material_shader, material);
+        } else {
+            PRINT_WARNING("webgpu_renderer_destroy_material called with internal_id=INVALID_ID. Nothing was done.");
+        }
+    } else {
+        PRINT_WARNING("webgpu_renderer_destroy_material called with nullptr. Nothing was done.");
+    }
 }

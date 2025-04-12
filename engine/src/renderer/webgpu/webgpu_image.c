@@ -50,6 +50,7 @@ void webgpu_image_view_create(
 
     WGPUTextureViewDescriptor textureViewDesc;
     textureViewDesc.aspect = aspect_flags;
+    textureViewDesc.label = "Texture View Desc";
     // TODO: Make configurable
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;

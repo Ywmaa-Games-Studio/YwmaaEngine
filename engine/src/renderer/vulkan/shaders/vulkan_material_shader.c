@@ -258,14 +258,25 @@ void vulkan_material_shader_update_global_state(VULKAN_CONTEXT* context, struct 
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, shader->pipeline.pipeline_layout, 0, 1, &global_descriptor, 0, 0);
 }
 
-void vulkan_material_shader_update_object(VULKAN_CONTEXT* context, struct VULKAN_MATERIAL_SHADER* shader, GEOMETRY_RENDER_DATA data) {
+void vulkan_material_shader_set_model(VULKAN_CONTEXT* context, struct VULKAN_MATERIAL_SHADER* shader, Matrice4 model) {
+    if (!context || !shader) {
+        return;
+    }
     u32 image_index = context->image_index;
     VkCommandBuffer command_buffer = context->graphics_command_buffers[image_index].handle;
 
-    vkCmdPushConstants(command_buffer, shader->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Matrice4), &data.model);
+    vkCmdPushConstants(command_buffer, shader->pipeline.pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Matrice4), &model);
+}
+
+void vulkan_material_shader_apply_material(VULKAN_CONTEXT* context, struct VULKAN_MATERIAL_SHADER* shader, MATERIAL* material) {
+    if (!context || !shader) {
+        return;
+    }
+    u32 image_index = context->image_index;
+    VkCommandBuffer command_buffer = context->graphics_command_buffers[image_index].handle;
 
     // Obtain material data.
-    VULKAN_MATERIAL_SHADER_INSTANCE_STATE* object_state = &shader->instance_states[data.material->internal_id];
+    VULKAN_MATERIAL_SHADER_INSTANCE_STATE* object_state = &shader->instance_states[material->internal_id];
     VkDescriptorSet object_descriptor_set = object_state->descriptor_sets[image_index];
 
     // TODO: if needs update
@@ -276,22 +287,21 @@ void vulkan_material_shader_update_object(VULKAN_CONTEXT* context, struct VULKAN
 
     // Descriptor 0 - Uniform buffer
     u32 range = sizeof(MATERIAL_UNIFORM_OBJECT);
-    u64 offset = sizeof(MATERIAL_UNIFORM_OBJECT) * data.material->internal_id;  // also the index into the array.
+    u64 offset = sizeof(MATERIAL_UNIFORM_OBJECT) * material->internal_id;  // also the index into the array.
     MATERIAL_UNIFORM_OBJECT obo;
 
-    // // TODO: get diffuse colour from a material.
-    // static f32 accumulator = 0.0f;
-    // accumulator += context->frame_delta_time;
-    // f32 s = (ksin(accumulator) + 1.0f) / 2.0f;  // scale from -1, 1 to 0, 1
-    // obo.diffuse_color = vec4_create(s, s, s, 1.0f);
-    obo.diffuse_color = data.material->diffuse_colour;
+/*         static f32 accumulator = 0.0f;
+    accumulator += context->frame_delta_time;
+    f32 s = (ysin(accumulator) + 1.0f) / 2.0f;  // scale from -1, 1 to 0, 1
+    obo.diffuse_color = Vector4_create(s, s, s, 1.0f); */
+    obo.diffuse_color = material->diffuse_colour;
 
     // Load the data into the buffer.
     vulkan_buffer_load_data(context, &shader->object_uniform_buffer, offset, range, 0, &obo);
 
     // Only do this if the descriptor has not yet been updated.
     u32* global_ubo_generation = &object_state->descriptor_states[descriptor_index].generations[image_index];
-    if (*global_ubo_generation == INVALID_ID || *global_ubo_generation != data.material->generation) {
+    if (*global_ubo_generation == INVALID_ID || *global_ubo_generation != material->generation) {
         VkDescriptorBufferInfo buffer_info;
         buffer_info.buffer = shader->object_uniform_buffer.handle;
         buffer_info.offset = offset;
@@ -308,7 +318,7 @@ void vulkan_material_shader_update_object(VULKAN_CONTEXT* context, struct VULKAN
         descriptor_count++;
 
         // Update the frame generation. In this case it is only needed once since this is a buffer.
-        *global_ubo_generation = data.material->generation;
+        *global_ubo_generation = material->generation;
     }
     descriptor_index++;
 
@@ -320,7 +330,7 @@ void vulkan_material_shader_update_object(VULKAN_CONTEXT* context, struct VULKAN
         TEXTURE* t = 0;
         switch (use) {
             case TEXTURE_USE_MAP_DIFFUSE:
-                t = data.material->diffuse_map.texture;
+                t = material->diffuse_map.texture;
                 break;
             default:
                 PRINT_ERROR("Unable to bind sampler to unknown use.");
@@ -410,6 +420,10 @@ void vulkan_material_shader_release_resources(VULKAN_CONTEXT* context, struct VU
     VULKAN_MATERIAL_SHADER_INSTANCE_STATE* instance_state = &shader->instance_states[material->internal_id];
 
     const u32 descriptor_set_count = 3;
+
+    // Wait for any pending operations using the descriptor set to finish.
+    vkDeviceWaitIdle(context->device.logical_device);
+
     // Release object descriptor sets.
     VkResult result = vkFreeDescriptorSets(context->device.logical_device, shader->object_descriptor_pool, descriptor_set_count, instance_state->descriptor_sets);
     if (result != VK_SUCCESS) {

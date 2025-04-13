@@ -25,7 +25,7 @@ typedef struct MATERIAL_UNIFORM_OBJECT {
 typedef struct GEOMETRY_RENDER_DATA {
     u32 object_id;
     Matrice4 model;
-    MATERIAL* material;
+    GEOMETRY* geometry;
 } GEOMETRY_RENDER_DATA;
 
 typedef struct RENDERER_BACKEND {
@@ -42,15 +42,20 @@ typedef struct RENDERER_BACKEND {
     void (*update_global_state)(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode);
     b8 (*end_frame)(struct RENDERER_BACKEND* backend, f32 delta_time);
 
-    void (*update_object)(GEOMETRY_RENDER_DATA data);
+    void (*draw_geometry)(GEOMETRY_RENDER_DATA data);
 
     void (*create_texture)(const u8* pixels, struct TEXTURE* texture);
     void (*destroy_texture)(TEXTURE* texture);
 
     b8 (*create_material)(struct MATERIAL* material);
     void (*destroy_material)(struct MATERIAL* material);
+
+    b8 (*create_geometry)(GEOMETRY* geometry, u32 vertex_count, const Vertex3D* vertices, u32 index_count, const u32* indices);
+    void (*destroy_geometry)(GEOMETRY* geometry);
 } RENDERER_BACKEND;
 
 typedef struct RENDER_PACKET {
     f32 delta_time;
+    u32 geometry_count;
+    GEOMETRY_RENDER_DATA* geometries;
 } RENDER_PACKET;

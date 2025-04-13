@@ -72,7 +72,9 @@ b8 filesystem_read_line(FILE_HANDLE* handle, u64 max_length, char** line_buf, u6
             return true;
         }
     }
+    return false;
 }
+
 
 b8 filesystem_write_line(FILE_HANDLE* handle, const char* text) {
     if (handle->handle) {

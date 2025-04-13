@@ -36,7 +36,7 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m);
 void destroy_material(MATERIAL* m);
 b8 load_configuration_file(const char* path, MATERIAL_CONFIG* out_config);
 
-b8 material_system_initialize(u64* memory_requirement, void* state, MATERIAL_SYSTEM_CONFIG config) {
+b8 material_system_init(u64* memory_requirement, void* state, MATERIAL_SYSTEM_CONFIG config) {
     if (config.max_material_count == 0) {
         PRINT_ERROR("material_system_initialize - config.max_material_count must be > 0.");
         return false;
@@ -220,6 +220,16 @@ void material_system_release(const char* name) {
         PRINT_ERROR("material_system_release failed to release material '%s'.", name);
     }
 }
+
+MATERIAL* material_system_get_default() {
+    if (state_ptr) {
+        return &state_ptr->default_material;
+    }
+
+    PRINT_ERROR("material_system_get_default called before system is initialized.");
+    return 0;
+}
+
 
 b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
     yzero_memory(m, sizeof(MATERIAL));

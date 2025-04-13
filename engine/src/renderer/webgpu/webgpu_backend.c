@@ -5,18 +5,40 @@
 #include "webgpu_swapchain.h"
 #include "webgpu_device.h"
 #include "webgpu_image.h"
+#include "webgpu_buffer.h"
 #include "shaders/webgpu_material_shader.h"
 
 #include "core/logger.h"
 #include "core/ymemory.h"
 #include "core/application.h"
 
-b8 webgpu_create_buffers();
-void webgpu_destroy_buffers();
+#include "systems/material_system.h"
+
+b8 webgpu_upload_data_range(WEBGPU_CONTEXT* context, WEBGPU_BUFFER* buffer, u64* out_offset, u64 size, const void* data) {
+    // Allocate space in the buffer.
+    if (!webgpu_buffer_allocate(buffer, size, out_offset)) {
+        PRINT_ERROR("upload_data_range failed to allocate from the given buffer!");
+        return false;
+    }
+
+    webgpu_buffer_load_data(context, buffer, *out_offset, size, data);
+
+    return true;
+}
+
+void webgpu_free_data_range(WEBGPU_BUFFER* buffer, u64 offset, u64 size) {
+    if (buffer) {
+        webgpu_buffer_free(buffer, size, offset);
+    }
+}
+
+b8 webgpu_create_buffers(WEBGPU_CONTEXT* context);
+void webgpu_destroy_buffers(WEBGPU_CONTEXT* context);
 
 b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend);
 
 WGPUTextureView get_next_surface_texture_view();
+WGPUTextureView get_depth_texture_view();
 // static WebGPU context
 static WEBGPU_CONTEXT context;
 static u32 cached_framebuffer_width = 0;
@@ -66,13 +88,24 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
         return false;
     }
 
+    context.depth_view = get_depth_texture_view(context.framebuffer_width, context.framebuffer_height);
+    if (!context.depth_view) {
+        PRINT_ERROR("Failed to create depth texture view.");
+        return false;
+    }
+
     // Create builtin shaders
     if (!webgpu_material_shader_create(&context, &context.material_shader)) {
         PRINT_ERROR("Error loading built-in basic_lighting shader.");
         return false;
     }
 
-    webgpu_create_buffers();
+    webgpu_create_buffers(&context);
+
+    // Mark all geometries as invalid
+    for (u32 i = 0; i < WEBGPU_MAX_GEOMETRY_COUNT; ++i) {
+        context.geometries[i].id = INVALID_ID;
+    }
 
 
     PRINT_INFO("WebGPU renderer initialized successfully.");
@@ -83,9 +116,11 @@ void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
     // Destroy in the opposite order of creation.
 
 
-    webgpu_destroy_buffers();
+    webgpu_destroy_buffers(&context);
 
     webgpu_material_shader_destroy(&context, &context.material_shader);
+
+    wgpuTextureViewRelease(context.depth_view);
 
     webgpu_swapchain_destroy(&context);
 
@@ -146,27 +181,14 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     context.encoder = wgpuDeviceCreateCommandEncoder(context.device, &encoder_desc);
 
     //START Render Pass
-    WGPURenderPassDescriptor render_pass_desc = {};
-    render_pass_desc.nextInChain = NULL;
-
     // Describe Render Pass
-
     WGPURenderPassColorAttachment render_pass_color_attachment = {};
-
     // [...] Describe the attachment
-
-    render_pass_desc.colorAttachmentCount = 1;
-    render_pass_desc.colorAttachments = &render_pass_color_attachment;
-    render_pass_desc.depthStencilAttachment = NULL;
-    render_pass_desc.timestampWrites = NULL;
-
+    render_pass_color_attachment.nextInChain = NULL;
     render_pass_color_attachment.view = context.target_view;
-
     render_pass_color_attachment.resolveTarget = NULL;
-
     render_pass_color_attachment.loadOp = WGPULoadOp_Clear;
     render_pass_color_attachment.storeOp = WGPUStoreOp_Store;
-
     WGPUColor color = {};
     color.r = 0.0;
     color.g = 0.2;
@@ -174,39 +196,64 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     color.a = 1.0;
     render_pass_color_attachment.clearValue = color;
 
+    // We now add a depth/stencil attachment:
+    WGPURenderPassDepthStencilAttachment depthStencilAttachment;
+    // Setup depth/stencil attachment
+
+    // The view of the depth texture
+    depthStencilAttachment.view = context.depth_view;
+
+    // The initial value of the depth buffer, meaning "far"
+    depthStencilAttachment.depthClearValue = 1.0f;
+    // Operation settings comparable to the color attachment
+    depthStencilAttachment.depthLoadOp = WGPULoadOp_Clear;
+    depthStencilAttachment.depthStoreOp = WGPUStoreOp_Store;
+    // we could turn off writing to the depth buffer globally here
+    depthStencilAttachment.depthReadOnly = false;
+
+    // Stencil setup, mandatory but unused
+    depthStencilAttachment.stencilClearValue = 0;
+    depthStencilAttachment.stencilLoadOp = WGPULoadOp_Clear;
+    depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Store;
+    depthStencilAttachment.stencilReadOnly = true;
+    
+    WGPURenderPassDescriptor render_pass_desc = {};
+    render_pass_desc.nextInChain = NULL;
+    //render_pass_desc.label = "";
+    render_pass_desc.colorAttachmentCount = 1;
+    render_pass_desc.colorAttachments = &render_pass_color_attachment;
+    render_pass_desc.depthStencilAttachment = &depthStencilAttachment;
+    render_pass_desc.timestampWrites = NULL;
+
     context.render_pass = wgpuCommandEncoderBeginRenderPass(context.encoder, &render_pass_desc);
-    // [...] Use Render Pass
-
-        // Select which render pipeline to use
-    wgpuRenderPassEncoderSetPipeline(context.render_pass, context.material_shader.pipeline.handle);
-
+    
     return true;
 }
 void webgpu_renderer_update_global_state(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode) {
-
+    
     webgpu_material_shader_use(&context, &context.material_shader);
-
+    
     context.material_shader.global_ubo.projection = projection;
     context.material_shader.global_ubo.view = view;
-
+    
     webgpu_material_shader_update_global_state(&context, &context.material_shader, context.frame_delta_time);
 }
 b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
-
+    
     wgpuRenderPassEncoderEnd(context.render_pass);
     wgpuRenderPassEncoderRelease(context.render_pass);
     //END Render Pass
-
+    
     WGPUCommandBufferDescriptor cmd_buffer_descriptor = {};
     cmd_buffer_descriptor.nextInChain = NULL;
     cmd_buffer_descriptor.label = "Command buffer";
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(context.encoder, &cmd_buffer_descriptor);
     wgpuCommandEncoderRelease(context.encoder);
-
+    
     // Finally submit the command queue
     wgpuQueueSubmit(context.queue, 1, &command);
     wgpuCommandBufferRelease(command);
-
+    
     wgpuTextureViewRelease(context.target_view);
 
     //Present Texture
@@ -215,16 +262,133 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     return true;
 }
 
-void webgpu_backend_update_object(GEOMETRY_RENDER_DATA data) {
-    webgpu_material_shader_update_object(&context, &context.material_shader, data);
+b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_count, const Vertex3D* vertices, u32 index_count, const u32* indices) {
+    if (!vertex_count || !vertices) {
+        PRINT_ERROR("webgpu_renderer_create_geometry requires vertex data, and none was supplied. vertex_count=%d, vertices=%p", vertex_count, vertices);
+        return false;
+    }
 
+    // Check if this is a re-upload. If it is, need to free old data afterward.
+    b8 is_reupload = geometry->internal_id != INVALID_ID;
+    WEBGPU_GEOMETRY_DATA old_range;
+
+    WEBGPU_GEOMETRY_DATA* internal_data = 0;
+    if (is_reupload) {
+        internal_data = &context.geometries[geometry->internal_id];
+
+        // Take a copy of the old range.
+        old_range.index_buffer_offset = internal_data->index_buffer_offset;
+        old_range.index_count = internal_data->index_count;
+        old_range.index_size = internal_data->index_size;
+        old_range.vertex_buffer_offset = internal_data->vertex_buffer_offset;
+        old_range.vertex_count = internal_data->vertex_count;
+        old_range.vertex_size = internal_data->vertex_size;
+    } else {
+        for (u32 i = 0; i < WEBGPU_MAX_GEOMETRY_COUNT; ++i) {
+            if (context.geometries[i].id == INVALID_ID) {
+                // Found a free index.
+                geometry->internal_id = i;
+                context.geometries[i].id = i;
+                internal_data = &context.geometries[i];
+                break;
+            }
+        }
+    }
+    if (!internal_data) {
+        PRINT_ERROR("webgpu_renderer_create_geometry failed to find a free index for a new geometry upload. Adjust config to allow for more.");
+        return false;
+    }
+
+    // Vertex data.
+    internal_data->vertex_count = vertex_count;
+    internal_data->vertex_size = sizeof(Vertex3D) * vertex_count;
+    u32 total_size = vertex_count * internal_data->vertex_size;
+    if (!webgpu_upload_data_range(&context, &context.object_vertex_buffer, &internal_data->vertex_buffer_offset, total_size, vertices)) {
+        PRINT_ERROR("webgpu_renderer_create_geometry failed to upload to the vertex buffer!");
+        return false;
+    }
+
+    // Index data, if applicable
+    if (index_count && indices) {
+        internal_data->index_count = index_count;
+        internal_data->index_size = sizeof(u32) * index_count;
+        total_size = index_count * internal_data->index_size;
+        if (!webgpu_upload_data_range(&context, &context.object_index_buffer, &internal_data->index_buffer_offset, total_size, indices)){
+            PRINT_ERROR("webgpu_renderer_create_geometry failed to upload to the index buffer!");
+            return false;
+        }
+    }
+
+    if (internal_data->generation == INVALID_ID) {
+        internal_data->generation = 0;
+    } else {
+        internal_data->generation++;
+    }
+
+    if (is_reupload) {
+        // Free vertex data
+        webgpu_free_data_range(&context.object_vertex_buffer, old_range.vertex_buffer_offset, old_range.vertex_size);
+
+        // Free index data, if applicable
+        if (old_range.index_size > 0) {
+            webgpu_free_data_range(&context.object_index_buffer, old_range.index_buffer_offset, old_range.index_size);
+        }
+    }
+
+    return true;
+}
+
+void webgpu_renderer_destroy_geometry(GEOMETRY* geometry) {
+    if (geometry && geometry->internal_id != INVALID_ID) {
+        WEBGPU_GEOMETRY_DATA* internal_data = &context.geometries[geometry->internal_id];
+
+        // Free vertex data
+        webgpu_free_data_range(&context.object_vertex_buffer, internal_data->vertex_buffer_offset, internal_data->vertex_size);
+
+        // Free index data, if applicable
+        if (internal_data->index_size > 0) {
+            webgpu_free_data_range(&context.object_index_buffer, internal_data->index_buffer_offset, internal_data->index_size);
+        }
+
+        // Clean up data.
+        yzero_memory(internal_data, sizeof(WEBGPU_GEOMETRY_DATA));
+        internal_data->id = INVALID_ID;
+        internal_data->generation = INVALID_ID;
+    }
+}
+
+void webgpu_renderer_draw_geometry(GEOMETRY_RENDER_DATA data) {
+    // Ignore non-uploaded geometries.
+    if (data.geometry && data.geometry->internal_id == INVALID_ID) {
+        return;
+    }
+
+    WEBGPU_GEOMETRY_DATA* buffer_data = &context.geometries[data.geometry->internal_id];
+    
     webgpu_material_shader_use(&context, &context.material_shader);
-
+    
+    webgpu_material_shader_set_model(&context, &context.material_shader, data.model);
+    
+    MATERIAL* m = 0;
+    if (data.geometry->material) {
+        m = data.geometry->material;
+    } else {
+        m = material_system_get_default();
+    }
+    webgpu_material_shader_apply_material(&context, &context.material_shader, m);
+    
     // Set vertex buffer while encoding the render pass
-    wgpuRenderPassEncoderSetVertexBuffer(context.render_pass, 0, context.object_vertex_buffer, 0, wgpuBufferGetSize(context.object_vertex_buffer));
-    wgpuRenderPassEncoderSetIndexBuffer(context.render_pass, context.object_index_buffer, WGPUIndexFormat_Uint32, 0, wgpuBufferGetSize(context.object_index_buffer));
-
-    wgpuRenderPassEncoderDrawIndexed(context.render_pass, 6, 1, 0, 0, 0);
+    wgpuRenderPassEncoderSetVertexBuffer(context.render_pass, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
+    
+    // Draw indexed or non-indexed.
+    if (buffer_data->index_count > 0) {
+        // Bind index buffer at offset.
+        wgpuRenderPassEncoderSetIndexBuffer(context.render_pass, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
+        // Issue the draw.
+        wgpuRenderPassEncoderDrawIndexed(context.render_pass, buffer_data->index_count, 1, 0, 0, 0);
+    } else {
+        wgpuRenderPassEncoderDraw(context.render_pass, buffer_data->vertex_count, 1, 0, 0);
+    }
 }
 
 
@@ -245,6 +409,11 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     context.recreating_swapchain = true;
 
     webgpu_recreate_swapchain(&context, backend, cached_framebuffer_width, cached_framebuffer_height);
+    context.depth_view = get_depth_texture_view(cached_framebuffer_width, cached_framebuffer_height);
+    if (!context.depth_view) {
+        PRINT_ERROR("Failed to create depth texture view.");
+        return false;
+    }
 
     // Sync the framebuffer size with the cached sizes.
     context.framebuffer_width = cached_framebuffer_width;
@@ -259,6 +428,43 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     context.recreating_swapchain = false;
 
     return true;
+}
+
+WGPUTextureView get_depth_texture_view(u32 width, u32 height) {
+    // Create the depth texture
+    WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
+    WGPUTextureDescriptor depthTextureDesc;
+    depthTextureDesc.label = "Depth Texture";
+    depthTextureDesc.nextInChain = NULL;
+    depthTextureDesc.dimension = WGPUTextureDimension_2D;
+    depthTextureDesc.format = depthTextureFormat;
+    depthTextureDesc.mipLevelCount = 1;
+    depthTextureDesc.sampleCount = 1;
+    depthTextureDesc.size.width = width;
+    depthTextureDesc.size.height = height;
+    depthTextureDesc.size.depthOrArrayLayers = 1;
+    depthTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
+    depthTextureDesc.viewFormatCount = 1;
+    depthTextureDesc.viewFormats = &depthTextureFormat;
+    WGPUTexture depthTexture = wgpuDeviceCreateTexture(context.device, &depthTextureDesc);
+
+    // Create the view of the depth texture manipulated by the rasterizer
+    WGPUTextureViewDescriptor depthTextureViewDesc;
+    depthTextureViewDesc.nextInChain = NULL;
+    depthTextureViewDesc.label = "Depth Texture View";
+    depthTextureViewDesc.aspect = WGPUTextureAspect_DepthOnly;
+    depthTextureViewDesc.baseArrayLayer = 0;
+    depthTextureViewDesc.arrayLayerCount = 1;
+    depthTextureViewDesc.baseMipLevel = 0;
+    depthTextureViewDesc.mipLevelCount = 1;
+    depthTextureViewDesc.dimension = WGPUTextureViewDimension_2D;
+    depthTextureViewDesc.format = depthTextureFormat;
+    WGPUTextureView depthTextureView = wgpuTextureCreateView(depthTexture, &depthTextureViewDesc);
+    return depthTextureView;
+
+    // Destroy the depth texture and its view
+    wgpuTextureDestroy(depthTexture);
+    wgpuTextureRelease(depthTexture);
 }
 
 WGPUTextureView get_next_surface_texture_view() {
@@ -286,68 +492,26 @@ WGPUTextureView get_next_surface_texture_view() {
 }
 
 
-b8 webgpu_create_buffers() {
-    
-    // TODO: temporary test code
-    const u32 vert_count = 4;
-    Vertex3D verts[vert_count];
-    yzero_memory(verts, sizeof(Vertex3D) * vert_count);
-    
-    const f32 f = 10.0;
+b8 webgpu_create_buffers(WEBGPU_CONTEXT* context) {
+    const u64 vertex_buffer_size = sizeof(Vertex3D) * 1024 * 1024;
+    if (!webgpu_buffer_create(context, vertex_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex, false, &context->object_vertex_buffer)) {
+        PRINT_ERROR("Error creating vertex buffer.");
+        return false;
+    }
 
-    verts[0].position.x = -0.5 * f;
-    verts[0].position.y = -0.5 * f;
-    verts[0].texcoord.x = 0.0;
-    verts[0].texcoord.y = 0.0;
-
-    verts[1].position.x = 0.5 * f;
-    verts[1].position.y = 0.5 * f;
-    verts[1].texcoord.x = 1.0;
-    verts[1].texcoord.y = 1.0;
-
-    verts[2].position.x = -0.5 * f;
-    verts[2].position.y = 0.5 * f;
-    verts[2].texcoord.x = 0.0;
-    verts[2].texcoord.y = 1.0;
-
-    verts[3].position.x = 0.5 * f;
-    verts[3].position.y = -0.5 * f;
-    verts[3].texcoord.x = 1.0;
-    verts[3].texcoord.y = 0.0;
-
-    const u32 index_count = 6;
-    u32 indices[index_count] = {0, 1, 2, 0, 3, 1};
-    // TODO: end temp code
-
-    WGPUBufferDescriptor vertex_buffer_desc = {};
-    vertex_buffer_desc.nextInChain = NULL;
-    vertex_buffer_desc.label = "Vertex Buffer";
-    vertex_buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
-    vertex_buffer_desc.size = sizeof(Vertex3D) * vert_count;
-    vertex_buffer_desc.mappedAtCreation = false;
-    context.object_vertex_buffer = wgpuDeviceCreateBuffer(context.device, &vertex_buffer_desc);
-
-    WGPUBufferDescriptor index_buffer_desc = {};
-    index_buffer_desc.nextInChain = NULL;
-    index_buffer_desc.label = "Index Buffer";
-    index_buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
-    index_buffer_desc.size = sizeof(u32) * index_count;
-    index_buffer_desc.mappedAtCreation = false;
-    context.object_index_buffer = wgpuDeviceCreateBuffer(context.device, &index_buffer_desc);
-
-    // Upload geometry data to the buffer
-    wgpuQueueWriteBuffer(context.queue, context.object_vertex_buffer, 0, verts, vertex_buffer_desc.size);
-    wgpuQueueWriteBuffer(context.queue, context.object_index_buffer, 0, indices, index_buffer_desc.size);
+    const u64 index_buffer_size = sizeof(u32) * 1024 * 1024;
+    if (!webgpu_buffer_create(context, index_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index, false, &context->object_index_buffer)) {
+        PRINT_ERROR("Error creating index buffer.");
+        return false;
+    }
 
     
     return true;
 }
 
-void webgpu_destroy_buffers(){
-    wgpuBufferDestroy(context.object_vertex_buffer);
-    wgpuBufferDestroy(context.object_index_buffer);
-    wgpuBufferRelease(context.object_vertex_buffer);
-    wgpuBufferRelease(context.object_index_buffer);
+void webgpu_destroy_buffers(WEBGPU_CONTEXT* context){
+    webgpu_buffer_destroy(&context->object_vertex_buffer);
+    webgpu_buffer_destroy(&context->object_index_buffer);
 
 }
 

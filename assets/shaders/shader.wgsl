@@ -5,10 +5,6 @@ struct VertexInput {
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
-    // The location here does not refer to a vertex attribute, it just means
-    // that this field must be handled by the rasterizer.
-    // (It can also refer to another field of another struct that would be used
-    // as input to the fragment shader.)
     @location(0) color: vec3f,
     @location(1) tex_coord: vec2f,
 };

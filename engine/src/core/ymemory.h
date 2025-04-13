@@ -68,6 +68,6 @@ YAPI void* ycopy_memory(void* dest, const void* source, u64 size);
 
 YAPI void* yset_memory(void* dest, i32 value, u64 size);
 
-YAPI char* get_memory_usage_str();
+YAPI char* get_memory_usage_str(void);
 
 YAPI u64 get_memory_alloc_count();

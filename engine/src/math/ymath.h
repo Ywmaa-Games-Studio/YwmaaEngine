@@ -724,8 +724,20 @@ YINLINE Matrice4 Matrice4_identity() {
     Matrice4 out_matrix;
     yzero_memory(out_matrix.data, sizeof(f32) * 16);
     out_matrix.data[0] = 1.0f;
+    out_matrix.data[1] = 0.0f;
+    out_matrix.data[2] = 0.0f;
+    out_matrix.data[3] = 0.0f;
+    out_matrix.data[4] = 0.0f;
     out_matrix.data[5] = 1.0f;
+    out_matrix.data[6] = 0.0f;
+    out_matrix.data[7] = 0.0f;
+    out_matrix.data[8] = 0.0f;
+    out_matrix.data[9] = 0.0f;
     out_matrix.data[10] = 1.0f;
+    out_matrix.data[11] = 0.0f;
+    out_matrix.data[12] = 0.0f;
+    out_matrix.data[13] = 0.0f;
+    out_matrix.data[14] = 0.0f;
     out_matrix.data[15] = 1.0f;
     return out_matrix;
 }
@@ -801,10 +813,21 @@ YINLINE Matrice4 Matrice4_perspective(f32 fov_radians, f32 aspect_ratio, f32 nea
     Matrice4 out_matrix;
     yzero_memory(out_matrix.data, sizeof(f32) * 16);
     out_matrix.data[0] = 1.0f / (aspect_ratio * half_tan_fov);
+    out_matrix.data[1] = 0.0f;
+    out_matrix.data[2] = 0.0f;
+    out_matrix.data[3] = 0.0f;
+    out_matrix.data[4] = 0.0f;
     out_matrix.data[5] = 1.0f / half_tan_fov;
+    out_matrix.data[6] = 0.0f;
+    out_matrix.data[7] = 0.0f;
+    out_matrix.data[8] = 0.0f;
+    out_matrix.data[9] = 0.0f;
     out_matrix.data[10] = -((far_clip + near_clip) / (far_clip - near_clip));
     out_matrix.data[11] = -1.0f;
+    out_matrix.data[12] = 0.0f;
+    out_matrix.data[13] = 0.0f;
     out_matrix.data[14] = -((2.0f * far_clip * near_clip) / (far_clip - near_clip));
+    out_matrix.data[15] = 0.0f;
     return out_matrix;
 }
 

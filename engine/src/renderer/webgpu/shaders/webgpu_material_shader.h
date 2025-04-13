@@ -11,7 +11,8 @@ void webgpu_material_shader_use(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_
 
 void webgpu_material_shader_update_global_state(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, f32 delta_time);
 
-void webgpu_material_shader_update_object(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, GEOMETRY_RENDER_DATA data);
+void webgpu_material_shader_set_model(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, Matrice4 model);
+void webgpu_material_shader_apply_material(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, MATERIAL* material);
 
 b8 webgpu_material_shader_acquire_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, MATERIAL* material);
 void webgpu_material_shader_release_resources(WEBGPU_CONTEXT* context, struct WEBGPU_MATERIAL_SHADER* shader, MATERIAL* material);

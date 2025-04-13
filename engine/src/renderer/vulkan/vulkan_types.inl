@@ -3,6 +3,7 @@
 #include "defines.h"
 #include "core/asserts.h"
 #include "renderer/renderer_types.inl"
+#include "variants/freelist.h"
 
 #include "../thirdparty/volk/volk.h"
 
@@ -19,6 +20,12 @@ typedef struct VULKAN_BUFFER {
     VkDeviceMemory memory;
     i32 memory_index;
     u32 memory_property_flags;
+    /** @brief The amount of memory required for the freelist. */
+    u64 freelist_memory_requirement;
+    /** @brief The memory block used by the internal freelist. */
+    void* freelist_block;
+    /** @brief A freelist to track allocations. */
+    FREELIST buffer_freelist;
 } VULKAN_BUFFER;
 typedef struct VULKAN_SWAPCHAIN_SUPPORT_INFO {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -149,8 +156,26 @@ typedef struct VULKAN_MATERIAL_SHADER_INSTANCE_STATE {
     VULKAN_DESCRIPTOR_STATE descriptor_states[VULKAN_MATERIAL_SHADER_DESCRIPTOR_COUNT];
 } VULKAN_MATERIAL_SHADER_INSTANCE_STATE;
 
-// Max number of objects
+// Max number of material instances
+// TODO: make configurable
 #define VULKAN_MAX_MATERIAL_COUNT 1024
+// Max number of simultaneously uploaded geometries
+// TODO: make configurable
+#define VULKAN_MAX_GEOMETRY_COUNT 4096
+
+/**
+ * @brief Internal buffer data for geometry.
+ */
+typedef struct VULKAN_GEOMETRY_DATA {
+    u32 id;
+    u32 generation;
+    u32 vertex_count;
+    u32 vertex_size;
+    u64 vertex_buffer_offset;
+    u32 index_count;
+    u32 index_size;
+    u64 index_buffer_offset;
+} VULKAN_GEOMETRY_DATA;
 typedef struct VULKAN_MATERIAL_SHADER {
     // vertex, fragment
     VULKAN_SHADER_STAGE stages[MATERIAL_SHADER_STAGE_COUNT];
@@ -235,8 +260,8 @@ typedef struct VULKAN_CONTEXT {
 
     VULKAN_MATERIAL_SHADER material_shader;
 
-    u64 geometry_vertex_offset;
-    u64 geometry_index_offset;
+    // TODO: make dynamic
+    VULKAN_GEOMETRY_DATA geometries[VULKAN_MAX_GEOMETRY_COUNT];
 
     i32 (*find_memory_index)(u32 type_filter, u32 property_flags);
 #if defined(_DEBUG)

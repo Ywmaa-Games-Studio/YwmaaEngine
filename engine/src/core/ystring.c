@@ -14,7 +14,7 @@
 
 
 u64 string_length(const char* str) {
-    #if USE_STD_STR
+#if USE_STD_STR
     return strlen(str);
 #else
     u32 length = string_nlength(str, U32_MAX);
@@ -74,6 +74,14 @@ i32 string_format_v(char* dest, const char* format, void* va_listp) {
         return written;
     }
     return -1;
+}
+
+char* string_empty(char* str) {
+    if (str) {
+        str[0] = 0;
+    }
+
+    return str;
 }
 
 char* string_copy(char* dest, const char* source) {

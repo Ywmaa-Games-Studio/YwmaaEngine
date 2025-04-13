@@ -104,6 +104,11 @@
         "strings.h": "c",
         "vulkan_utils.h": "c",
         "vulkan_image.h": "c",
-        "hashtable.h": "c"
+        "hashtable.h": "c",
+        "malloc.h": "c",
+        "material_system.h": "c",
+        "webgpu_image.h": "c",
+        "freelist.h": "c",
+        "webgpu_buffer.h": "c"
     }
 }

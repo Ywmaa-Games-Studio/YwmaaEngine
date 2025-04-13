@@ -27,6 +27,14 @@ YAPI i32 string_format(char* dest, const char* format, ...);
  */
 YAPI i32 string_format_v(char* dest, const char* format, void* va_list);
 
+/**
+ * @brief Empties the provided string by setting the first character to 0.
+ * 
+ * @param str The string to be emptied.
+ * @return A pointer to str. 
+ */
+YAPI char* string_empty(char* str);
+
 
 YAPI i32 string_format_v(char* dest, const char* format, void* va_list);
 

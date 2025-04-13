@@ -21,41 +21,9 @@ typedef struct RENDERER_SYSTEM_STATE {
     Matrice4 view;
     f32 near_clip;
     f32 far_clip;
-
-    // TODO: temporary
-    MATERIAL* test_material;
-    // TODO: end temporary
 } RENDERER_SYSTEM_STATE;
 
 static RENDERER_SYSTEM_STATE* state_ptr;
-
-// TODO: temp
-b8 event_on_debug_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT data) {
-    const char* names[3] = {
-        "cobblestone",
-        "paving",
-        "paving2"};
-    static i8 choice = 2;
-
-    // Save off the old name.
-    const char* old_name = names[choice];
-
-    choice++;
-    choice %= 3;
-
-    // Acquire the new texture.
-    state_ptr->test_material->diffuse_map.texture = texture_system_acquire(names[choice], true);
-    if (!state_ptr->test_material->diffuse_map.texture) {
-        PRINT_WARNING("event_on_debug_event no texture! using default");
-        state_ptr->test_material->diffuse_map.texture = texture_system_get_default_texture();
-    }
-
-    // Release the old texture.
-    texture_system_release(old_name);
-
-    return true;
-}
-// TODO: end temp
 
 
 b8 renderer_system_init(u64* memory_requirement, void* state, const char* application_name, E_RENDERER_BACKEND_API rendering_backend_api) {
@@ -64,11 +32,6 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
         return true;
     }
     state_ptr = state;
-
-    // TODO: temp
-    event_register(EVENT_CODE_DEBUG0, state_ptr, event_on_debug_event);
-    // TODO: end temp
-
 
     if (!renderer_backend_create(rendering_backend_api, &state_ptr->backend)){
         PRINT_ERROR("failed to create backend. Shutting down.");
@@ -84,8 +47,9 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
 
     state_ptr->near_clip = 0.1f;
     state_ptr->far_clip = 1000.0f;
+    state_ptr->projection = Matrice4_identity();
     state_ptr->projection = Matrice4_perspective(deg_to_rad(45.0f), 1280 / 720.0f, state_ptr->near_clip, state_ptr->far_clip);
-
+    
     state_ptr->view = Matrice4_translation((Vector3){0, 0, -30.0f});
     state_ptr->view = Matrice4_inverse(state_ptr->view);
 
@@ -94,9 +58,6 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
 
 void renderer_system_shutdown(void* state) {
     if (state_ptr) {
-        // TODO: temp
-        event_unregister(EVENT_CODE_DEBUG0, state_ptr, event_on_debug_event);
-        // TODO: end temp
 
         state_ptr->backend.shutdown(&state_ptr->backend);
     }
@@ -130,35 +91,17 @@ void renderer_on_resized(u16 width, u16 height) {
 b8 renderer_draw_frame(RENDER_PACKET* packet) {
     // If the begin frame returned successfully, mid-frame operations may continue.
     if (renderer_begin_frame(packet->delta_time)) {
-        state_ptr->backend.update_global_state(state_ptr->projection, state_ptr->view, Vector3_zero(), Vector4_one(), 0);
+        Matrice4 projection = state_ptr->projection;
+        //PRINT_WARNING("HACK the projection matrix had some errors here that are hard to track down. I just set it to identity for now.");
+        projection.data[2] = 0;
+        projection.data[3] = 0;
+        projection.data[4] = 0;
+        state_ptr->backend.update_global_state(projection, state_ptr->view, Vector3_zero(), Vector4_one(), 0);
 
-        Matrice4 model = Matrice4_translation((Vector3){0, 0, 0});
-        // static f32 angle = 0.01f;
-        // angle += 0.001f;
-        // quat rotation = quat_from_axis_angle(vec3_forward(), angle, false);
-        // mat4 model = quat_to_rotation_matrix(rotation, vec3_zero());
-        GEOMETRY_RENDER_DATA data = {};
-        data.model = model;
-        // TODO: temporary.
-        // Create a default material if does not exist.
-        if (!state_ptr->test_material) {
-            // Automatic config
-            state_ptr->test_material = material_system_acquire("test_material");
-            if (!state_ptr->test_material) {
-                PRINT_WARNING("Automatic material load failed, falling back to manual default material.");
-                // Manual config
-                MATERIAL_CONFIG config;
-                string_ncopy(config.name, "test_material", MATERIAL_NAME_MAX_LENGTH);
-                config.auto_release = false;
-                config.diffuse_colour = Vector4_one();  // white
-                string_ncopy(config.diffuse_map_name, DEFAULT_TEXTURE_NAME, TEXTURE_NAME_MAX_LENGTH);
-                state_ptr->test_material = material_system_acquire_from_config(config);
-            }
+        u32 count = packet->geometry_count;
+        for (u32 i = 0; i < count; ++i) {
+            state_ptr->backend.draw_geometry(packet->geometries[i]);
         }
-
-        data.material = state_ptr->test_material;
-        state_ptr->backend.update_object(data);
-
         // End the frame. If this fails, it is likely unrecoverable.
         b8 result = renderer_end_frame(packet->delta_time);
 
@@ -192,4 +135,12 @@ b8 renderer_create_material(struct MATERIAL* material) {
 
 void renderer_destroy_material(struct MATERIAL* material) {
     state_ptr->backend.destroy_material(material);
+}
+
+b8 renderer_create_geometry(GEOMETRY* geometry, u32 vertex_count, const Vertex3D* vertices, u32 index_count, const u32* indices) {
+    return state_ptr->backend.create_geometry(geometry, vertex_count, vertices, index_count, indices);
+}
+
+void renderer_destroy_geometry(GEOMETRY* geometry) {
+    state_ptr->backend.destroy_geometry(geometry);
 }

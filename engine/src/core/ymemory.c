@@ -27,6 +27,8 @@
 struct MEMORY_STATS {
     u64 total_allocated;
     u64 tagged_allocations[MEMORY_TAG_MAX_TAGS];
+    u64 new_tagged_allocations[MEMORY_TAG_MAX_TAGS];
+    u64 new_tagged_deallocations[MEMORY_TAG_MAX_TAGS];
 };
 
 static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
@@ -133,7 +135,7 @@ void* yallocate_aligned(u64 size, u16 alignment, E_MEMORY_TAG tag) {
         // FIXME: Track aligned alloc offset as part of size.
         state_ptr->stats.total_allocated += size;
         state_ptr->stats.tagged_allocations[tag] += size;
-        //state_ptr->stats.new_tagged_allocations[tag] += size;
+        state_ptr->stats.new_tagged_allocations[tag] += size;
         state_ptr->alloc_count++;
 
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
@@ -160,7 +162,7 @@ void* yallocate_aligned(u64 size, u16 alignment, E_MEMORY_TAG tag) {
 void yfree_report(u64 size, E_MEMORY_TAG tag) {
     state_ptr->stats.total_allocated -= size;
     state_ptr->stats.tagged_allocations[tag] -= size;
-    //state_ptr->stats.new_tagged_deallocations[tag] += size;
+    state_ptr->stats.new_tagged_deallocations[tag] += size;
     state_ptr->alloc_count--;
 }
 
@@ -178,7 +180,7 @@ b8 ymemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment) {
 void yallocate_report(u64 size, E_MEMORY_TAG tag) {
     state_ptr->stats.total_allocated += size;
     state_ptr->stats.tagged_allocations[tag] += size;
-    //state_ptr->stats.new_tagged_allocations[tag] += size;
+    state_ptr->stats.new_tagged_allocations[tag] += size;
     state_ptr->alloc_count++;
 }
 
@@ -224,7 +226,7 @@ void yfree_aligned(void* block, u64 size, u16 alignment, E_MEMORY_TAG tag) {
 
         state_ptr->stats.total_allocated -= size;
         state_ptr->stats.tagged_allocations[tag] -= size;
-        //state_ptr->stats.new_tagged_deallocations[tag] += size;
+        state_ptr->stats.new_tagged_deallocations[tag] += size;
         state_ptr->alloc_count--;
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
         b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block);
@@ -275,24 +277,24 @@ const char* get_unit_for_size(u64 size_bytes, f32* out_amount) {
     }
 }
 
-char* get_memory_usage_str() {
+char* get_memory_usage_str(void) {
     char buffer[8000] = "System memory use (tagged):\n";
     u64 offset = strlen(buffer);
     for (u32 i = 0; i < MEMORY_TAG_MAX_TAGS; ++i) {
-        f32 amounts[1] = {1.0f}; //, 1.0f, 1.0f
-        const char* units[1] = {
+        f32 amounts[3] = {1.0f, 1.0f, 1.0f};
+        const char* units[3] = {
             get_unit_for_size(state_ptr->stats.tagged_allocations[i], &amounts[0]),
-            //get_unit_for_size(state_ptr->stats.new_tagged_allocations[i], &amounts[1]),
-            //get_unit_for_size(state_ptr->stats.new_tagged_deallocations[i], &amounts[2])
+            get_unit_for_size(state_ptr->stats.new_tagged_allocations[i], &amounts[1]),
+            get_unit_for_size(state_ptr->stats.new_tagged_deallocations[i], &amounts[2])
         };
 
-        i32 length = snprintf(buffer + offset, 8000, "  %s: %-7.2f %-3s\n",
-                              memory_tag_strings[i],
-                              amounts[0], units[0]);
+        i32 length = snprintf(buffer + offset, 8000, "  %s: %-7.2f %-3s [+ %-7.2f %-3s | - %-7.2f%-3s]\n",
+            memory_tag_strings[i],
+            amounts[0], units[0], amounts[1], units[1], amounts[2], units[2]);
         offset += length;
     }
-    //yzero_memory(&state_ptr->stats.new_tagged_allocations, sizeof(state_ptr->stats.new_tagged_allocations));
-    //yzero_memory(&state_ptr->stats.new_tagged_deallocations, sizeof(state_ptr->stats.new_tagged_deallocations));
+    yzero_memory(&state_ptr->stats.new_tagged_allocations, sizeof(state_ptr->stats.new_tagged_allocations));
+    yzero_memory(&state_ptr->stats.new_tagged_deallocations, sizeof(state_ptr->stats.new_tagged_deallocations));
     {
 // Compute total usage.
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
@@ -317,6 +319,7 @@ char* get_memory_usage_str() {
         offset += length;
     }
 
+    
     char* out_string = string_duplicate(buffer);
     return out_string;
 }

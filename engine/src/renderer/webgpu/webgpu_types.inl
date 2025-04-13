@@ -7,6 +7,29 @@
 #include "../thirdparty/wgpu/include/wgpu.h"
 #include "../thirdparty/wgpu/include/webgpu.h"
 
+#include "variants/freelist.h"
+
+typedef struct WEBGPU_BIND_STATE {
+    // One per frame
+    u32 generations;
+    u32 ids;
+} WEBGPU_BIND_STATE;
+typedef struct WEBGPU_MATERIAL_SHADER_INSTANCE_STATE {
+    WGPUBindGroup texture_bind_group;
+    WEBGPU_BIND_STATE texture_bind_state;
+} WEBGPU_MATERIAL_SHADER_INSTANCE_STATE;
+typedef struct WEBGPU_BUFFER {
+    u64 total_size;
+    WGPUBuffer handle;
+    WGPUBufferUsageFlags usage;
+    b8 is_locked;
+    /** @brief The amount of memory required for the freelist. */
+    u64 freelist_memory_requirement;
+    /** @brief The memory block used by the internal freelist. */
+    void* freelist_block;
+    /** @brief A freelist to track allocations. */
+    FREELIST buffer_freelist;
+} WEBGPU_BUFFER;
 typedef struct WEBGPU_IMAGE {
     WGPUTexture handle;
     WGPUTextureView view;
@@ -23,14 +46,28 @@ typedef struct WEBGPU_TEXTURE_DATA {
 typedef struct WEBGPU_PIPELINE {
     WGPURenderPipeline handle;
     WGPUPipelineLayout layout;
-    WGPUBindGroup bind_group;
-    WGPUBindGroup texture_bind_group;
-    WGPUBindGroupLayout bind_group_layout;
-    WGPUBindGroupLayout texture_bind_group_layout;
 } WEBGPU_PIPELINE;
 #define WEBGPU_MATERIAL_SHADER_SAMPLER_COUNT 1
-// Max number of objects
+// Max number of material instances
+// TODO: make configurable
 #define WEBGPU_MAX_MATERIAL_COUNT 1024
+// Max number of simultaneously uploaded geometries
+// TODO: make configurable
+#define WEBGPU_MAX_GEOMETRY_COUNT 4096
+
+/**
+ * @brief Internal buffer data for geometry.
+ */
+typedef struct WEBGPU_GEOMETRY_DATA {
+    u32 id;
+    u32 generation;
+    u32 vertex_count;
+    u32 vertex_size;
+    u64 vertex_buffer_offset;
+    u32 index_count;
+    u32 index_size;
+    u64 index_buffer_offset;
+} WEBGPU_GEOMETRY_DATA;
 typedef struct WEBGPU_MATERIAL_SHADER {
     WEBGPU_PIPELINE pipeline;
     WGPUShaderModule shader_module;
@@ -39,19 +76,24 @@ typedef struct WEBGPU_MATERIAL_SHADER {
     GLOBAL_UNIFORM_OBJECT global_ubo;
 
     // Global uniform buffer.
-    WGPUBufferDescriptor global_buffer_descriptor;
-    WGPUBuffer global_uniform_buffer;
+    WEBGPU_BUFFER global_uniform_buffer;
 
     // Global uniform buffer.
-    WGPUBufferDescriptor model_buffer_descriptor;
-    WGPUBuffer model_uniform_buffer;
+    WEBGPU_BUFFER model_uniform_buffer;
 
     // Object uniform buffer.
-    WGPUBufferDescriptor object_buffer_descriptor;
-    WGPUBuffer object_uniform_buffer;
+    WEBGPU_BUFFER object_uniform_buffer;
     u32 object_uniform_buffer_index;
 
+    WGPUBindGroup bind_group;
+    WEBGPU_BIND_STATE bind_state;
+    WGPUBindGroupLayout bind_group_layout;
+
     E_TEXTURE_USE sampler_uses[WEBGPU_MATERIAL_SHADER_SAMPLER_COUNT];
+
+    // TODO: make dynamic
+    WGPUBindGroupLayout texture_bind_group_layout;
+    WEBGPU_MATERIAL_SHADER_INSTANCE_STATE instance_states[WEBGPU_MAX_MATERIAL_COUNT];
 
 
 } WEBGPU_MATERIAL_SHADER;
@@ -82,13 +124,17 @@ typedef struct WEBGPU_CONTEXT {
     WGPUSurface surface;
     WGPUQueue queue;
     WGPUTextureView target_view;
+    WGPUTextureView depth_view;
     WGPUCommandEncoder encoder;
     WGPURenderPassEncoder render_pass;
     WGPUTextureFormat swapchain_format;
 
-    WGPUBuffer object_vertex_buffer;
-    WGPUBuffer object_index_buffer;
+    WEBGPU_BUFFER object_vertex_buffer;
+    WEBGPU_BUFFER object_index_buffer;
 
     WEBGPU_MATERIAL_SHADER material_shader;
+
+    // TODO: make dynamic
+    WEBGPU_GEOMETRY_DATA geometries[WEBGPU_MAX_GEOMETRY_COUNT];
 
 } WEBGPU_CONTEXT;

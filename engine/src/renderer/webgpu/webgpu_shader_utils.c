@@ -34,11 +34,11 @@ b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader
     }
 
     // Read the entire file as binary.
-    u64 size = 0;
-    u8 extra_size = 1; // This is required to add extra size for empty space
-    char* code = yallocate_aligned(sizeof(char) * file_size +extra_size, 4, MEMORY_TAG_STRING);
-    if (!filesystem_read_all_text(&handle, code, &size)) {
-        PRINT_ERROR("Unable to text read shader module: %s.", file_name);
+    char* code = yallocate_aligned(sizeof(char) * file_size+1, 4, MEMORY_TAG_ARRAY);
+    u64 read_size = 0;
+    if (!filesystem_read_all_text(&handle, code, &read_size)) {
+        PRINT_ERROR("Unable to text read shader module %s.", file_name);
+        filesystem_close(&handle);
         return false;
     }
 

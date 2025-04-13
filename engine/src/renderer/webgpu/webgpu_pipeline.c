@@ -3,6 +3,25 @@
 #include "io/filesystem.h"
 #include "core/ymemory.h"
 
+void stencil_set_default(WGPUStencilFaceState* stencilFaceState) {
+    stencilFaceState->compare = WGPUCompareFunction_Always;
+    stencilFaceState->failOp = WGPUStencilOperation_Keep;
+    stencilFaceState->depthFailOp = WGPUStencilOperation_Keep;
+    stencilFaceState->passOp = WGPUStencilOperation_Keep;
+}
+
+void depth_set_default(WGPUDepthStencilState* depthStencilState) {
+    depthStencilState->format = WGPUTextureFormat_Undefined;
+    depthStencilState->depthWriteEnabled = false;
+    depthStencilState->depthCompare = WGPUCompareFunction_Always;
+    depthStencilState->stencilReadMask = 0xFFFFFFFF;
+    depthStencilState->stencilWriteMask = 0xFFFFFFFF;
+    depthStencilState->depthBias = 0;
+    depthStencilState->depthBiasSlopeScale = 0;
+    depthStencilState->depthBiasClamp = 0;
+    stencil_set_default(&depthStencilState->stencilFront);
+    stencil_set_default(&depthStencilState->stencilBack);
+}
 
 b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex_buffer_layout, WEBGPU_MATERIAL_SHADER* shader){
 
@@ -29,7 +48,7 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     // The face orientation is defined by assuming that when looking
     // from the front of the face, its corner vertices are enumerated
     // in the counter-clockwise (CCW) order.
-    pipelineDesc.primitive.frontFace = WGPUFrontFace_CCW;
+    pipelineDesc.primitive.frontFace = WGPUFrontFace_CW;
     
     // But the face orientation does not matter much because we do not
     // cull (i.e. "hide") the faces pointing away from us (which is often
@@ -63,9 +82,19 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTarget;
     pipelineDesc.fragment = &fragmentState;
+    
     // [...] Describe stencil/depth pipeline state
-    // We do not use stencil/depth testing for now
-    pipelineDesc.depthStencil = NULL;
+    WGPUDepthStencilState depthStencilState;
+    depth_set_default(&depthStencilState);
+    depthStencilState.depthCompare = WGPUCompareFunction_Less;
+    depthStencilState.depthWriteEnabled = true;
+    depthStencilState.format = WGPUTextureFormat_Depth24Plus;
+    // Deactivate the stencil alltogether
+    depthStencilState.stencilReadMask = 0;
+    depthStencilState.stencilWriteMask = 0;
+
+    // Setup depth state
+    pipelineDesc.depthStencil = &depthStencilState;
     // [...] Describe multi-sampling state
     // Samples per pixel
     pipelineDesc.multisample.count = 1;
@@ -76,6 +105,8 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
 
     pipelineDesc.layout = shader->pipeline.layout;
     shader->pipeline.handle = wgpuDeviceCreateRenderPipeline(context->device, &pipelineDesc);
+
+    
     wgpuShaderModuleRelease(shader->shader_module);
 
     return true;

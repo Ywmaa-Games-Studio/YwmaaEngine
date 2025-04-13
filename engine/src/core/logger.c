@@ -20,7 +20,7 @@ void append_to_log_file(const char* message) {
         u64 length = string_length(message);
         u64 written = 0;
         if (!filesystem_write(&state_ptr->log_file_handle, length, message, &written)) {
-            platform_console_write_error("ERROR writing to console.log.", LOG_LEVEL_ERROR);
+            platform_console_write("ERROR writing to console.log.", LOG_LEVEL_ERROR);
         }
     }
 }
@@ -35,7 +35,7 @@ b8 init_logging(u64* memory_requirement, void* state) {
 
     // Create new/wipe existing log file, then open it.
     if (!filesystem_open("console.log", FILE_MODE_WRITE, false, &state_ptr->log_file_handle)) {
-        platform_console_write_error("ERROR: Unable to open console.log for writing.", LOG_LEVEL_ERROR);
+        platform_console_write("ERROR: Unable to open console.log for writing.", LOG_LEVEL_ERROR);
         return false;
     }
 
@@ -44,6 +44,7 @@ b8 init_logging(u64* memory_requirement, void* state) {
     PRINT_WARNING("A test message: %f", 3.14f);
     PRINT_INFO("A test message: %f", 3.14f);
     PRINT_DEBUG("A test message: %f", 3.14f);
+    PRINT_TRACE("A test message: %f", 3.14f);
 
     // TODO: create log file.
     return true;
@@ -58,7 +59,7 @@ void log_output(E_LOG_LEVEL level, const char* message, ...) {
     // TODO: These string operations are all pretty slow. This needs to be
     // moved to another thread eventually, along with the file writes, to
     // avoid slowing things down while the engine is trying to run.
-    const char* level_strings[4] = {"[ERROR]: ", "[WARN]:  ", "[INFO]:  ", "[DEBUG]: "};
+    const char* level_strings[5] = {"[ERROR]: ", "[WARN]:  ", "[INFO]:  ", "[DEBUG]: ", "[TRACE]: "};
     b8 is_error = level < LOG_LEVEL_WARNING;
 
     // Statically allocate memory for message instead of dynamically using malloc, for better performance.
@@ -79,12 +80,7 @@ void log_output(E_LOG_LEVEL level, const char* message, ...) {
     // Prepend log level to message.
     string_format(out_message, "%s%s\n", level_strings[level], out_message);
 
-    // Print accordingly
-    if (is_error) {
-        platform_console_write_error(out_message, level);
-    } else {
-        platform_console_write(out_message, level);
-    }
+    platform_console_write(out_message, level);
 
     // Queue a copy to be written to the log file.
     append_to_log_file(out_message);

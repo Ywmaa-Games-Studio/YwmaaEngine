@@ -5,16 +5,19 @@
 #define LOG_WARNING_ENABLED 1
 #define LOG_INFO_ENABLED 1
 #define LOG_DEBUG_ENABLED 1
+#define LOG_TRACE_ENABLED 1
 
-#if YRELEASE == 1
+#if KRELEASE == 1
 #define LOG_DEBUG_ENABLED 0
+#define LOG_TRACE_ENABLED 0
 #endif
 
 typedef enum E_LOG_LEVEL {
     LOG_LEVEL_ERROR = 0,
     LOG_LEVEL_WARNING = 1,
     LOG_LEVEL_INFO = 2,
-    LOG_LEVEL_DEBUG = 3
+    LOG_LEVEL_DEBUG = 3,
+    LOG_LEVEL_TRACE = 4
 } E_LOG_LEVEL;
 
 
@@ -59,4 +62,21 @@ YAPI void log_output(E_LOG_LEVEL level, const char* message, ...);
 #else
 // Does nothing when LOG_DEBUG_ENABLED != 1
 #define PRINT_DEBUG(message, ...)
+#endif
+
+#if LOG_TRACE_ENABLED == 1
+/** 
+ * @brief Logs a trace-level message. Should be used for verbose debugging purposes.
+ * @param message The message to be logged.
+ * @param ... Any formatted data that should be included in the log entry.
+ */
+#define PRINT_TRACE(message, ...) log_output(LOG_LEVEL_TRACE, message, ##__VA_ARGS__);
+#else
+/** 
+ * @brief Logs a trace-level message. Should be used for verbose debugging purposes.
+ * Does nothing when LOG_TRACE_ENABLED != 1
+ * @param message The message to be logged.
+ * @param ... Any formatted data that should be included in the log entry.
+ */
+#define PRINT_TRACE(message, ...)
 #endif

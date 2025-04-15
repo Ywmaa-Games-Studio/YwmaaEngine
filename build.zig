@@ -4,7 +4,7 @@
 // Created:
 //   2025.04.14 -20:32
 // Last edited:
-//   2025.04.15 -02:12
+//   2025.04.15 -03:57
 // Auto updated?
 //   Yes
 //
@@ -66,6 +66,11 @@ pub fn build(b: *std.Build) !void {
     });
 
     libengine.addIncludePath(.{ .cwd_relative = "engine/src" });
+    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers" });
+    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers/wayland" });
+    // Vullkan Headers extracted from: https://github.com/hexops/vulkan-headers
+    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/vulkan_headers" });
+
     // Search for all C files in `src` and add them
     {
         var dir = try std.fs.cwd().openDir("engine/src", .{ .iterate = true });
@@ -145,28 +150,6 @@ pub fn build(b: *std.Build) !void {
             .use_pkg_config = .no,
             .preferred_link_mode = .dynamic,
         });
-    }
-
-    if (target.result.os.tag == .linux and target.result.abi != .android) {
-        if (b.lazyDependency("x11_headers", .{
-            .target = target,
-            .optimize = optimize,
-        })) |dep| {
-            libengine.linkLibrary(dep.artifact("x11-headers"));
-        }
-        if (b.lazyDependency("wayland_headers", .{
-            .target = target,
-            .optimize = optimize,
-        })) |dep| {
-            libengine.linkLibrary(dep.artifact("wayland-headers"));
-        }
-    }
-
-    if (b.lazyDependency("vulkan_headers", .{
-        .target = target,
-        .optimize = optimize,
-    })) |dep| {
-        libengine.linkLibrary(dep.artifact("vulkan-headers"));
     }
 
     libengine.linkLibC();

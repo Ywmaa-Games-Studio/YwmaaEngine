@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 // Include platform-specific Vulkan surface extensions
 #define VK_USE_PLATFORM_XCB_KHR

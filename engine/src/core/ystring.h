@@ -2,6 +2,8 @@
 
 #include "defines.h"
 #include "math/math_types.h"
+#include <stdio.h>
+#include <stdarg.h>
 
 // Returns the length of the given string.
 YAPI u64 string_length(const char* str);
@@ -25,7 +27,7 @@ YAPI i32 string_format(char* dest, const char* format, ...);
  * @param va_list The variadic argument list.
  * @returns The size of the data written.
  */
-YAPI i32 string_format_v(char* dest, const char* format, void* va_list);
+YAPI i32 string_format_v(char* dest, const char* format, va_list va_list);
 
 /**
  * @brief Empties the provided string by setting the first character to 0.
@@ -34,9 +36,6 @@ YAPI i32 string_format_v(char* dest, const char* format, void* va_list);
  * @return A pointer to str. 
  */
 YAPI char* string_empty(char* str);
-
-
-YAPI i32 string_format_v(char* dest, const char* format, void* va_list);
 
 YAPI char* string_copy(char* dest, const char* source);
 

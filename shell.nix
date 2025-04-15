@@ -36,7 +36,8 @@ with pkgs;
     jdk17
     unstable.sdkmanager
   ];
-
+  
+  #These are only specific to NixOS because it doesn't provide it at runtime
   LD_LIBRARY_PATH = "${pkgs.wayland}/lib:${pkgs.xorg.libX11}/lib:${pkgs.xorg.libxcb}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
 }
 

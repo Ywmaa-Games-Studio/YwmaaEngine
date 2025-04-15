@@ -21,43 +21,44 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     wgpuAdapterGetInfo(context->adapter, &properties);
     PRINT_INFO("Adapter properties:");
     PRINT_INFO(" - vendorID: %i", properties.vendorID);
-    if (properties.vendor) {
-        PRINT_INFO(" - vendorName: %s", properties.vendor);
+    if (properties.vendor.data) {
+        PRINT_INFO(" - vendorName: %s", properties.vendor.data);
     }
-    if (properties.architecture) {
-        PRINT_INFO(" - architecture: %s", properties.architecture);
+    if (properties.architecture.data) {
+        PRINT_INFO(" - architecture: %s", properties.architecture.data);
     }
     PRINT_INFO(" - deviceID: %i", properties.deviceID);
-    if (properties.device) {
-        PRINT_INFO(" - name: %s", properties.device);
+    if (properties.device.data) {
+        PRINT_INFO(" - name: %s", properties.device.data);
     }
-    if (properties.description) {
-        PRINT_INFO(" - driverDescription: %s", properties.description);
+    if (properties.description.data) {
+        PRINT_INFO(" - driverDescription: %s", properties.description.data);
     }
     PRINT_INFO(" - adapterType: 0x%i", properties.adapterType);
     PRINT_INFO(" - backendType: 0x%i", properties.backendType);
 
 #endif
 
-    WGPURequiredLimits required_limits = get_required_limits(context);
+    WGPUNativeLimits required_limits = get_required_limits(context);
     // Device
     PRINT_DEBUG("Requesting device...");
     WGPUDeviceDescriptor device_desc = {};
-    device_desc.label = "My Device"; // anything works here, that's your call
+    char *device_name = "WebGPU Device";
+    device_desc.label = (WGPUStringView){device_name, sizeof(device_name)};
     device_desc.requiredFeatureCount = 0; // we do not require any specific feature
     device_desc.requiredLimits = NULL;//&required_limits; // this crashes, see: https://github.com/eliemichel/WebGPU-distribution/issues/38
     device_desc.defaultQueue.nextInChain = NULL;
-    device_desc.defaultQueue.label = "The default queue";
-    device_desc.deviceLostCallback = on_device_lost;
+    device_desc.defaultQueue.label = (WGPUStringView){"The default queue", sizeof("The default queue")};
+    device_desc.deviceLostCallbackInfo = (WGPUDeviceLostCallbackInfo){NULL, WGPUCallbackMode_AllowSpontaneous, on_device_lost};
     // [...] Build device descriptor
     context->device = request_device_sync(context->adapter, &device_desc);
 
     //wgpuDeviceSetUncapturedErrorCallback(context->device, on_device_error, NULL /* pUserData */);
     PRINT_INFO("Got device: %i", context->device);
 
-	WGPUSupportedLimits device_supported_limits;
+	WGPULimits device_supported_limits;
     wgpuDeviceGetLimits(context->device, &device_supported_limits);
-    PRINT_INFO("device.maxVertexAttributes: %i", device_supported_limits.limits.maxVertexAttributes);
+    PRINT_INFO("device.maxVertexAttributes: %i", device_supported_limits.maxVertexAttributes);
 
     //context->swapchain_format = wgpuSurfaceGetPreferredFormat(context->surface, context->adapter); This changed to the code below
     WGPUSurfaceCapabilities capabilities;
@@ -69,7 +70,7 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     context->queue = wgpuDeviceGetQueue(context->device);
 
     PRINT_INFO("Queues obtained.");
-    wgpuQueueOnSubmittedWorkDone(context->queue, on_queue_work_done, NULL /* pUserData */);
+    wgpuQueueOnSubmittedWorkDone(context->queue, (WGPUQueueWorkDoneCallbackInfo) {NULL, WGPUCallbackMode_AllowSpontaneous, on_queue_work_done});
 
     PRINT_DEBUG("Destroying WebGPU Adapter...");
     wgpuAdapterRelease(context->adapter);
@@ -103,9 +104,9 @@ WGPUAdapter request_adapter_sync(WGPUInstance instance, WGPURequestAdapterOption
     wgpuInstanceRequestAdapter(
         instance /* equivalent of navigator.gpu */,
         options,
-        on_adapter_request_ended,
-        &adapter_data
+        (WGPURequestAdapterCallbackInfo){NULL, WGPUCallbackMode_AllowProcessEvents, on_adapter_request_ended, &adapter_data}
     );
+
 
     // We wait until userData.requestEnded gets true
     // [...] Wait for request to end
@@ -122,8 +123,8 @@ WGPUAdapter request_adapter_sync(WGPUInstance instance, WGPURequestAdapterOption
 // is to convey what we want to capture through the pUserData pointer,
 // provided as the last argument of wgpuInstanceRequestAdapter and received
 // by the callback as its last argument.
-void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapter, char const * message, void * pUserData) {
-    struct adapter_request_data* adapter_data = (pUserData);
+void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapter, WGPUStringView message, void* userdata1, void* /* userdata2 */) {
+    struct adapter_request_data* adapter_data = (userdata1);
     if (status == WGPURequestAdapterStatus_Success) {
         adapter_data->adapter = adapter;
     } else {
@@ -153,8 +154,7 @@ WGPUDevice request_device_sync(WGPUAdapter adapter, WGPUDeviceDescriptor const *
     wgpuAdapterRequestDevice(
         adapter,
         descriptor,
-        on_device_request_ended,
-        &device_data
+        (WGPURequestDeviceCallbackInfo) {NULL, WGPUCallbackMode_AllowProcessEvents, on_device_request_ended, &device_data}
     );
 
 #ifdef __EMSCRIPTEN__
@@ -168,8 +168,8 @@ WGPUDevice request_device_sync(WGPUAdapter adapter, WGPUDeviceDescriptor const *
     return device_data.device;
 }
 
-void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, char const * message, void * pUserData) {
-    struct device_request_data* device_data = (pUserData);
+void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
+    struct device_request_data* device_data = (userdata1);
     if (status == WGPURequestDeviceStatus_Success) {
         device_data->device = device;
     } else {
@@ -180,9 +180,9 @@ void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, 
 
 
 
-void on_device_lost(WGPUDeviceLostReason reason, char const* message, void* /* pUserData */) {
+void on_device_lost(WGPUDevice const * device, WGPUDeviceLostReason reason, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
     PRINT_ERROR("Device lost: reason ", reason);
-    if (message) PRINT_ERROR("message: ", message);
+    if (message.data) PRINT_ERROR("message: ", message.data);
 };
 
 void on_device_error(WGPUErrorType type, char const* message, void* /* pUserData */) {
@@ -192,7 +192,7 @@ void on_device_error(WGPUErrorType type, char const* message, void* /* pUserData
 
 
 
-void on_queue_work_done(WGPUQueueWorkDoneStatus status, void* /* pUserData */) {
+void on_queue_work_done(WGPUQueueWorkDoneStatus status, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
     PRINT_DEBUG("Queued work finished with status: ", status);
 };
 
@@ -203,23 +203,16 @@ void webgpu_set_default(WGPULimits limits) {
     // [...] Set everything to WGPU_LIMIT_U32_UNDEFINED or WGPU_LIMIT_U64_UNDEFINED to mean no limit
 }
 
-WGPURequiredLimits get_required_limits(WEBGPU_CONTEXT* context) {
+WGPUNativeLimits get_required_limits(WEBGPU_CONTEXT* context) {
     // Get adapter supported limits, in case we need them
-	WGPUSupportedLimits adapter_supported_limits;
+	WGPULimits adapter_supported_limits;
 	wgpuAdapterGetLimits(context->adapter, &adapter_supported_limits);
-    PRINT_INFO("adapter.maxVertexAttributes: %i", adapter_supported_limits.limits.maxVertexAttributes);
+    PRINT_INFO("adapter.maxVertexAttributes: %i", adapter_supported_limits.maxVertexAttributes);
 
-    WGPURequiredLimits requiredLimits;
-    webgpu_set_default(requiredLimits.limits);
+    WGPUNativeLimits requiredLimits;
 
     // We use at most 1 vertex attribute for now
-    requiredLimits.limits.maxVertexAttributes = 2;
-    // We should also tell that we use 1 vertex buffers
-    requiredLimits.limits.maxVertexBuffers = 1;
-    // Maximum size of a buffer is 6 vertices of Vertex3D each
-    requiredLimits.limits.maxBufferSize = 32 * sizeof(Vertex3D);
-    // Maximum stride between 2 consecutive vertices in the vertex buffer
-    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(Vertex3D);
+    requiredLimits.maxNonSamplerBindings = 5;
 
     // [...] Other device limits
 

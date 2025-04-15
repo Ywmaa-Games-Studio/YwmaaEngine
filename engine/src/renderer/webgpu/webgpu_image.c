@@ -10,7 +10,7 @@ void webgpu_image_create(
     u32 height,
     WGPUTextureFormat format,
     //VkImageTiling tiling,
-    WGPUTextureUsageFlags usage,
+    WGPUTextureUsage usage,
     b32 create_view,
     WGPUTextureAspect view_aspect_flags,
     WEBGPU_IMAGE* out_image) {
@@ -22,7 +22,7 @@ void webgpu_image_create(
     // Creation info.
     WGPUTextureDescriptor textureDesc;
     textureDesc.nextInChain = NULL;
-    textureDesc.label = "Texture Desc";
+    textureDesc.label = (WGPUStringView){"Texture Desc", sizeof("Texture Desc")};
     textureDesc.size.width = width;
     textureDesc.size.height = height;
     textureDesc.format = format;
@@ -50,7 +50,7 @@ void webgpu_image_view_create(
 
     WGPUTextureViewDescriptor textureViewDesc;
     textureViewDesc.aspect = aspect_flags;
-    textureViewDesc.label = "Texture View Desc";
+    textureViewDesc.label = (WGPUStringView){"Texture View Desc", sizeof("Texture View Desc")};
     // TODO: Make configurable
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;
@@ -70,7 +70,7 @@ void webgpu_image_copy_from_buffer(
 
     // Arguments telling which part of the texture we upload to
     // (together with the last argument of writeTexture)
-    WGPUImageCopyTexture destination;
+    WGPUTexelCopyTextureInfo destination;
     destination.texture = image->handle;
     destination.mipLevel = 0;
     destination.origin.x = 0; // equivalent of the offset argument of Queue::writeBuffer
@@ -79,7 +79,7 @@ void webgpu_image_copy_from_buffer(
     destination.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
 
     // Arguments telling how the C side pixel memory is laid out
-    WGPUTextureDataLayout source;
+    WGPUTexelCopyBufferLayout source;
     source.offset = 0;
     source.bytesPerRow = bytes_per_pixel * image->width;
     source.rowsPerImage = image->height;

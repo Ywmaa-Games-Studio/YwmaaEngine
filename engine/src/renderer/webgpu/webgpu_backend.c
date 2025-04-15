@@ -177,7 +177,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
 
     WGPUCommandEncoderDescriptor encoder_desc = {};
     encoder_desc.nextInChain = NULL;
-    encoder_desc.label = "command encoder";
+    encoder_desc.label = (WGPUStringView){"command encoder", sizeof("command encoder")};
     context.encoder = wgpuDeviceCreateCommandEncoder(context.device, &encoder_desc);
 
     //START Render Pass
@@ -246,7 +246,7 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     
     WGPUCommandBufferDescriptor cmd_buffer_descriptor = {};
     cmd_buffer_descriptor.nextInChain = NULL;
-    cmd_buffer_descriptor.label = "Command buffer";
+    cmd_buffer_descriptor.label = (WGPUStringView){"Command buffer", sizeof("Command buffer")};
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(context.encoder, &cmd_buffer_descriptor);
     wgpuCommandEncoderRelease(context.encoder);
     
@@ -434,7 +434,7 @@ WGPUTextureView get_depth_texture_view(u32 width, u32 height) {
     // Create the depth texture
     WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
     WGPUTextureDescriptor depthTextureDesc;
-    depthTextureDesc.label = "Depth Texture";
+    depthTextureDesc.label = (WGPUStringView){"Depth Texture", sizeof("Depth Texture")};
     depthTextureDesc.nextInChain = NULL;
     depthTextureDesc.dimension = WGPUTextureDimension_2D;
     depthTextureDesc.format = depthTextureFormat;
@@ -451,7 +451,7 @@ WGPUTextureView get_depth_texture_view(u32 width, u32 height) {
     // Create the view of the depth texture manipulated by the rasterizer
     WGPUTextureViewDescriptor depthTextureViewDesc;
     depthTextureViewDesc.nextInChain = NULL;
-    depthTextureViewDesc.label = "Depth Texture View";
+    depthTextureViewDesc.label = (WGPUStringView){"Depth Texture View", sizeof("Depth Texture View")};
     depthTextureViewDesc.aspect = WGPUTextureAspect_DepthOnly;
     depthTextureViewDesc.baseArrayLayer = 0;
     depthTextureViewDesc.arrayLayerCount = 1;
@@ -470,16 +470,17 @@ WGPUTextureView get_depth_texture_view(u32 width, u32 height) {
 WGPUTextureView get_next_surface_texture_view() {
     //Get the next surface texture
     WGPUSurfaceTexture surface_texture;
+    surface_texture.nextInChain = NULL;
     wgpuSurfaceGetCurrentTexture(context.surface, &surface_texture);
 
-    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_Success) {
+    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal) {
         return NULL;
     }
 
     //Create surface texture view
     WGPUTextureViewDescriptor view_descriptor;
     view_descriptor.nextInChain = NULL;
-    view_descriptor.label = "Surface texture view";
+    view_descriptor.label = (WGPUStringView){"Surface texture view", sizeof("Surface texture view")};
     view_descriptor.format = wgpuTextureGetFormat(surface_texture.texture);
     view_descriptor.dimension = WGPUTextureViewDimension_2D;
     view_descriptor.baseMipLevel = 0;
@@ -487,6 +488,7 @@ WGPUTextureView get_next_surface_texture_view() {
     view_descriptor.baseArrayLayer = 0;
     view_descriptor.arrayLayerCount = 1;
     view_descriptor.aspect = WGPUTextureAspect_All;
+    view_descriptor.usage = WGPUTextureUsage_RenderAttachment;
     WGPUTextureView target_view = wgpuTextureCreateView(surface_texture.texture, &view_descriptor);
     return target_view;
 }
@@ -540,6 +542,8 @@ void webgpu_renderer_create_texture(const u8* pixels, TEXTURE* texture){
     // Create a sampler
     WGPUSamplerDescriptor sampler_desc;
     // TODO: These filters should be configurable.
+    sampler_desc.nextInChain = NULL;
+    sampler_desc.label = (WGPUStringView){"Texture sampler", sizeof("Texture sampler")};
     sampler_desc.magFilter = WGPUFilterMode_Linear;
     sampler_desc.minFilter = WGPUFilterMode_Linear;
     sampler_desc.addressModeU = WGPUAddressMode_Repeat;

@@ -59,21 +59,24 @@ b8 webgpu_material_shader_create(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER
     vertex_buffer_layout.stepMode = WGPUVertexStepMode_Vertex;
 
     // Define binding layout
-    WGPUBindGroupLayoutEntry binding_layout[BINDINGS_ENTRY_COUNT] = {};
+    WGPUBindGroupLayoutEntry binding_layout[BINDINGS_ENTRY_COUNT];
     // The binding index as used in the @binding attribute in the shader
     bind_layout_set_default(&binding_layout[0]);
+    binding_layout[0].nextInChain = NULL;
     binding_layout[0].binding = 0;
     binding_layout[0].buffer.type = WGPUBufferBindingType_Uniform;
     binding_layout[0].buffer.minBindingSize = sizeof(GLOBAL_UNIFORM_OBJECT);
     binding_layout[0].visibility = WGPUShaderStage_Vertex;
     
     bind_layout_set_default(&binding_layout[1]);
+    binding_layout[1].nextInChain = NULL;
     binding_layout[1].binding = 1;
     binding_layout[1].buffer.type = WGPUBufferBindingType_Uniform;
     binding_layout[1].buffer.minBindingSize = sizeof(Matrice4);
     binding_layout[1].visibility = WGPUShaderStage_Vertex;
     
     bind_layout_set_default(&binding_layout[2]);
+    binding_layout[2].nextInChain = NULL;
     binding_layout[2].binding = 2;
     binding_layout[2].buffer.type = WGPUBufferBindingType_Uniform;
     binding_layout[2].buffer.minBindingSize = sizeof(MATERIAL_UNIFORM_OBJECT);
@@ -83,23 +86,24 @@ b8 webgpu_material_shader_create(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER
     // Create a bind group layout
     WGPUBindGroupLayoutDescriptor bind_group_layout_desc;
     bind_group_layout_desc.nextInChain = NULL;
-    bind_group_layout_desc.label = "Object shader bind group descriptor";
+    bind_group_layout_desc.label = (WGPUStringView){"Object shader bind group descriptor", sizeof("Object shader bind group descriptor")};
     bind_group_layout_desc.entryCount = sizeof(binding_layout)/sizeof(WGPUBindGroupLayoutEntry);
     bind_group_layout_desc.entries = binding_layout;
-
     out_shader->bind_group_layout = wgpuDeviceCreateBindGroupLayout(context->device, &bind_group_layout_desc);
 
     // Define texture binding layout
-    WGPUBindGroupLayoutEntry texture_binding_layout[TEXTURES_BINDINGS_ENTRY_COUNT] = {};
+    WGPUBindGroupLayoutEntry texture_binding_layout[TEXTURES_BINDINGS_ENTRY_COUNT];
 
     // Setup texture binding
     bind_layout_set_default(&texture_binding_layout[0]);
+    texture_binding_layout[0].nextInChain = NULL;
     texture_binding_layout[0].binding = 0;
     texture_binding_layout[0].visibility = WGPUShaderStage_Fragment;
     texture_binding_layout[0].texture.sampleType = WGPUTextureSampleType_Float;
     texture_binding_layout[0].texture.viewDimension = WGPUTextureViewDimension_2D;
     
     bind_layout_set_default(&texture_binding_layout[1]);
+    texture_binding_layout[1].nextInChain = NULL;
     texture_binding_layout[1].binding = 1;
     texture_binding_layout[1].visibility = WGPUShaderStage_Fragment;
     texture_binding_layout[1].sampler.type = WGPUSamplerBindingType_Filtering;
@@ -107,18 +111,19 @@ b8 webgpu_material_shader_create(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER
 
     // Create a texture bind group layout
     WGPUBindGroupLayoutDescriptor texture_bind_group_layout_desc;
-    texture_bind_group_layout_desc.label = "Texture bind group descriptor";
     texture_bind_group_layout_desc.nextInChain = NULL;
+    texture_bind_group_layout_desc.label = (WGPUStringView){"Texture bind group descriptor", sizeof("Texture bind group descriptor")};
     texture_bind_group_layout_desc.entryCount = sizeof(texture_binding_layout)/sizeof(WGPUBindGroupLayoutEntry);
     texture_bind_group_layout_desc.entries = texture_binding_layout;
     out_shader->texture_bind_group_layout = wgpuDeviceCreateBindGroupLayout(context->device, &texture_bind_group_layout_desc);
     
 
-    WGPUBindGroupLayout bind_layouts[2] = {};
+    WGPUBindGroupLayout bind_layouts[2];
     bind_layouts[0] = out_shader->bind_group_layout;
     bind_layouts[1] = out_shader->texture_bind_group_layout;
     // Create the pipeline layout
-    WGPUPipelineLayoutDescriptor layoutDesc = {};
+    WGPUPipelineLayoutDescriptor layoutDesc;
+    layoutDesc.label = (WGPUStringView){"Object shader pipeline layout", sizeof("Object shader pipeline layout")};
     layoutDesc.nextInChain = NULL;
     layoutDesc.bindGroupLayoutCount = sizeof(bind_layouts)/sizeof(WGPUBindGroupLayout);
     layoutDesc.bindGroupLayouts = bind_layouts;
@@ -175,7 +180,7 @@ void webgpu_material_shader_destroy(WEBGPU_CONTEXT* context, struct WEBGPU_MATER
     wgpuBindGroupLayoutRelease(shader->texture_bind_group_layout);
     wgpuBindGroupRelease(shader->bind_group);
     wgpuBindGroupLayoutRelease(shader->bind_group_layout);
-    webgpu_pipeline_destroy(&context, shader);
+    webgpu_pipeline_destroy(context, shader);
     wgpuPipelineLayoutRelease(shader->pipeline.layout);
 }
 
@@ -310,21 +315,21 @@ void webgpu_material_shader_release_resources(WEBGPU_CONTEXT* context, struct WE
 
 void bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout) {
     bindingLayout->buffer.nextInChain = NULL;
-    bindingLayout->buffer.type = WGPUBufferBindingType_Undefined;
+    bindingLayout->buffer.type = WGPUBufferBindingType_BindingNotUsed;
     bindingLayout->buffer.hasDynamicOffset = false;
     bindingLayout->buffer.minBindingSize = 0;
 
     bindingLayout->sampler.nextInChain = NULL;
-    bindingLayout->sampler.type = WGPUSamplerBindingType_Undefined;
+    bindingLayout->sampler.type = WGPUSamplerBindingType_BindingNotUsed;
 
     bindingLayout->storageTexture.nextInChain = NULL;
-    bindingLayout->storageTexture.access = WGPUStorageTextureAccess_Undefined;
+    bindingLayout->storageTexture.access = WGPUStorageTextureAccess_BindingNotUsed;
     bindingLayout->storageTexture.format = WGPUTextureFormat_Undefined;
     bindingLayout->storageTexture.viewDimension = WGPUTextureViewDimension_Undefined;
 
     bindingLayout->texture.nextInChain = NULL;
     bindingLayout->texture.multisampled = false;
-    bindingLayout->texture.sampleType = WGPUTextureSampleType_Undefined;
+    bindingLayout->texture.sampleType = WGPUTextureSampleType_BindingNotUsed;
     bindingLayout->texture.viewDimension = WGPUTextureViewDimension_Undefined;
 }
 
@@ -369,7 +374,7 @@ void webgpu_create_bind_group(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER* s
     // A bind group contains one or multiple bindings
     WGPUBindGroupDescriptor bindGroupDesc = {};
     bindGroupDesc.nextInChain = NULL;
-    bindGroupDesc.label = "bind group";
+    bindGroupDesc.label = (WGPUStringView){ "bind group", sizeof("bind group") };
     bindGroupDesc.layout = shader->bind_group_layout;
     // There must be as many bindings as declared in the layout!
     bindGroupDesc.entryCount = sizeof(binding)/sizeof(WGPUBindGroupEntry);
@@ -391,6 +396,7 @@ void webgpu_create_textures_bind_group(WEBGPU_CONTEXT* context, WGPUTextureView*
     // A bind group contains one or multiple bindings
     WGPUBindGroupDescriptor texture_bind_group_desc = {};
     texture_bind_group_desc.nextInChain = NULL;
+    texture_bind_group_desc.label = (WGPUStringView){"texture bind group", sizeof("texture bind group")};
     texture_bind_group_desc.layout = shader->texture_bind_group_layout;
     // There must be as many bindings as declared in the layout!
     texture_bind_group_desc.entryCount = sizeof(binding)/sizeof(WGPUBindGroupEntry);

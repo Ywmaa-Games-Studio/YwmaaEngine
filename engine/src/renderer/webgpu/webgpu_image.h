@@ -9,7 +9,7 @@ void webgpu_image_create(
     u32 height,
     WGPUTextureFormat format,
     //WGPUImageTiling tiling,
-    WGPUTextureUsageFlags usage,
+    WGPUTextureUsage usage,
     b32 create_view,
     WGPUTextureAspect view_aspect_flags,
     WEBGPU_IMAGE* out_image);

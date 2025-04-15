@@ -9,13 +9,11 @@
 b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader_module) {
 
     WGPUShaderModuleDescriptor shaderDesc = {};
-    shaderDesc.hintCount = 0;
-    shaderDesc.hints = NULL;
 
-    WGPUShaderModuleWGSLDescriptor shaderCodeDesc = {};
+    WGPUShaderSourceWGSL shaderCodeDesc = {};
     // Set the chained struct's header
     shaderCodeDesc.chain.next = NULL;
-    shaderCodeDesc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
     // Build file name.
     char file_name[512] = "assets/shaders/shader.wgsl";
 
@@ -48,7 +46,7 @@ b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader
     // Connect the chain
     shaderDesc.nextInChain = &shaderCodeDesc.chain;
 
-    shaderCodeDesc.code = code;
+    shaderCodeDesc.code = (WGPUStringView){code, read_size};
     (*shader_module) = wgpuDeviceCreateShaderModule(context->device, &shaderDesc);
 
     return true;

@@ -4,7 +4,7 @@
 // Created:
 //   2025.04.14 -20:32
 // Last edited:
-//   2025.04.15 -03:57
+//   2025.04.15 -07:58
 // Auto updated?
 //   Yes
 //
@@ -66,8 +66,10 @@ pub fn build(b: *std.Build) !void {
     });
 
     libengine.addIncludePath(.{ .cwd_relative = "engine/src" });
-    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers" });
-    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers/wayland" });
+    if (target.result.os.tag == .linux) {
+        libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers" });
+        libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers/wayland" });
+    }
     // Vullkan Headers extracted from: https://github.com/hexops/vulkan-headers
     libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/vulkan_headers" });
 
@@ -126,6 +128,7 @@ pub fn build(b: *std.Build) !void {
     libengine.root_module.addRPathSpecial("$ORIGIN/lib");
     libengine.root_module.addRPathSpecial("$ORIGIN/../lib");
     libengine.root_module.addRPathSpecial(".");
+
     if (target.result.os.tag == .windows) {
         b.installDirectory(.{
             .source_dir = lib_file,
@@ -138,17 +141,21 @@ pub fn build(b: *std.Build) !void {
             .use_pkg_config = .no,
             .preferred_link_mode = .dynamic,
         });
+        //libengine.linkSystemLibrary2("wgpu_native", .{
+        //    .use_pkg_config = .no,
+        //    .preferred_link_mode = .static,
+        //});
     } else {
-        b.installDirectory(.{
-            .source_dir = lib_file,
-            .install_dir = .prefix,
-            .install_subdir = "lib/",
-            .include_extensions = &.{ ".dylib", ".so" },
-        });
+        //b.installDirectory(.{
+        //    .source_dir = lib_file,
+        //    .install_dir = .prefix,
+        //    .install_subdir = "lib/",
+        //    .include_extensions = &.{ ".dylib", ".so" },
+        //});
         libengine.addLibraryPath(lib_file);
         libengine.linkSystemLibrary2("wgpu_native", .{
             .use_pkg_config = .no,
-            .preferred_link_mode = .dynamic,
+            .preferred_link_mode = .static,
         });
     }
 
@@ -165,7 +172,7 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
-
+    exe.linkSystemLibrary("unwind");
     exe.addIncludePath(.{ .cwd_relative = "engine/src" });
     exe.addIncludePath(.{ .cwd_relative = "testbed/src" });
     // Search for all C files in `src` and add them

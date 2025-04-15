@@ -227,15 +227,15 @@ b8 platform_create_webgpu_surface(WEBGPU_CONTEXT *context) {
         return false;
     }
 
-    WGPUSurfaceDescriptorFromWindowsHWND fromWindowsHWND;
+    WGPUSurfaceSourceWindowsHWND fromWindowsHWND;
     fromWindowsHWND.chain.next = NULL;
-    fromWindowsHWND.chain.sType = WGPUSType_SurfaceDescriptorFromWindowsHWND;
+    fromWindowsHWND.chain.sType = WGPUSType_SurfaceSourceWindowsHWND;
     fromWindowsHWND.hinstance = state_ptr->h_instance;
     fromWindowsHWND.hwnd = state_ptr->hwnd;
 
     WGPUSurfaceDescriptor surfaceDescriptor;
     surfaceDescriptor.nextInChain = &fromWindowsHWND.chain;
-    surfaceDescriptor.label = NULL;
+    surfaceDescriptor.label = (WGPUStringView){"Windows Surface", sizeof("Windows Surface")};
 
     state_ptr->webgpu_surface = wgpuInstanceCreateSurface(context->instance, &surfaceDescriptor);
 

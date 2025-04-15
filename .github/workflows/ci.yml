@@ -30,7 +30,7 @@ jobs:
       - name: x86_64-linux -> x86_64-linux-musl
         run: zig build -Dtarget=x86_64-linux-musl -Doptimize=ReleaseFast
       - name: x86_64-linux -> aarch64-linux
-        run: zig build -Dtarget=aarch64-linux
+        run: zig build -Dtarget=aarch64-linux -Doptimize=ReleaseFast
       #- name: x86_64-linux -> x86_64-macos No mac os backend, yet.
       #  run: zig build -Dtarget=x86_64-macos
       #- name: x86_64-linux -> aarch64-macos No mac os backend, yet.

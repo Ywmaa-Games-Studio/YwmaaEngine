@@ -30,7 +30,7 @@ b8 webgpu_buffer_create(
 
     WGPUBufferDescriptor buffer_desc = {};
     buffer_desc.nextInChain = NULL;
-    buffer_desc.label = "Buffer";
+    buffer_desc.label = (WGPUStringView){"Buffer", sizeof("Buffer")};
     buffer_desc.usage = usage;
     buffer_desc.size = size;
     buffer_desc.mappedAtCreation = mapped_on_create;

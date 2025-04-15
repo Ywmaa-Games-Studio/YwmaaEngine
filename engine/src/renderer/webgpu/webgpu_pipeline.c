@@ -30,10 +30,13 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     WGPURenderPipelineDescriptor pipelineDesc = {};
     pipelineDesc.nextInChain = NULL;
     // [...] Describe vertex pipeline state
+    pipelineDesc.label = (WGPUStringView){ "Object shader pipeline", sizeof("Object shader pipeline") };
+
     pipelineDesc.vertex.bufferCount = 1;
     pipelineDesc.vertex.buffers = &vertex_buffer_layout;
     pipelineDesc.vertex.module = shader->shader_module;
-    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.entryPoint = (WGPUStringView){ "vs_main",7};
+
     pipelineDesc.vertex.constantCount = 0;
     pipelineDesc.vertex.constants = NULL;
     
@@ -59,7 +62,7 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     // by the function called 'fs_main' in the shader module.
     WGPUFragmentState fragmentState = {};
     fragmentState.module = shader->shader_module;
-    fragmentState.entryPoint = "fs_main";
+    fragmentState.entryPoint = (WGPUStringView){ "fs_main",7};
     fragmentState.constantCount = 0;
     fragmentState.constants = NULL;
     // [...] We'll configure the blending stage here
@@ -86,6 +89,7 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     // [...] Describe stencil/depth pipeline state
     WGPUDepthStencilState depthStencilState;
     depth_set_default(&depthStencilState);
+    depthStencilState.nextInChain = NULL;
     depthStencilState.depthCompare = WGPUCompareFunction_Less;
     depthStencilState.depthWriteEnabled = true;
     depthStencilState.format = WGPUTextureFormat_Depth24Plus;

@@ -21,7 +21,7 @@ typedef struct WEBGPU_MATERIAL_SHADER_INSTANCE_STATE {
 typedef struct WEBGPU_BUFFER {
     u64 total_size;
     WGPUBuffer handle;
-    WGPUBufferUsageFlags usage;
+    WGPUBufferUsage usage;
     b8 is_locked;
     /** @brief The amount of memory required for the freelist. */
     u64 freelist_memory_requirement;
@@ -120,7 +120,6 @@ typedef struct WEBGPU_CONTEXT {
     WGPUInstance instance;
     WGPUAdapter adapter;
     WGPUDevice device;
-    WGPURequiredLimits required_limits;
     WGPUSurface surface;
     WGPUQueue queue;
     WGPUTextureView target_view;

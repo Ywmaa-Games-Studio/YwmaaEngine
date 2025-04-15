@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   2025.04.15 -02:05
+ *   2025.04.15 -05:35
  * Auto updated?
  *   Yes
  *
@@ -550,15 +550,15 @@ b8 platform_x11_create_webgpu_surface(void* context_ptr, void* state_ptr) {
     PLATFORM_STATE* platform_state = (PLATFORM_STATE*)state_ptr;
     
     // Create WebGPU surface descriptor
-    WGPUSurfaceDescriptorFromXcbWindow xcbDesc = {0};
-    xcbDesc.chain.sType = WGPUSType_SurfaceDescriptorFromXcbWindow;
+    WGPUSurfaceSourceXCBWindow xcbDesc = {0};
+    xcbDesc.chain.sType = WGPUSType_SurfaceSourceXCBWindow;
     xcbDesc.chain.next = NULL;
     xcbDesc.connection = platform_state->connection;
     xcbDesc.window = platform_state->window;
     
     WGPUSurfaceDescriptor descriptor = {0};
     descriptor.nextInChain = (const WGPUChainedStruct*)&xcbDesc;
-    descriptor.label = NULL;
+    //descriptor.label = NULL;
     
     platform_state->webgpu_surface = wgpuInstanceCreateSurface(context->instance, &descriptor);
     
@@ -1478,15 +1478,15 @@ b8 platform_wayland_create_webgpu_surface(void* context_ptr, void* state_ptr) {
     struct WEBGPU_CONTEXT* context = (struct WEBGPU_CONTEXT*)context_ptr;
     WAYLAND_PLATFORM_STATE* platform_state = (WAYLAND_PLATFORM_STATE*)state_ptr;
     
-    WGPUSurfaceDescriptorFromWaylandSurface waylandDesc = {0};
-    waylandDesc.chain.sType = WGPUSType_SurfaceDescriptorFromWaylandSurface;
+    WGPUSurfaceSourceWaylandSurface waylandDesc = {0};
+    waylandDesc.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
     waylandDesc.chain.next = NULL;
     waylandDesc.display = platform_state->display;
     waylandDesc.surface = platform_state->surface;
     
     WGPUSurfaceDescriptor descriptor = {0};
     descriptor.nextInChain = (const WGPUChainedStruct*)&waylandDesc;
-    descriptor.label = NULL;
+    //descriptor.label = NULL;
     
     platform_state->webgpu_surface = wgpuInstanceCreateSurface(context->instance, &descriptor);
     

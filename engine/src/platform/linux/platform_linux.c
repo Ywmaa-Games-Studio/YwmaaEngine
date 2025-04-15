@@ -1,3 +1,17 @@
+/* PLATFORM LINUX.c
+ *   by Youssef Abdelkareem (ywmaa)
+ *
+ * Created:
+ *   2025.04.15 -02:05
+ * Last edited:
+ *   2025.04.15 -02:05
+ * Auto updated?
+ *   Yes
+ *
+ * Description:
+ *   Linux Platform Layer
+**/
+
 #include "../platform.h"
 #include "platform_linux.h"
 
@@ -823,14 +837,15 @@ E_KEYS translate_keycode(u32 x_keycode) {
 
 #endif // defined(YPLATFORM_LINUX)
 
-// AI helped me creating this wayland backend and I tweaked stuff and removed useless stuff -for now- and still I should probably later do some rewriting and reorganizing of this implementation
-// Also I should dynamically load wayland later.
+// AI helped me creating this wayland backend and I tweaked stuff and removed useless stuff -for now-
+// and still I should probably later do some rewriting and reorganizing of this implementation
 // Linux platform layer - Wayland implementation
 #if defined(YPLATFORM_LINUX) && defined(WAYLAND_ENABLED) && !defined(YPLATFORM_ANDROID)
 
-#include <wayland-client.h>
-#include <wayland-cursor.h>
+#define WAYLAND_DYNAMIC_LOAD_IMPLEMENTATION
+#include "wayland/wayland_loader/wayland_loader.h"
 #include "wayland/xdg-shell.h"
+
 
 typedef struct WAYLAND_PLATFORM_STATE {
     struct wl_display* display;
@@ -1071,7 +1086,7 @@ static void pointer_handle_enter(void* data, struct wl_pointer* pointer, uint32_
     // Set cursor
     if (state->cursor_theme && state->default_cursor) {
         struct wl_cursor_image* image = state->default_cursor->images[0];
-        struct wl_buffer* buffer = wl_cursor_image_get_buffer(image);
+        struct wl_buffer* buffer = WAYLAND_wl_cursor_image_get_buffer(image);
         
         wl_pointer_set_cursor(pointer, serial, state->cursor_surface, 
                              image->hotspot_x, image->hotspot_y);
@@ -1231,12 +1246,17 @@ b8 platform_wayland_system_startup(
     const char* application_name,
     i32 x, i32 y,
     i32 width, i32 height) {
-    
+
+        
     *memory_requirement = sizeof(WAYLAND_PLATFORM_STATE);
     if (state == 0) {
         return true;
     }
-    
+        
+    if (WAYLAND_LoadSymbols() != 1) {
+        PRINT_ERROR("Failed to load Wayland symbols");
+        return false;
+    }
     state_ptr = state;
     WAYLAND_PLATFORM_STATE* platform_state = (WAYLAND_PLATFORM_STATE*)state;
     memset(platform_state, 0, sizeof(WAYLAND_PLATFORM_STATE));
@@ -1246,7 +1266,7 @@ b8 platform_wayland_system_startup(
     platform_state->height = height;
     
     // Connect to Wayland display
-    platform_state->display = wl_display_connect(NULL);
+    platform_state->display = WAYLAND_wl_display_connect(NULL);
     if (!platform_state->display) {
         PRINT_ERROR("Failed to connect to Wayland display");
         return false;
@@ -1257,7 +1277,7 @@ b8 platform_wayland_system_startup(
     wl_registry_add_listener(platform_state->registry, &registry_listener, platform_state);
     
     // First roundtrip to get registry objects
-    wl_display_roundtrip(platform_state->display);
+    WAYLAND_wl_display_roundtrip(platform_state->display);
     
     // Check if we got the required interfaces
     if (!platform_state->compositor) {
@@ -1272,9 +1292,9 @@ b8 platform_wayland_system_startup(
     
     // Create cursor theme if shm is available
     if (platform_state->shm) {
-        platform_state->cursor_theme = wl_cursor_theme_load(NULL, 24, platform_state->shm);
+        platform_state->cursor_theme = WAYLAND_wl_cursor_theme_load(NULL, 24, platform_state->shm);
         if (platform_state->cursor_theme) {
-            platform_state->default_cursor = wl_cursor_theme_get_cursor(platform_state->cursor_theme, "left_ptr");
+            platform_state->default_cursor = WAYLAND_wl_cursor_theme_get_cursor(platform_state->cursor_theme, "left_ptr");
             if (platform_state->default_cursor) {
                 platform_state->cursor_surface = wl_compositor_create_surface(platform_state->compositor);
             }
@@ -1317,7 +1337,7 @@ b8 platform_wayland_system_startup(
     wl_surface_commit(platform_state->surface);
     
     // Second roundtrip to get surface created
-    wl_display_roundtrip(platform_state->display);
+    WAYLAND_wl_display_roundtrip(platform_state->display);
     
     PRINT_INFO("Wayland platform initialized successfully");
     return true;
@@ -1348,7 +1368,7 @@ void platform_wayland_system_shutdown(void* platform_state) {
     }
     
     if (state->cursor_theme) {
-        wl_cursor_theme_destroy(state->cursor_theme);
+        WAYLAND_wl_cursor_theme_destroy(state->cursor_theme);
     }
     
     if (state->xdg_toplevel) {
@@ -1380,7 +1400,7 @@ void platform_wayland_system_shutdown(void* platform_state) {
     }
     
     if (state->display) {
-        wl_display_disconnect(state->display);
+        WAYLAND_wl_display_disconnect(state->display);
     }
     
     PRINT_INFO("Wayland platform shutdown complete");
@@ -1398,18 +1418,18 @@ b8 platform_wayland_pump_messages() {
     }
     
     // Process all pending Wayland events
-    while (wl_display_prepare_read(state->display) != 0) {
-        wl_display_dispatch_pending(state->display);
+    while (WAYLAND_wl_display_prepare_read(state->display) != 0) {
+        WAYLAND_wl_display_dispatch_pending(state->display);
     }
     
-    wl_display_flush(state->display);
+    WAYLAND_wl_display_flush(state->display);
     
-    if (wl_display_read_events(state->display) != 0) {
+    if (WAYLAND_wl_display_read_events(state->display) != 0) {
         PRINT_ERROR("Failed to read Wayland events");
         return false;
     }
     
-    wl_display_dispatch_pending(state->display);
+    WAYLAND_wl_display_dispatch_pending(state->display);
     
     // Check if window was closed
     if (state->closed) {

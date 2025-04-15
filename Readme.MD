@@ -56,14 +56,14 @@ extracted from https://ziglang.org/documentation/master/#Build-Mode
 
 ### Windows
 
- - `zig`
- - TO-DO
+ - `zig` the compiler
+ - There shouldn't be other required dependencies, if it fails please report.
 
 ### Linux
 
 Install these via package manager:
- - `zig`
- - `libwayland-dev`
+ - `zig` the compiler
+ - There shouldn't be other required dependencies, if it fails please report.
 
 You can also check the required dependecies for linux in shell.nix
 

@@ -7,14 +7,14 @@ with pkgs;
   mkShell {
   packages = [ #These are only specific to NixOS because it doesn't provide it at runtime
     #X11
-    xorg.libX11
-    xorg.libxcb
+    #xorg.libX11
+    #xorg.libxcb
     #libxkbcommon
 
     #Wayland
-    wayland #libwayland-client
-    wayland-scanner
-    libdecor
+    #wayland #libwayland-client
+    #wayland-scanner
+    #libdecor
 
     #Vulkan
     vulkan-loader
@@ -37,6 +37,6 @@ with pkgs;
     unstable.sdkmanager
   ];
 
-  LD_LIBRARY_PATH = "${pkgs.xorg.libX11}/lib:${pkgs.xorg.libxcb}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
+  LD_LIBRARY_PATH = "${pkgs.wayland}/lib:${pkgs.xorg.libX11}/lib:${pkgs.xorg.libxcb}/lib:${vulkan-loader}/lib:${vulkan-validation-layers}/lib";
 }
 

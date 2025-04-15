@@ -36,9 +36,9 @@
 #include <stdint.h>
 #include "wayland-util.h"
 
-extern const struct wl_interface wl_output_interface;
-extern const struct wl_interface wl_seat_interface;
-extern const struct wl_interface wl_surface_interface;
+extern const struct wl_interface WAYLAND_wl_output_interface;
+extern const struct wl_interface WAYLAND_wl_seat_interface;
+extern const struct wl_interface WAYLAND_wl_surface_interface;
 extern const struct wl_interface xdg_popup_interface;
 extern const struct wl_interface xdg_positioner_interface;
 extern const struct wl_interface xdg_surface_interface;
@@ -51,23 +51,23 @@ static const struct wl_interface *xdg_shell_types[] = {
 	NULL,
 	&xdg_positioner_interface,
 	&xdg_surface_interface,
-	&wl_surface_interface,
+	&WAYLAND_wl_surface_interface,
 	&xdg_toplevel_interface,
 	&xdg_popup_interface,
 	&xdg_surface_interface,
 	&xdg_positioner_interface,
 	&xdg_toplevel_interface,
-	&wl_seat_interface,
+	&WAYLAND_wl_seat_interface,
 	NULL,
 	NULL,
 	NULL,
-	&wl_seat_interface,
+	&WAYLAND_wl_seat_interface,
 	NULL,
-	&wl_seat_interface,
+	&WAYLAND_wl_seat_interface,
 	NULL,
 	NULL,
-	&wl_output_interface,
-	&wl_seat_interface,
+	&WAYLAND_wl_output_interface,
+	&WAYLAND_wl_seat_interface,
 	NULL,
 	&xdg_positioner_interface,
 	NULL,

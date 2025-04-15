@@ -1,3 +1,17 @@
+// BUILD .ZIG.zon
+//   by Youssef Abdelkareem (ywmaa)
+//
+// Created:
+//   2025.04.14 -20:33
+// Last edited:
+//   2025.04.15 -01:59
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Online Dependencies
+//
+
 .{
     .name = .YwmaaEngine,
     .minimum_zig_version = "0.14.0",

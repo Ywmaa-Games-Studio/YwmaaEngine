@@ -1,3 +1,17 @@
+// BUILD.zig
+//   by Youssef Abdelkareem (ywmaa)
+//
+// Created:
+//   2025.04.14 -20:32
+// Last edited:
+//   2025.04.15 -02:12
+// Auto updated?
+//   Yes
+//
+// Description:
+//   Build Script
+//
+
 const std = @import("std");
 const builtin = @import("builtin");
 const android = @import("android");
@@ -146,8 +160,6 @@ pub fn build(b: *std.Build) !void {
         })) |dep| {
             libengine.linkLibrary(dep.artifact("wayland-headers"));
         }
-        libengine.linkSystemLibrary("wayland-client");
-        libengine.linkSystemLibrary("wayland-cursor");
     }
 
     if (b.lazyDependency("vulkan_headers", .{

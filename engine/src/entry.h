@@ -2,6 +2,7 @@
 
 #include "core/application.h"
 #include "core/logger.h"
+#include "renderer/renderer_types.inl"
 #include "game_types.h"
 
 // Externally-defined function to create a game.
@@ -11,10 +12,11 @@ extern b8 create_game(GAME* out_game);
  * The main entry point of the application in C.
  * This is actually called from the main function in main.zig
  */
-int engine_main(void) {
+int engine_main(E_RENDERER_BACKEND_API renderer_backend_api) {
     
     // Request the game instance from the application.
     GAME game_instance;
+    game_instance.app_config.renderer_backend_api = renderer_backend_api;
     if (!create_game(&game_instance)) {
         PRINT_ERROR("Could not create game!");
         return -1;

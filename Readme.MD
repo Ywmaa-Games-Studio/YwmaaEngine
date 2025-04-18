@@ -25,6 +25,8 @@ Build : ```zig build```
 
 Build & Run : ```zig build run```
 
+Build & Run + choosing renderer : ```zig build run -- --renderer=VULKAN/WEBGPU```
+
 You can find the binaries in zig-out : ```zig-out/bin/ & zig-out/lib/```
 
 For Build info add ```--summary all``` ex: ```zig build --summary all```

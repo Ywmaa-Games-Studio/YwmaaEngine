@@ -1,6 +1,7 @@
 #pragma once
 
 #include "defines.h"
+#include "renderer/renderer_types.inl"
 
 struct GAME;
 
@@ -17,6 +18,9 @@ typedef struct APPLICATION_CONFIG {
 
     // Window starting height, if applicable.
     i16 start_height;
+
+    // The renderer backend API to use.
+    E_RENDERER_BACKEND_API renderer_backend_api;
 
     // The application name used in windowing, if applicable.
     char* name;

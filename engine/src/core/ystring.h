@@ -2,9 +2,8 @@
 
 #include "defines.h"
 #include "math/math_types.h"
-#include <stdio.h>
-#include <stdarg.h>
 
+#include <stdarg.h>
 // Returns the length of the given string.
 YAPI u64 string_length(const char* str);
 
@@ -30,6 +29,12 @@ YAPI b8 bytes_to_codepoint(const char* bytes, u32 offset, i32* out_codepoint, u8
 
 
 YAPI char* string_duplicate(const char* str);
+
+YAPI char* string_first_occurrence(const char* str, char c);
+
+YAPI u64 string_span(const char* str, const char* c);
+
+YAPI b8 strings_nequal(const char* str0, const char* str1, u64 length);
 
 /**
  * @brief Frees the memory of the given string.
@@ -105,29 +110,29 @@ YAPI i32 string_index_of(const char* str, char c);
 /**
  * @brief Attempts to parse a vector from the provided string.
  * 
- * @param str The string to parse from. Should be space-delimited. (i.e. "1.0 2.0 3.0 4.0")
+ * @param str The string to parse from. Should be comma-delimited. (i.e. "Vector4(1.0, 2.0, 3.0, 4.0)")
  * @param out_vector A pointer to the vector to write to.
  * @return True if parsed successfully; otherwise false.
  */
-YAPI b8 string_to_vector4(const char* str, Vector4* out_vector);
+YAPI b8 string_to_vector4(char* str, void* out_value);
 
 /**
  * @brief Attempts to parse a vector from the provided string.
  * 
- * @param str The string to parse from. Should be space-delimited. (i.e. "1.0 2.0 3.0")
+ * @param str The string to parse from. Should be comma-delimited. (i.e. "Vector3(1.0, 2.0, 3.0)")
  * @param out_vector A pointer to the vector to write to.
  * @return True if parsed successfully; otherwise false.
  */
-YAPI b8 string_to_vector3(const char* str, Vector3* out_vector);
+YAPI b8 string_to_vector3(char* str, void* out_value);
 
 /**
  * @brief Attempts to parse a vector from the provided string.
  * 
- * @param str The string to parse from. Should be space-delimited. (i.e. "1.0 2.0")
+ * @param str The string to parse from. Should be comma-delimited. (i.e. "Vector2(1.0, 2.0)")
  * @param out_vector A pointer to the vector to write to.
  * @return True if parsed successfully; otherwise false.
  */
-YAPI b8 string_to_vector2(const char* str, Vector2* out_vector);
+YAPI b8 string_to_vector2(char* str, void* out_value);
 
 /**
  * @brief Attempts to parse a 32-bit floating-point number from the provided string.
@@ -136,7 +141,7 @@ YAPI b8 string_to_vector2(const char* str, Vector2* out_vector);
  * @param f A pointer to the float to write to.
  * @return True if parsed successfully; otherwise false.
  */
-YAPI b8 string_to_f32(const char* str, f32* f);
+YAPI b8 string_to_f32(char* str, void* f);
 
 /**
  * @brief Attempts to parse a 64-bit floating-point number from the provided string.
@@ -145,7 +150,7 @@ YAPI b8 string_to_f32(const char* str, f32* f);
  * @param f A pointer to the float to write to.
  * @return True if parsed successfully; otherwise false.
  */
-YAPI b8 string_to_f64(const char* str, f64* f);
+YAPI b8 string_to_f64(char* str, void* f);
 
 /**
  * @brief Attempts to parse an 8-bit signed integer from the provided string.
@@ -172,7 +177,7 @@ YAPI b8 string_to_i16(const char* str, i16* i);
  * @param i A pointer to the int to write to.
  * @return True if parsed successfully; otherwise false.
  */
-YAPI b8 string_to_i32(const char* str, i32* i);
+YAPI b8 string_to_i32(const char* str, void* i);
 
 /**
  * @brief Attempts to parse a 64-bit signed integer from the provided string.
@@ -181,7 +186,7 @@ YAPI b8 string_to_i32(const char* str, i32* i);
  * @param i A pointer to the int to write to.
  * @return True if parsed successfully; otherwise false.
  */
-YAPI b8 string_to_i64(const char* str, i64* i);
+YAPI b8 string_to_i64(const char* str, void* i);
 
 /**
  * @brief Attempts to parse an 8-bit unsigned integer from the provided string.

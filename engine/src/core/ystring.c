@@ -3,6 +3,8 @@
 #include "core/logger.h"
 #include "data_structures/darray.h"
 
+
+#include <stdio.h>
 #include <ctype.h>   // isspace
 
 #define USE_STD_STR 1
@@ -107,6 +109,25 @@ char* string_duplicate(const char* str) {
     copy[length_rounded] = 0;
     return copy;
 }
+char* string_first_occurrence(const char* str, char c){
+    if (!str) {
+        PRINT_WARNING("string_first_occurrence called with an empty string. 0/null will be returned.");
+        return 0;
+    }
+    char* result = (char*)strchr(str, c);
+    if (result) {
+        return result;
+    }
+    return 0;
+}
+
+u64 string_span(const char* str, const char* c){
+    return strspn(str, c);
+}
+// Case-sensitive string comparison. True if the same, otherwise false.
+b8 strings_nequal(const char* str0, const char* str1, u64 length) {
+    return strncmp(str0, str1, length) == 0;
+}
 
 void string_free(char* str) {
     if (str) {
@@ -128,10 +149,6 @@ b8 strings_equali(const char* str0, const char* str1) {
     #elif (defined _MSC_VER)
         return _strcmpi(str0, str1) == 0;
     #endif
-}
-
-b8 strings_nequal(const char* str0, const char* str1, u64 length) {
-    return strncmp(str0, str1, length);
 }
 
 b8 strings_nequali(const char* str0, const char* str1, u64 length) {
@@ -241,52 +258,52 @@ i32 string_index_of(const char* str, char c) {
     return -1;
 }
 
-b8 string_to_vector4(const char* str, Vector4* out_vector) {
+b8 string_to_vector4(char* str, void* out_value) {
     if (!str) {
         return false;
     }
-
+    Vector4* out_vector = (Vector4*)out_value; 
     yzero_memory(out_vector, sizeof(Vector4));
-    i32 result = sscanf(str, "%f %f %f %f", &out_vector->x, &out_vector->y, &out_vector->z, &out_vector->w);
+    i32 result = sscanf(str, "Vector4(%f, %f, %f, %f)", &out_vector->x, &out_vector->y, &out_vector->z, &out_vector->w);
     return result != -1;
 }
 
-b8 string_to_vector3(const char* str, Vector3* out_vector) {
+b8 string_to_vector3(char* str, void* out_value) {
     if (!str) {
         return false;
     }
-
+    Vector3* out_vector = (Vector3*)out_value; 
     yzero_memory(out_vector, sizeof(Vector3));
-    i32 result = sscanf(str, "%f %f %f", &out_vector->x, &out_vector->y, &out_vector->z);
+    i32 result = sscanf(str, "Vector3(%f, %f, %f)", &out_vector->x, &out_vector->y, &out_vector->z);
     return result != -1;
 }
 
-b8 string_to_vector2(const char* str, Vector2* out_vector) {
+b8 string_to_vector2(char* str, void* out_value) {
     if (!str) {
         return false;
     }
-
+    Vector2* out_vector = (Vector2*)out_value; 
     yzero_memory(out_vector, sizeof(Vector2));
-    i32 result = sscanf(str, "%f %f", &out_vector->x, &out_vector->y);
+    i32 result = sscanf(str, "Vector2(%f, %f)", &out_vector->x, &out_vector->y);
     return result != -1;
 }
 
-b8 string_to_f32(const char* str, f32* f) {
+b8 string_to_f32(char* str, void* out_value) {
     if (!str) {
         return false;
     }
-
+    f32* f = (f32*)out_value; 
     *f = 0;
     i32 result = sscanf(str, "%f", f);
     return result != -1;
 }
 
-b8 string_to_f64(const char* str, f64* f) {
+b8 string_to_f64(char* str, void* out_value) {
     if (!str) {
         return false;
     }
 
-    *f = 0;
+    f64* f = (f64*)out_value;
     i32 result = sscanf(str, "%lf", f);
     return result != -1;
 }
@@ -311,21 +328,21 @@ b8 string_to_i16(const char* str, i16* i) {
     return result != -1;
 }
 
-b8 string_to_i32(const char* str, i32* i) {
+b8 string_to_i32(const char* str, void* out_value) {
     if (!str) {
         return false;
     }
-
+    i32* i = (i32*)out_value;
     *i = 0;
     i32 result = sscanf(str, "%i", i);
     return result != -1;
 }
 
-b8 string_to_i64(const char* str, i64* i) {
+b8 string_to_i64(const char* str, void* out_value) {
     if (!str) {
         return false;
     }
-
+    i64* i = (i64*)out_value;
     *i = 0;
     i32 result = sscanf(str, "%lli", i);
     return result != -1;

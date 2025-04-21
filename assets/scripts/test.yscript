@@ -1,0 +1,59 @@
+
+var x : int = 2;
+var y : int = 4;
+var g : int = 15;
+var hello : string = "Hello,";
+var world : string = " World!";
+var neat : string = " NEAT";
+const PI : float = 3.14; # inline comment
+var long_float : float64 = 3.14234345576866;
+var long_int : int64 = 4147483647;
+
+var test_vector : Vector2 = Vector2(5, 5);
+var test_vector3 : Vector3 = Vector3(5, 5, 45);
+var test2_vector3 : Vector3 = Vector3(1, 1, 45);
+var test_vector4 : Vector4 = Vector4(5, 5, 3, 1);
+var test_array : Array = [50, [test_vector, test2_vector3, PI], "hello", long_float, test_vector4];
+
+var array_element : int = test_array[0]; 
+
+print(array_element);
+
+print_info(test_array);
+print_warning(test_array[0]);
+print_error(test_array[1]);
+print_warning(test_array[2]);
+print_warning(test_array[3]);
+print_warning(test_array[4]);
+
+print_warning(test_vector);
+print(test_vector3);
+print_trace(test_vector4);
+
+print_error(test2_vector3 + test_vector3);
+
+# This function does addition
+func add(a: int, b: int) -> int {
+    return a + b;
+}
+
+# Arithmetic Test
+print(5.0+10.0*294.0-100.0/2.0-150.8);
+
+# String combinations
+print(true);
+print(hello + neat + world);
+print_error("This is an error message");
+print_warning("This is a warning message");
+print_info("This is an info message");
+print_debug("This is a debug message");
+print_trace("This is a trace message");
+
+
+print(PI);
+print(long_float);
+print(long_int);
+
+print(add(test_array[0], test_array[0]) * add(g, y));
+
+return 0;

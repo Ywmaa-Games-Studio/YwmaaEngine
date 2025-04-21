@@ -4,7 +4,7 @@
 // Created:
 //   2025.04.14 -20:32
 // Last edited:
-//   2025.05.30 -08:07
+//   2025.05.30 -08:16
 // Auto updated?
 //   Yes
 //
@@ -86,6 +86,7 @@ pub fn build(b: *std.Build) !void {
     defer engine_flags.deinit();
 
     try engine_flags.append("-DYEXPORT");
+    try engine_flags.append("-fPIC");
     if (is_debug) {
         try engine_flags.append("-D_DEBUG");
     }
@@ -94,6 +95,7 @@ pub fn build(b: *std.Build) !void {
     try engine_flags.append("-Werror");
     try engine_flags.append("-Wno-gnu");
     try engine_flags.append("-Wno-missing-braces");
+    try engine_flags.append("-Wno-unused-function");
 
     const testbed_flags = [_][]const u8{
         "-DYIMPORT",
@@ -140,6 +142,40 @@ pub fn build(b: *std.Build) !void {
         libengine.linkFramework("Cocoa");
         libengine.linkFramework("QuartzCore");
     }
+
+    const yscript_plugin = b.addLibrary(.{ //addStaticLibrary/addSharedLibrary
+        .linkage = .static, // make it a shared library
+        .name = "yscript_plugin",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    // we are using stuff from the engine
+    yscript_plugin.addIncludePath(.{ .cwd_relative = "engine/src" });
+    yscript_plugin.addIncludePath(.{ .cwd_relative = "engine/plugins/yscript" });
+
+    {
+        var dir = try std.fs.cwd().openDir("engine/plugins/yscript", .{ .iterate = true });
+
+        var walker = try dir.walk(b.allocator);
+        defer walker.deinit();
+
+        const allowed_exts = [_][]const u8{".c"};
+        while (try walker.next()) |entry| {
+            const ext = std.fs.path.extension(entry.basename);
+            const include_file = for (allowed_exts) |e| {
+                if (std.mem.eql(u8, ext, e))
+                    break true;
+            } else false;
+            if (include_file) {
+                std.debug.print("YScript Plugin: Found {s} file to compile: '{s}'. path: '{s}'\n", .{ ext, entry.basename, entry.path });
+                yscript_plugin.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "engine/plugins/yscript", entry.path })), .flags = engine_flags.items });
+            }
+        }
+    }
+    yscript_plugin.linkLibC();
+    libengine.linkLibrary(yscript_plugin);
 
     libengine.root_module.addRPathSpecial("$ORIGIN");
     libengine.root_module.addRPathSpecial("$ORIGIN/lib");
@@ -418,6 +454,7 @@ pub fn build(b: *std.Build) !void {
 
     b.installArtifact(libengine); //use this when the engine is compiled as a shared library
     b.installArtifact(glslang_lib); //use this when the engine is compiled as a shared library
+    //b.installArtifact(yscript_plugin); //use this when the plugin is compiled as a shared library
 
     b.installArtifact(exe);
     if (target.result.abi == .android) {

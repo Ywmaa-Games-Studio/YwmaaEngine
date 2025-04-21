@@ -2,7 +2,7 @@
 
 version=0.1
 name=test_material
-diffuse_color=1.0 1.0 1.0 1.0
+diffuse_color=Vector4(1.0, 1.0, 1.0, 1.0)
 shiness=64.0
 diffuse_map_name=transparent_test
 specular_map_name=transparent_test

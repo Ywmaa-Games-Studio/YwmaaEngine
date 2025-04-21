@@ -155,7 +155,7 @@ void yvar_console_command_set_int(CONSOLE_COMMAND_CONTEXT context) {
     const char* name = context.arguments[0].value;
     const char* val_str = context.arguments[1].value;
     i32 value = 0;
-    if (!string_to_i32(val_str, &value)) {
+    if (!string_to_i32(val_str, (void*)&value)) {
         PRINT_ERROR("Failed to convert argument 1 to i32: '%s'.", val_str);
         return;
     }

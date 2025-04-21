@@ -19,6 +19,7 @@
 
 // systems
 #include "core/systems_manager.h"
+#include "../plugins/yscript/yscript.h"
 
 typedef struct ENGINE_STATE_T {
     APPLICATION* game_instance;
@@ -77,6 +78,8 @@ b8 engine_create(APPLICATION* game_instance) {
         PRINT_ERROR("Systems manager failed to initialize. Aborting process.");
         return false;
     }
+
+    enter_script_context();
 
     // Perform the game's boot sequence.
     if (!game_instance->boot(game_instance)) {

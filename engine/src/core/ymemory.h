@@ -37,6 +37,7 @@ typedef enum E_MEMORY_TAG {
     MEMORY_TAG_ENTITY_NODE,
     MEMORY_TAG_SCENE,
     MEMORY_TAG_RESOURCE,
+    MEMORY_TAG_SCRIPT,
     MEMORY_TAG_VULKAN,
     // "External" vulkan allocations, for reporting purposes only.
     MEMORY_TAG_VULKAN_EXT,

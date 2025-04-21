@@ -53,6 +53,7 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "ENTITY_NODE",
     "SCENE      ",
     "RESOURCE   ",
+    "SCRIPT     ",
     "VULKAN     ",
     "VULKAN_EXT ",
     "WEBGPU     ",

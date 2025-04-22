@@ -3,7 +3,7 @@
 #include "defines.h"
 #include "core/asserts.h"
 #include "renderer/renderer_types.inl"
-#include "variants/freelist.h"
+#include "memory/freelist.h"
 
 #include "../thirdparty/volk/volk.h"
 

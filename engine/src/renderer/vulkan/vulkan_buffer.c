@@ -6,11 +6,11 @@
 
 #include "core/logger.h"
 #include "core/ymemory.h"
-#include "variants/freelist.h"
+#include "memory/freelist.h"
 
 void cleanup_freelist(VULKAN_BUFFER* buffer) {
     freelist_destroy(&buffer->buffer_freelist);
-    yfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+    yfree_aligned(buffer->freelist_block, buffer->freelist_memory_requirement, 4, MEMORY_TAG_RENDERER);
     buffer->freelist_memory_requirement = 0;
     buffer->freelist_block = 0;
 }
@@ -114,11 +114,11 @@ b8 vulkan_buffer_resize(
     void* old_block = 0;
     if (!freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, new_block, new_size, &old_block)) {
         PRINT_ERROR("vulkan_buffer_resize failed to resize internal free list.");
-        yfree(new_block, new_memory_requirement, MEMORY_TAG_RENDERER);
+        yfree_aligned(new_block, new_memory_requirement, 4, MEMORY_TAG_RENDERER);
         return false;
     }
     // Clean up the old memory, then assign the new properties over.
-    yfree(old_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+    yfree_aligned(old_block, buffer->freelist_memory_requirement, 4, MEMORY_TAG_RENDERER);
     buffer->freelist_memory_requirement = new_memory_requirement;
     buffer->freelist_block = new_block;
     buffer->total_size = new_size;

@@ -37,7 +37,7 @@ void vulkan_framebuffer_create(
 void vulkan_framebuffer_destroy(VULKAN_CONTEXT* context, VULKAN_FRAMEBUFFER* framebuffer) {
     vkDestroyFramebuffer(context->device.logical_device, framebuffer->handle, context->allocator);
     if (framebuffer->attachments) {
-        yfree(framebuffer->attachments, sizeof(VkImageView) * framebuffer->attachment_count, MEMORY_TAG_RENDERER);
+        yfree_aligned(framebuffer->attachments, sizeof(VkImageView) * framebuffer->attachment_count, 4, MEMORY_TAG_RENDERER);
         framebuffer->attachments = 0;
     }
     framebuffer->handle = 0;

@@ -7,7 +7,7 @@
 #include "../thirdparty/wgpu/include/wgpu.h"
 #include "../thirdparty/wgpu/include/webgpu.h"
 
-#include "variants/freelist.h"
+#include "memory/freelist.h"
 
 typedef struct WEBGPU_BIND_STATE {
     // One per frame

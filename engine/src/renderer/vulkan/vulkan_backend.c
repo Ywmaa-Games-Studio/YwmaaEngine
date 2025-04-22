@@ -1004,7 +1004,7 @@ void vulkan_renderer_destroy_texture(struct TEXTURE* texture) {
         vkDestroySampler(context.device.logical_device, data->sampler, context.allocator);
         data->sampler = 0;
 
-        yfree(texture->internal_data, sizeof(VULKAN_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+        yfree_aligned(texture->internal_data, sizeof(VULKAN_TEXTURE_DATA), 4, MEMORY_TAG_TEXTURE);
     }
     yzero_memory(texture, sizeof(struct TEXTURE));
 }

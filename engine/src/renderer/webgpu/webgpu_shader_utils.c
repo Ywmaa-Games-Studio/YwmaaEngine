@@ -49,5 +49,7 @@ b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader
     shaderCodeDesc.code = (WGPUStringView){code, read_size};
     (*shader_module) = wgpuDeviceCreateShaderModule(context->device, &shaderDesc);
 
+    yfree_aligned(code, sizeof(char) * file_size+1, 4, MEMORY_TAG_ARRAY);
+
     return true;
 }

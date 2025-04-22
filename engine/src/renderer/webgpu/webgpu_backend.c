@@ -569,7 +569,7 @@ void webgpu_renderer_destroy_texture(TEXTURE* texture){
         wgpuSamplerRelease(data->sampler);
         data->sampler = 0;
 
-        yfree(texture->internal_data, sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+        yfree_aligned(texture->internal_data, sizeof(WEBGPU_TEXTURE_DATA), 4, MEMORY_TAG_TEXTURE);
     }
     
 

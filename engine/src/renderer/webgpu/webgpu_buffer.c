@@ -2,11 +2,11 @@
 
 #include "core/logger.h"
 #include "core/ymemory.h"
-#include "variants/freelist.h"
+#include "memory/freelist.h"
 
 void webgpu_buffer_cleanup_freelist(WEBGPU_BUFFER* buffer) {
     freelist_destroy(&buffer->buffer_freelist);
-    yfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
+    yfree_aligned(buffer->freelist_block, buffer->freelist_memory_requirement, 4, MEMORY_TAG_RENDERER);
     buffer->freelist_memory_requirement = 0;
     buffer->freelist_block = 0;
 }

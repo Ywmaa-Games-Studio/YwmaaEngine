@@ -107,7 +107,7 @@ b8 application_create(GAME* game_instance) {
 
     // Memory system must be the first thing to be stood up.
     MEMORY_SYSTEM_CONFIG memory_system_config = {};
-    memory_system_config.total_alloc_size = GIBIBYTES(1);
+    memory_system_config.total_alloc_size = MEBIBYTES(128);
     if (!memory_system_init(memory_system_config)) {
         PRINT_ERROR("Failed to initialize memory system; shutting down.");
         return false;
@@ -218,8 +218,8 @@ b8 application_create(GAME* game_instance) {
     app_state->test_geometry = geometry_system_acquire_from_config(g_config, true);
 
     // Clean up the allocations for the geometry config.
-    yfree(g_config.vertices, sizeof(Vertex3D) * g_config.vertex_count, MEMORY_TAG_ARRAY);
-    yfree(g_config.indices, sizeof(u32) * g_config.index_count, MEMORY_TAG_ARRAY);
+    yfree_aligned(g_config.vertices, sizeof(Vertex3D) * g_config.vertex_count, 4, MEMORY_TAG_ARRAY);
+    yfree_aligned(g_config.indices, sizeof(u32) * g_config.index_count, 4, MEMORY_TAG_ARRAY);
 
     // Load up default geometry.
     //app_state->test_geometry = geometry_system_get_default();
@@ -248,8 +248,8 @@ b8 application_run() {
     u8 frame_count = 0;
     f64 target_frame_seconds = 1.0f / 60;
 
-    //char* mem_usage = get_memory_usage_str();
-    //PRINT_INFO(mem_usage);
+    char* mem_usage = get_memory_usage_str();
+    PRINT_INFO(mem_usage);
     while (app_state->is_running) { // Game Loop
         if(!platform_pump_messages()) {
             app_state->is_running = false;

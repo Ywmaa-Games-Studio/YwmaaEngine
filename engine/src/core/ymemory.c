@@ -263,13 +263,13 @@ void* yset_memory(void* dest, i32 value, u64 size) {
 
 const char* get_unit_for_size(u64 size_bytes, f32* out_amount) {
     if (size_bytes >= GIBIBYTES(1)) {
-        *out_amount = (f64)size_bytes / GIBIBYTES(1);
+        *out_amount = (f64)size_bytes / (GIBIBYTES(1));
         return "GiB";
     } else if (size_bytes >= MEBIBYTES(1)) {
-        *out_amount = (f64)size_bytes / MEBIBYTES(1);
+        *out_amount = (f64)size_bytes / (MEBIBYTES(1));
         return "MiB";
     } else if (size_bytes >= KIBIBYTES(1)) {
-        *out_amount = (f64)size_bytes / KIBIBYTES(1);
+        *out_amount = (f64)size_bytes / (KIBIBYTES(1));
         return "KiB";
     } else {
         *out_amount = (f32)size_bytes;
@@ -281,16 +281,15 @@ char* get_memory_usage_str(void) {
     char buffer[8000] = "System memory use (tagged):\n";
     u64 offset = strlen(buffer);
     for (u32 i = 0; i < MEMORY_TAG_MAX_TAGS; ++i) {
-        f32 amounts[3] = {1.0f, 1.0f, 1.0f};
+        f64 amounts[3] = {1.0f, 1.0f, 1.0f};
         const char* units[3] = {
             get_unit_for_size(state_ptr->stats.tagged_allocations[i], &amounts[0]),
             get_unit_for_size(state_ptr->stats.new_tagged_allocations[i], &amounts[1]),
-            get_unit_for_size(state_ptr->stats.new_tagged_deallocations[i], &amounts[2])
-        };
+            get_unit_for_size(state_ptr->stats.new_tagged_deallocations[i], &amounts[2])};
 
         i32 length = snprintf(buffer + offset, 8000, "  %s: %-7.2f %-3s [+ %-7.2f %-3s | - %-7.2f%-3s]\n",
-            memory_tag_strings[i],
-            amounts[0], units[0], amounts[1], units[1], amounts[2], units[2]);
+                              memory_tag_strings[i],
+                              amounts[0], units[0], amounts[1], units[1], amounts[2], units[2]);
         offset += length;
     }
     yzero_memory(&state_ptr->stats.new_tagged_allocations, sizeof(state_ptr->stats.new_tagged_allocations));
@@ -315,7 +314,7 @@ char* get_memory_usage_str(void) {
 
         f64 percent_used = (f64)(used_space) / total_space;
 
-        i32 length = snprintf(buffer + offset, 8000, "Total memory usage: %.2f%s of %.2f%s (%.2f%%)\n", used_amount, used_unit, total_amount, total_unit, percent_used);
+        i32 length = snprintf(buffer + offset, 8000, "Total memory usage: %.2f %s of %.2f %s (%.2f%%)\n", used_amount, used_unit, total_amount, total_unit, percent_used);
         offset += length;
     }
 

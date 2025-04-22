@@ -2,7 +2,7 @@
 
 #include "core/ymemory.h"
 #include "core/logger.h"
-#include "variants/freelist.h"
+#include "memory/freelist.h"
 #include "core/asserts.h"
 
 typedef struct dynamic_allocator_state {

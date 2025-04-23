@@ -184,10 +184,10 @@ void create(VULKAN_CONTEXT* context, u32 width, u32 height, VULKAN_SWAPCHAIN* sw
     swapchain->image_count = 0;
     VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, 0));
     if (!swapchain->images) {
-        swapchain->images = (VkImage*)yallocate_aligned(sizeof(VkImage) * swapchain->image_count, 4, MEMORY_TAG_RENDERER);
+        swapchain->images = (VkImage*)yallocate_aligned(sizeof(VkImage) * swapchain->image_count, 8, MEMORY_TAG_RENDERER);
     }
     if (!swapchain->views) {
-        swapchain->views = (VkImageView*)yallocate_aligned(sizeof(VkImageView) * swapchain->image_count, 4, MEMORY_TAG_RENDERER);
+        swapchain->views = (VkImageView*)yallocate_aligned(sizeof(VkImageView) * swapchain->image_count, 8, MEMORY_TAG_RENDERER);
     }
     VK_CHECK(vkGetSwapchainImagesKHR(context->device.logical_device, swapchain->handle, &swapchain->image_count, swapchain->images));
 

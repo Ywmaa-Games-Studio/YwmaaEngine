@@ -107,7 +107,7 @@ b8 application_create(GAME* game_instance) {
 
     // Memory system must be the first thing to be stood up.
     MEMORY_SYSTEM_CONFIG memory_system_config = {};
-    memory_system_config.total_alloc_size = MEBIBYTES(128);
+    memory_system_config.total_alloc_size = MEBIBYTES(256);
     if (!memory_system_init(memory_system_config)) {
         PRINT_ERROR("Failed to initialize memory system; shutting down.");
         return false;

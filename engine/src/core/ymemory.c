@@ -4,7 +4,7 @@
 #include "core/ystring.h"
 #include "core/asserts.h"
 #include "platform/platform.h"
-#include "memory/dynamic_allocator.h"
+#include "memory/hpha_allocator.h"
 
 // TODO: Custom string lib
 #include <string.h>
@@ -56,7 +56,7 @@ typedef struct MEMORY_SYSTEM_STATE {
     struct MEMORY_STATS stats;
     u64 alloc_count;
     u64 allocator_memory_requirement;
-    DYNAMIC_ALLOCATOR allocator;
+    HPHA_ALLOCATOR allocator;
     void* allocator_block;
 } MEMORY_SYSTEM_STATE;
 
@@ -68,13 +68,22 @@ b8 memory_system_init(MEMORY_SYSTEM_CONFIG config) {
     // The amount needed by the system state.
     u64 state_memory_requirement = sizeof(MEMORY_SYSTEM_STATE);
 
-    // Figure out how much space the dynamic allocator needs.
+    // Configure HPHA with default percentages
+    HPHA_CONFIG hpha_config = {
+        .small_percentage = HPHA_DEFAULT_SMALL_PCT,
+        .medium_percentage = HPHA_DEFAULT_MEDIUM_PCT,
+        .large_percentage = HPHA_DEFAULT_LARGE_PCT
+    };
+
+    // Calculate HPHA requirements
     u64 alloc_requirement = 0;
-    dynamic_allocator_create(config.total_alloc_size, &alloc_requirement, 0, 0);
+    if (!hpha_allocator_create(config.total_alloc_size, hpha_config, &alloc_requirement, 0, 0)) {
+        PRINT_ERROR("Failed to calculate HPHA requirements");
+        return false;
+    }
 
     // Call the platform allocator to get the memory for the whole system, including the state.
-    // TODO: memory alignment
-    void* block = platform_allocate(state_memory_requirement + alloc_requirement, true);
+    void* block = platform_allocate(alloc_requirement, false);
     if (!block) {
         PRINT_ERROR("Memory system allocation failed and the system cannot continue.");
         return false;
@@ -89,12 +98,10 @@ b8 memory_system_init(MEMORY_SYSTEM_CONFIG config) {
     // The allocator block is in the same block of memory, but after the state.
     state_ptr->allocator_block = ((void*)block + state_memory_requirement);
 
-    if (!dynamic_allocator_create(
-            config.total_alloc_size,
-            &state_ptr->allocator_memory_requirement,
-            state_ptr->allocator_block,
-            &state_ptr->allocator)) {
-        PRINT_ERROR("Memory system is unable to setup internal allocator. Application cannot continue.");
+    // Initialize HPHA
+    if (!hpha_allocator_create(config.total_alloc_size, hpha_config, &alloc_requirement, state_ptr->allocator_block, &state_ptr->allocator)) {
+        PRINT_ERROR("Failed to initialize HPHA");
+        platform_free(state_ptr->allocator_block, false);
         return false;
     }
 #else
@@ -110,7 +117,7 @@ b8 memory_system_init(MEMORY_SYSTEM_CONFIG config) {
 
 void memory_system_shutdown() {
     if (state_ptr) {
-        dynamic_allocator_destroy(&state_ptr->allocator);
+        hpha_allocator_destroy(&state_ptr->allocator);
         // Free the entire block.
         platform_free(state_ptr, state_ptr->allocator_memory_requirement + sizeof(MEMORY_SYSTEM_STATE));
     }
@@ -128,35 +135,30 @@ void* yallocate_aligned(u64 size, u16 alignment, E_MEMORY_TAG tag) {
         PRINT_WARNING("yallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
 
-    // Either allocate from the system's allocator or the OS. The latter shouldn't ever
-    // really happen.
-    void* block = 0;
-    if (state_ptr) {
-        // FIXME: Track aligned alloc offset as part of size.
-        state_ptr->stats.total_allocated += size;
-        state_ptr->stats.tagged_allocations[tag] += size;
-        state_ptr->stats.new_tagged_allocations[tag] += size;
-        state_ptr->alloc_count++;
-
-#if Y_USE_CUSTOM_MEMORY_ALLOCATOR
-        block = dynamic_allocator_allocate_aligned(&state_ptr->allocator, size, alignment);
-#else
-        block = yaligned_alloc(size, alignment);
-#endif
-    } else {
+    if (!state_ptr) {
         // If the system is not up yet, warn about it but give memory for now.
-        /* KTRACE("Warning: kallocate_aligned called before the memory system is initialized."); */
+        /* PRINT_TRACE("Warning: yallocate_aligned called before the memory system is initialized."); */
         // TODO: Memory alignment
-        block = platform_allocate(size, false);
-    }
-
-    if (block) {
-        platform_zero_memory(block, size);
+        void* block = platform_allocate(size, false);
         return block;
     }
 
-    PRINT_ERROR("kallocate_aligned failed to allocate successfully.");
-    return 0;
+    // Track stats
+    yallocate_report(size, tag);
+    
+#if Y_USE_CUSTOM_MEMORY_ALLOCATOR
+    void* block = hpha_allocate(&state_ptr->allocator, size, alignment);
+#else
+    void* block = yaligned_alloc(size, alignment);
+#endif
+    // Use HPHA for allocation
+    if (!block) {
+        PRINT_ERROR("Allocation failed for size %llu", size);
+        return 0;
+    }
+    
+    platform_zero_memory(block, size);
+    return block;
 }
 
 void yfree_report(u64 size, E_MEMORY_TAG tag) {
@@ -168,7 +170,7 @@ void yfree_report(u64 size, E_MEMORY_TAG tag) {
 
 b8 ymemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment) {
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
-    b8 result = dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, out_size, out_alignment);
+    b8 result = hpha_get_size_alignment(&state_ptr->allocator, block, out_size, out_alignment);
 #else
     *out_size = 0;
     *out_alignment = 1;
@@ -209,27 +211,31 @@ void yfree(void* block, u64 size, E_MEMORY_TAG tag) {
 
 void yfree_aligned(void* block, u64 size, u16 alignment, E_MEMORY_TAG tag) {
     if (tag == MEMORY_TAG_UNKNOWN) {
-        PRINT_WARNING("kfree_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
+        PRINT_WARNING("yfree_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
     if (state_ptr) {
+        // Track stats
+        yfree_report(size, tag);
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
-        u64 osize = 0;
-        u16 oalignment = 0;
-        dynamic_allocator_get_size_alignment(&state_ptr->allocator, block, &osize, &oalignment);
-        if (osize != size) {
-            printf("Free size mismatch! (original=%llu, requested=%llu)\n", osize, size);
+    u64 actual_size;
+    u16 actual_alignment;
+    if (hpha_get_size_alignment(&state_ptr->allocator, block, &actual_size, &actual_alignment)) {
+        if (actual_size != size) {
+            PRINT_WARNING("Size mismatch on free (actual: %llu, requested: %llu)", 
+                actual_size, size);
         }
-        if (oalignment != alignment) {
-            printf("Free alignment mismatch! (original=%hu, requested=%hu)\n", oalignment, alignment);
+        if (actual_alignment != alignment) {
+            PRINT_WARNING("Alignment mismatch on free (actual: %hu, requested: %hu)",
+                actual_alignment, alignment);
         }
+    }
 #endif
-
-        state_ptr->stats.total_allocated -= size;
-        state_ptr->stats.tagged_allocations[tag] -= size;
-        state_ptr->stats.new_tagged_deallocations[tag] += size;
-        state_ptr->alloc_count--;
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
-        b8 result = dynamic_allocator_free_aligned(&state_ptr->allocator, block);
+        // Use HPHA for freeing
+        b8 result = hpha_free(&state_ptr->allocator, block);
+        if (!result) {
+            PRINT_ERROR("Failed to free memory block in custom allocator %p", block);
+        }
 #else
         yaligned_free(block);
         b8 result = true;
@@ -261,7 +267,7 @@ void* yset_memory(void* dest, i32 value, u64 size) {
     return platform_set_memory(dest, value, size);
 }
 
-const char* get_unit_for_size(u64 size_bytes, f32* out_amount) {
+const char* get_unit_for_size(u64 size_bytes, f64* out_amount) {
     if (size_bytes >= GIBIBYTES(1)) {
         *out_amount = (f64)size_bytes / (GIBIBYTES(1));
         return "GiB";
@@ -272,7 +278,7 @@ const char* get_unit_for_size(u64 size_bytes, f32* out_amount) {
         *out_amount = (f64)size_bytes / (KIBIBYTES(1));
         return "KiB";
     } else {
-        *out_amount = (f32)size_bytes;
+        *out_amount = (f64)size_bytes;
         return "B";
     }
 }
@@ -297,25 +303,83 @@ char* get_memory_usage_str(void) {
     {
 // Compute total usage.
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
-        u64 total_space = dynamic_allocator_total_space(&state_ptr->allocator);
-        u64 free_space = dynamic_allocator_free_space(&state_ptr->allocator);
+        // Add HPHA usage report
+        u64 small_free, medium_free, large_free;
+        hpha_allocator_free_space(&state_ptr->allocator, &small_free, &medium_free, &large_free);
+        
+        u64 small_total, medium_total, large_total;
+        hpha_allocator_total_space(&state_ptr->allocator, &small_total, &medium_total, &large_total);
+        u64 small_used_space = small_total - small_free;
+        u64 medium_used_space = medium_total - medium_free;
+        u64 large_used_space = large_total - large_free;
+
+
+        u64 total_space = small_total + medium_total + large_total;
+        u64 free_space = small_free + medium_free + large_free;
         u64 used_space = total_space - free_space;
+
+
 #else
+        u64 small_free, medium_free, large_free;
+        u64 small_total, medium_total, large_total;
+
+        small_free = 0;
+        medium_free = 0;
+        large_free = 0;
+        small_total = 0;
+        medium_total = 0;
+        large_total = 0;
         u64 total_space = 0;
         // u64 free_space = 0;
         u64 used_space = 0;
 #endif
 
-        f32 used_amount = 1.0f;
+        f64 used_amount = 1.0f;
         const char* used_unit = get_unit_for_size(used_space, &used_amount);
 
-        f32 total_amount = 1.0f;
+        f64 total_amount = 1.0f;
         const char* total_unit = get_unit_for_size(total_space, &total_amount);
 
-        f64 percent_used = (f64)(used_space) / total_space;
+        f64 percent_used = (f64)(used_space) / (f64)total_space * 100;
 
         i32 length = snprintf(buffer + offset, 8000, "Total memory usage: %.2f %s of %.2f %s (%.2f%%)\n", used_amount, used_unit, total_amount, total_unit, percent_used);
         offset += length;
+
+        f64 small_used_amount = 1.0f;
+        const char* small_used_unit = get_unit_for_size(small_used_space, &small_used_amount);
+
+        f64 small_total_amount = 1.0f;
+        const char* small_total_unit = get_unit_for_size(small_total, &small_total_amount);
+
+        f64 small_percent_used = (f64)(small_used_space) / (f64)small_total * 100;
+
+        i32 small_length = snprintf(buffer + offset, 8000, "Small Pool Total memory usage: %.2f %s of %.2f %s (%.2f%%)\n", small_used_amount, small_used_unit, small_total_amount, small_total_unit, small_percent_used);
+        offset += small_length;
+
+        f64 medium_used_amount = 1.0f;
+        const char* medium_used_unit = get_unit_for_size(medium_used_space, &medium_used_amount);
+
+        f64 medium_total_amount = 1.0f;
+        const char* medium_total_unit = get_unit_for_size(medium_total, &medium_total_amount);
+
+        f64 medium_percent_used = (f64)(medium_used_space) / (f64)medium_total * 100;
+
+        i32 medium_length = snprintf(buffer + offset, 8000, "Medium Pool Total memory usage: %.2f %s of %.2f %s (%.2f%%)\n", medium_used_amount, medium_used_unit, medium_total_amount, medium_total_unit, medium_percent_used);
+        offset += medium_length;
+
+        f64 large_used_amount = 1.0f;
+        const char* large_used_unit = get_unit_for_size(large_used_space, &large_used_amount);
+
+        f64 large_total_amount = 1.0f;
+        const char* large_total_unit = get_unit_for_size(large_total, &large_total_amount);
+
+        f64 large_percent_used = (f64)(large_used_space) / (f64)large_total * 100;
+
+        i32 large_length = snprintf(buffer + offset, 8000, "Large Pool Total memory usage: %.2f %s of %.2f %s (%.2f%%)\n", large_used_amount, large_used_unit, large_total_amount, large_total_unit, large_percent_used);
+        offset += large_length;
+
+        
+
     }
 
     

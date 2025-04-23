@@ -32,7 +32,7 @@ b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader
     }
 
     // Read the entire file as binary.
-    char* code = yallocate_aligned(sizeof(char) * file_size+1, 4, MEMORY_TAG_ARRAY);
+    char* code = yallocate_aligned(sizeof(char) * file_size+1, 8, MEMORY_TAG_ARRAY);
     u64 read_size = 0;
     if (!filesystem_read_all_text(&handle, code, &read_size)) {
         PRINT_ERROR("Unable to text read shader module %s.", file_name);
@@ -49,7 +49,7 @@ b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader
     shaderCodeDesc.code = (WGPUStringView){code, read_size};
     (*shader_module) = wgpuDeviceCreateShaderModule(context->device, &shaderDesc);
 
-    yfree_aligned(code, sizeof(char) * file_size+1, 4, MEMORY_TAG_ARRAY);
+    yfree_aligned(code, sizeof(char) * file_size+1, 8, MEMORY_TAG_ARRAY);
 
     return true;
 }

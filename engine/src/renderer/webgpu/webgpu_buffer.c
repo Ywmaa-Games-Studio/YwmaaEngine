@@ -6,7 +6,7 @@
 
 void webgpu_buffer_cleanup_freelist(WEBGPU_BUFFER* buffer) {
     freelist_destroy(&buffer->buffer_freelist);
-    yfree_aligned(buffer->freelist_block, buffer->freelist_memory_requirement, 4, MEMORY_TAG_RENDERER);
+    yfree_aligned(buffer->freelist_block, buffer->freelist_memory_requirement, 8, MEMORY_TAG_RENDERER);
     buffer->freelist_memory_requirement = 0;
     buffer->freelist_block = 0;
 }
@@ -24,7 +24,7 @@ b8 webgpu_buffer_create(
     // Create a new freelist
     out_buffer->freelist_memory_requirement = 0;
     freelist_create(size, &out_buffer->freelist_memory_requirement, 0, 0);
-    out_buffer->freelist_block = yallocate_aligned(out_buffer->freelist_memory_requirement, 4, MEMORY_TAG_RENDERER);
+    out_buffer->freelist_block = yallocate_aligned(out_buffer->freelist_memory_requirement, 8, MEMORY_TAG_RENDERER);
     freelist_create(size, &out_buffer->freelist_memory_requirement, out_buffer->freelist_block, &out_buffer->buffer_freelist);
 
 

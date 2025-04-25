@@ -295,6 +295,9 @@ void vulkan_material_shader_apply_material(VULKAN_CONTEXT* context, struct VULKA
     f32 s = (ysin(accumulator) + 1.0f) / 2.0f;  // scale from -1, 1 to 0, 1
     obo.diffuse_color = Vector4_create(s, s, s, 1.0f); */
     obo.diffuse_color = material->diffuse_colour;
+    obo.v_reserved0 = Vector4_zero();
+    obo.v_reserved1 = Vector4_zero();
+    obo.v_reserved2 = Vector4_zero();
 
     // Load the data into the buffer.
     vulkan_buffer_load_data(context, &shader->object_uniform_buffer, offset, range, 0, &obo);
@@ -306,6 +309,8 @@ void vulkan_material_shader_apply_material(VULKAN_CONTEXT* context, struct VULKA
         buffer_info.buffer = shader->object_uniform_buffer.handle;
         buffer_info.offset = offset;
         buffer_info.range = range;
+
+        PRINT_DEBUG("Updating descriptor set %d, binding %d, offset %d, range %d", object_descriptor_set, descriptor_index, offset, range);
 
         VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         descriptor.dstSet = object_descriptor_set;

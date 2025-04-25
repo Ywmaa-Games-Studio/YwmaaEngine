@@ -904,7 +904,7 @@ void vulkan_setup_debugger(){
 void vulkan_renderer_create_texture(const u8* pixels, TEXTURE* texture) {
     // Internal data creation.
     // TODO: Use an allocator for this.
-    texture->internal_data = (VULKAN_TEXTURE_DATA*)yallocate_aligned(sizeof(VULKAN_TEXTURE_DATA), 4, MEMORY_TAG_TEXTURE);
+    texture->internal_data = (VULKAN_TEXTURE_DATA*)yallocate(sizeof(VULKAN_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
     VULKAN_TEXTURE_DATA* data = (VULKAN_TEXTURE_DATA*)texture->internal_data;
     VkDeviceSize image_size = texture->width * texture->height * texture->channel_count;
     
@@ -1004,7 +1004,7 @@ void vulkan_renderer_destroy_texture(struct TEXTURE* texture) {
         vkDestroySampler(context.device.logical_device, data->sampler, context.allocator);
         data->sampler = 0;
 
-        yfree_aligned(texture->internal_data, sizeof(VULKAN_TEXTURE_DATA), 4, MEMORY_TAG_TEXTURE);
+        yfree(texture->internal_data, sizeof(VULKAN_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
     }
     yzero_memory(texture, sizeof(struct TEXTURE));
 }

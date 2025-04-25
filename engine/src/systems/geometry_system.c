@@ -249,9 +249,9 @@ GEOMETRY_CONFIG geometry_system_generate_plane_config(f32 width, f32 height, u32
 
     GEOMETRY_CONFIG config;
     config.vertex_count = x_segment_count * y_segment_count * 4;  // 4 verts per segment
-    config.vertices = yallocate_aligned(sizeof(Vertex3D) * config.vertex_count, 4, MEMORY_TAG_ARRAY);
+    config.vertices = yallocate(sizeof(Vertex3D) * config.vertex_count, MEMORY_TAG_ARRAY);
     config.index_count = x_segment_count * y_segment_count * 6;  // 6 indices per segment
-    config.indices = yallocate_aligned(sizeof(u32) * config.index_count, 4, MEMORY_TAG_ARRAY);
+    config.indices = yallocate(sizeof(u32) * config.index_count, MEMORY_TAG_ARRAY);
 
     // TODO: This generates extra vertices, but we can always deduplicate them later.
     f32 seg_width = width / x_segment_count;

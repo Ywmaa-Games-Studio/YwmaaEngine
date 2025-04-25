@@ -24,5 +24,3 @@ YAPI b8 dynamic_allocator_get_size_alignment(DYNAMIC_ALLOCATOR* allocator, void*
 YAPI u64 dynamic_allocator_free_space(DYNAMIC_ALLOCATOR* allocator);
 
 YAPI u64 dynamic_allocator_total_space(DYNAMIC_ALLOCATOR* allocator);
-
-YAPI u64 dynamic_allocator_header_size(void);

@@ -7,12 +7,16 @@
 
 // Externally-defined function to create a game.
 extern b8 create_game(GAME* out_game);
+void run_benchmarks();
 
 /**
  * The main entry point of the application in C.
  * This is actually called from the main function in main.zig
  */
 int engine_main(E_RENDERER_BACKEND_API renderer_backend_api) {
+    // I use this to quickly test the memory system.
+/*     run_benchmarks();
+    return 0; */
     
     // Request the game instance from the application.
     GAME game_instance;

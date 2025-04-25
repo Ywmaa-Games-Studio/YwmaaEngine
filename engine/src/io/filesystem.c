@@ -109,7 +109,7 @@ b8 filesystem_read_all_bytes(FILE_HANDLE* handle, u8** out_bytes, u64* out_bytes
         u64 size = ftell((FILE*)handle->handle);
         rewind((FILE*)handle->handle);
 
-        *out_bytes = yallocate_aligned(sizeof(u8) * size, 8, MEMORY_TAG_STRING);
+        *out_bytes = yallocate(sizeof(u8) * size, MEMORY_TAG_STRING);
         *out_bytes_read = fread(*out_bytes, 1, size, (FILE*)handle->handle);
         if (*out_bytes_read != size) {
             return false;

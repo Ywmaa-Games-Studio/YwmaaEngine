@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.23 -04:59
  * Last edited:
- *   2025.04.23 -05:01
+ *   2025.04.24 -23:42
  * Auto updated?
  *   Yes
  *
@@ -19,15 +19,21 @@
 // this is a basic implementation of the HPHA allocator(High-Performance Heap Allocator) inspired by O3DE
 // currently it just creates different pools using the dynamic allocator, each uses a freelist.
 // but in the future I might need to tweak the pool system perhaps if the freelists aren't enough.
+// and currently the HPHA allocator is not thread safe.
+// also adding a true object pool system would be a good idea.
+// and the fallback should probably be a custom allocator instead of the platform one.
+// perhaphs we allocate double the size of the current total size each time we run out of memory.
+// or allocate small chunks of memory which size is set by the engine user in the config.
+// this is a work in progress and should be treated as such.
 
 // Size class thresholds (adjust as needed)
-#define HPHA_SMALL_MAX 4096    // 4KB
-#define HPHA_MEDIUM_MAX 1048576 // 1MB
+#define HPHA_SMALL_MAX (KIBIBYTES(1))    // 1KB
+#define HPHA_MEDIUM_MAX (MEBIBYTES(1)) // 1MB
 
 // Default allocation percentages
-#define HPHA_DEFAULT_SMALL_PCT  20  // 20% for small allocations (<=4KB)
+#define HPHA_DEFAULT_SMALL_PCT  30  // 20% for small allocations (<=1KB)
 #define HPHA_DEFAULT_MEDIUM_PCT 50  // 50% for medium allocations (4KB-1MB)
-#define HPHA_DEFAULT_LARGE_PCT  30  // 30% for large allocations (>1MB)
+#define HPHA_DEFAULT_LARGE_PCT  20  // 30% for large allocations (>1MB)
 
 typedef struct HPHA_CONFIG {
     u8 small_percentage;   // Percentage for small allocations

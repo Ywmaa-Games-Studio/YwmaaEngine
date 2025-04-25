@@ -39,12 +39,13 @@ void webgpu_image_create(
     // Create view
     if (create_view) {
         out_image->view = 0;
-        webgpu_image_view_create(format, out_image, view_aspect_flags);
+        webgpu_image_view_create(format, usage, out_image, view_aspect_flags);
     }
 }
 
 void webgpu_image_view_create(
     WGPUTextureFormat format,
+    WGPUTextureUsage usage,
     WEBGPU_IMAGE* image,
     WGPUTextureAspect aspect_flags) {
 
@@ -58,6 +59,7 @@ void webgpu_image_view_create(
     textureViewDesc.mipLevelCount = 1;
     textureViewDesc.dimension = WGPUTextureViewDimension_2D; // TODO: Make configurable.
     textureViewDesc.format = format;
+    textureViewDesc.usage = usage;
     image->view = wgpuTextureCreateView(image->handle, &textureViewDesc);
 }
 

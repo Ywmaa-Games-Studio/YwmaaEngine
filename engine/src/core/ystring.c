@@ -32,7 +32,7 @@ char* string_duplicate(const char* str) {
     // This is a bit of a hack, but it works.
     // The +1 is for the null terminator.
     u64 length_rounded = ((length / 64) + 1) * 64;
-    char* copy = yallocate_aligned(length_rounded, 4, MEMORY_TAG_STRING);
+    char* copy = yallocate(length_rounded, MEMORY_TAG_STRING);
     ycopy_memory(copy, str, length);
     copy[length_rounded] = 0;
     return copy;

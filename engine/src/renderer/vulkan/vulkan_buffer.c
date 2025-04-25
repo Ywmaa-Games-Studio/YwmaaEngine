@@ -10,7 +10,7 @@
 
 void cleanup_freelist(VULKAN_BUFFER* buffer) {
     freelist_destroy(&buffer->buffer_freelist);
-    yfree_aligned(buffer->freelist_block, buffer->freelist_memory_requirement, 8, MEMORY_TAG_RENDERER);
+    yfree(buffer->freelist_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
     buffer->freelist_memory_requirement = 0;
     buffer->freelist_block = 0;
 }
@@ -30,7 +30,7 @@ b8 vulkan_buffer_create(
     // Create a new freelist
     out_buffer->freelist_memory_requirement = 0;
     freelist_create(size, &out_buffer->freelist_memory_requirement, 0, 0);
-    out_buffer->freelist_block = yallocate_aligned(out_buffer->freelist_memory_requirement, 8, MEMORY_TAG_RENDERER);
+    out_buffer->freelist_block = yallocate(out_buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
     freelist_create(size, &out_buffer->freelist_memory_requirement, out_buffer->freelist_block, &out_buffer->buffer_freelist);
 
     VkBufferCreateInfo buffer_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
@@ -114,11 +114,11 @@ b8 vulkan_buffer_resize(
     void* old_block = 0;
     if (!freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, new_block, new_size, &old_block)) {
         PRINT_ERROR("vulkan_buffer_resize failed to resize internal free list.");
-        yfree_aligned(new_block, new_memory_requirement, 8, MEMORY_TAG_RENDERER);
+        yfree(new_block, new_memory_requirement, MEMORY_TAG_RENDERER);
         return false;
     }
     // Clean up the old memory, then assign the new properties over.
-    yfree_aligned(old_block, buffer->freelist_memory_requirement, 8, MEMORY_TAG_RENDERER);
+    yfree(old_block, buffer->freelist_memory_requirement, MEMORY_TAG_RENDERER);
     buffer->freelist_memory_requirement = new_memory_requirement;
     buffer->freelist_block = new_block;
     buffer->total_size = new_size;

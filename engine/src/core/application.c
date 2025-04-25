@@ -107,14 +107,18 @@ b8 application_create(GAME* game_instance) {
 
     // Memory system must be the first thing to be stood up.
     MEMORY_SYSTEM_CONFIG memory_system_config = {};
-    memory_system_config.total_alloc_size = MEBIBYTES(256);
+    memory_system_config.total_alloc_size = MEBIBYTES(512);
     if (!memory_system_init(memory_system_config)) {
         PRINT_ERROR("Failed to initialize memory system; shutting down.");
         return false;
     }
 
     // Allocate the game state.
-    game_instance->state = yallocate_aligned(game_instance->state_memory_requirement, 8, MEMORY_TAG_GAME);
+    // TODO:
+    //should I make the linear allocator switch to malloc instead of using the engine's allocator?
+    // mainly the reasons for this is that we won't track its allocations, it is almost static
+    // and it consumes the large pool
+    game_instance->state = yallocate(game_instance->state_memory_requirement, MEMORY_TAG_GAME);
 
     game_instance->application_state = yallocate(sizeof(APPLICATION_STATE), MEMORY_TAG_APPLICATION);
     app_state = game_instance->application_state;
@@ -218,8 +222,8 @@ b8 application_create(GAME* game_instance) {
     app_state->test_geometry = geometry_system_acquire_from_config(g_config, true);
 
     // Clean up the allocations for the geometry config.
-    yfree_aligned(g_config.vertices, sizeof(Vertex3D) * g_config.vertex_count, 4, MEMORY_TAG_ARRAY);
-    yfree_aligned(g_config.indices, sizeof(u32) * g_config.index_count, 4, MEMORY_TAG_ARRAY);
+    yfree(g_config.vertices, sizeof(Vertex3D) * g_config.vertex_count, MEMORY_TAG_ARRAY);
+    yfree(g_config.indices, sizeof(u32) * g_config.index_count, MEMORY_TAG_ARRAY);
 
     // Load up default geometry.
     //app_state->test_geometry = geometry_system_get_default();
@@ -424,3 +428,5 @@ b8 application_on_resized(u16 code, void* sender, void* listener_inst, EVENT_CON
     // Event purposely not handled to allow other listeners to get this.
     return false;
 }
+
+

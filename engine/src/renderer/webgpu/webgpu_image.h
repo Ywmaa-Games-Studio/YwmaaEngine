@@ -16,6 +16,7 @@ void webgpu_image_create(
 
 void webgpu_image_view_create(
     WGPUTextureFormat format,
+    WGPUTextureUsage usage,
     WEBGPU_IMAGE* image,
     WGPUTextureAspect aspect_flags);
 

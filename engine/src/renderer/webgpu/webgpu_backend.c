@@ -522,7 +522,7 @@ void webgpu_destroy_buffers(WEBGPU_CONTEXT* context){
 void webgpu_renderer_create_texture(const u8* pixels, TEXTURE* texture){
     // Internal data creation.
     // TODO: Use an allocator for this.
-    texture->internal_data = (WEBGPU_TEXTURE_DATA*)yallocate_aligned(sizeof(WEBGPU_TEXTURE_DATA), 8, MEMORY_TAG_TEXTURE);
+    texture->internal_data = (WEBGPU_TEXTURE_DATA*)yallocate(sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
     WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)texture->internal_data;
 
     webgpu_image_create(
@@ -569,7 +569,7 @@ void webgpu_renderer_destroy_texture(TEXTURE* texture){
         wgpuSamplerRelease(data->sampler);
         data->sampler = 0;
 
-        yfree_aligned(texture->internal_data, sizeof(WEBGPU_TEXTURE_DATA), 8, MEMORY_TAG_TEXTURE);
+        yfree(texture->internal_data, sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
     }
     
 

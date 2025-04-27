@@ -36,7 +36,7 @@ static PLATFORM_STATE *state_ptr;
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 
-void clock_setup() {
+void clock_setup(void) {
     LARGE_INTEGER frequency;
     QueryPerformanceFrequency(&frequency);
     clock_frequency = 1.0 / (f64)frequency.QuadPart;
@@ -142,7 +142,7 @@ void platform_system_shutdown(void *plat_state) {
     }
 }
 
-b8 platform_pump_messages() {
+b8 platform_pump_messages(void) {
     if (state_ptr) {
         MSG message;
         while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE)) {
@@ -184,7 +184,7 @@ void platform_console_write(const char *message, u8 colour) {
     WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), message, (DWORD)length, number_written, 0);
 }
 
-f64 platform_get_absolute_time() {
+f64 platform_get_absolute_time(void) {
     if (!clock_frequency) {
         clock_setup();
     }
@@ -197,10 +197,12 @@ f64 platform_get_absolute_time() {
 void platform_sleep(u64 ms) {
     Sleep(ms);
 }
-
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpedantic"
 void platform_get_required_extension_names(const char ***names_darray) {
     darray_push(*names_darray, &"VK_KHR_win32_surface");
 }
+#pragma clang diagnostic pop
 
 // Surface creation for Vulkan
 b8 platform_create_vulkan_surface(VULKAN_CONTEXT *context) {
@@ -244,7 +246,7 @@ b8 platform_create_webgpu_surface(WEBGPU_CONTEXT *context) {
 }
 
 E_KEYS split_code_left_right(b8 pressed, i32 in_left, i32 in_right, E_KEYS out_left, E_KEYS out_right) {
-    E_KEYS key;
+    E_KEYS key = KEYS_MAX_KEYS;
     if (pressed) {
         if (GetKeyState(in_right) & 0x8000) {
             key = out_right;
@@ -268,8 +270,10 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
             return 1;
         case WM_CLOSE:
             // TODO: Fire an event for the application to quit.
-            EVENT_CONTEXT data = {};
-            event_fire(EVENT_CODE_APPLICATION_QUIT, 0, data);
+            {            
+                EVENT_CONTEXT data = {0};
+                event_fire(EVENT_CODE_APPLICATION_QUIT, 0, data);
+            }
             return 0;
         case WM_DESTROY:
             PostQuitMessage(0);

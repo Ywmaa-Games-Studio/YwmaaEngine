@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   2025.04.15 -05:35
+ *   2025.04.27 -06:11
  * Auto updated?
  *   Yes
  *
@@ -98,7 +98,7 @@ void platform_system_shutdown(void* platform_state) {
     state_ptr = NULL;
 }
 
-b8 platform_pump_messages() {
+b8 platform_pump_messages(void) {
     switch (active_backend) {
         case PLATFORM_BACKEND_WAYLAND:
             #ifdef WAYLAND_ENABLED
@@ -113,23 +113,14 @@ b8 platform_pump_messages() {
     }
     return false;
 }
-
 // Platform-specific function that returns required extension names based on the active backend
 void platform_get_required_extension_names(const char*** names_darray) {
     // Return appropriate extensions based on active backend
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpedantic"
     darray_push(*names_darray, &"VK_KHR_wayland_surface");
     darray_push(*names_darray, &"VK_KHR_xcb_surface");  // VK_KHR_xlib_surface?
-/*     switch (active_backend) {
-        case PLATFORM_BACKEND_WAYLAND:
-            #ifdef WAYLAND_ENABLED
-            darray_push(*names_darray, &"VK_KHR_wayland_surface");
-            #endif
-            break;
-        case PLATFORM_BACKEND_X11:
-        default:
-            darray_push(*names_darray, &"VK_KHR_xcb_surface");  // VK_KHR_xlib_surface?
-            break;
-    } */
+#pragma clang diagnostic pop
 }
 
 // Vulkan surface creation based on active backend
@@ -198,7 +189,7 @@ void platform_console_write(const char* message, u8 colour) {
     printf("\033[%sm%s\033[0m", colour_strings[colour], message);
 }
 
-f64 platform_get_absolute_time() {
+f64 platform_get_absolute_time(void) {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     return now.tv_sec + now.tv_nsec * 0.000000001;
@@ -407,7 +398,7 @@ void platform_x11_system_shutdown(void* platform_state) {
     }
 }
 
-b8 platform_x11_pump_messages() {
+b8 platform_x11_pump_messages(void) {
     if (state_ptr) {
         PLATFORM_STATE* state = (PLATFORM_STATE*)state_ptr;
         xcb_generic_event_t* event;
@@ -1406,7 +1397,7 @@ void platform_wayland_system_shutdown(void* platform_state) {
     PRINT_INFO("Wayland platform shutdown complete");
 }
 
-b8 platform_wayland_pump_messages() {
+b8 platform_wayland_pump_messages(void) {
     if (!state_ptr) {
         return false;
     }

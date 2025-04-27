@@ -156,7 +156,7 @@ b8 select_physical_device(VULKAN_CONTEXT* context) {
 
         // TODO: These requirements should probably be driven by engine
         // configuration.
-        VULKAN_PHYSICAL_DEVICE_REQUIREMENTS requirements = {};
+        VULKAN_PHYSICAL_DEVICE_REQUIREMENTS requirements = {0};
         requirements.graphics = true;
         requirements.present = true;
         requirements.transfer = true;
@@ -169,9 +169,11 @@ b8 select_physical_device(VULKAN_CONTEXT* context) {
         requirements.discrete_gpu = true;
 #endif
         requirements.device_extension_names = darray_create(const char*);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpedantic"
         darray_push(requirements.device_extension_names, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-
-        VULKAN_PHYSICAL_DEVICE_QUEUE_FAMILY_INFO queue_info = {};
+#pragma clang diagnostic pop
+        VULKAN_PHYSICAL_DEVICE_QUEUE_FAMILY_INFO queue_info = {0};
         b8 result = physical_device_meets_requirements(
             physical_devices[i],
             context->surface,
@@ -341,10 +343,10 @@ b8 physical_device_meets_requirements(
 
         if (out_swapchain_support->format_count < 1 || out_swapchain_support->present_mode_count < 1) {
             if (out_swapchain_support->formats) {
-                yfree(out_swapchain_support->formats, sizeof(VkSurfaceFormatKHR) * out_swapchain_support->format_count, MEMORY_TAG_RENDERER);
+                yfree(out_swapchain_support->formats, MEMORY_TAG_RENDERER);
             }
             if (out_swapchain_support->present_modes) {
-                yfree(out_swapchain_support->present_modes, sizeof(VkPresentModeKHR) * out_swapchain_support->present_mode_count, MEMORY_TAG_RENDERER);
+                yfree(out_swapchain_support->present_modes, MEMORY_TAG_RENDERER);
             }
             PRINT_INFO("Required swapchain support not present, skipping device.");
             return false;
@@ -379,12 +381,12 @@ b8 physical_device_meets_requirements(
 
                     if (!found) {
                         PRINT_INFO("Required extension not found: '%s', skipping device.", requirements->device_extension_names[i]);
-                        yfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
+                        yfree(available_extensions, MEMORY_TAG_RENDERER);
                         return false;
                     }
                 }
             }
-            yfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
+            yfree(available_extensions, MEMORY_TAG_RENDERER);
         }
 
         // Sampler anisotropy
@@ -439,7 +441,7 @@ void create_logical_device(VULKAN_CONTEXT* context){
 
     // Request device features.
     // TODO: should be config driven
-    VkPhysicalDeviceFeatures device_features = {};
+    VkPhysicalDeviceFeatures device_features = {0};
     device_features.samplerAnisotropy = VK_TRUE;  // Request anistrophy
 
     b8 portability_required = false;
@@ -457,7 +459,7 @@ void create_logical_device(VULKAN_CONTEXT* context){
             }
         }
     }
-    yfree(available_extensions, sizeof(VkExtensionProperties) * available_extension_count, MEMORY_TAG_RENDERER);
+    yfree(available_extensions, MEMORY_TAG_RENDERER);
 
     u32 extension_count = portability_required ? 2 : 1;
     const char** extension_names = portability_required
@@ -542,7 +544,6 @@ void destroy_logical_device(VULKAN_CONTEXT* context){
     if (context->device.swapchain_support.formats) {
         yfree(
             context->device.swapchain_support.formats,
-            sizeof(VkSurfaceFormatKHR) * context->device.swapchain_support.format_count,
             MEMORY_TAG_RENDERER);
         context->device.swapchain_support.formats = 0;
         context->device.swapchain_support.format_count = 0;
@@ -551,7 +552,6 @@ void destroy_logical_device(VULKAN_CONTEXT* context){
     if (context->device.swapchain_support.present_modes) {
         yfree(
             context->device.swapchain_support.present_modes,
-            sizeof(VkPresentModeKHR) * context->device.swapchain_support.present_mode_count,
             MEMORY_TAG_RENDERER);
         context->device.swapchain_support.present_modes = 0;
         context->device.swapchain_support.present_mode_count = 0;

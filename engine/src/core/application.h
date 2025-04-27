@@ -29,7 +29,7 @@ typedef struct APPLICATION_CONFIG {
 
 YAPI b8 application_create(struct GAME* game_instance);
 
-YAPI b8 application_run();
+YAPI b8 application_run(void);
 
 
 void application_get_framebuffer_size(u32* width, u32* height);

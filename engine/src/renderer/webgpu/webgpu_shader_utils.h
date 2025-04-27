@@ -5,3 +5,4 @@
 b8 webgpu_create_shader_module(
     WEBGPU_CONTEXT* context,
     WGPUShaderModule* shader_module);
+

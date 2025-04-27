@@ -4,7 +4,7 @@
 // Created:
 //   2025.04.14 -20:32
 // Last edited:
-//   2025.04.15 -07:58
+//   2025.04.27 -09:06
 // Auto updated?
 //   Yes
 //
@@ -52,6 +52,11 @@ pub fn build(b: *std.Build) !void {
     const engine_flags = [_][]const u8{
         "-DYEXPORT",
         "-DDEBUG",
+        "-Wall",
+        "-Wpedantic",
+        "-Werror",
+        "-Wno-gnu", // Allow GNU extensions
+        "-Wno-missing-braces",
     };
     const testbed_flags = [_][]const u8{
         "-DYIMPORT",

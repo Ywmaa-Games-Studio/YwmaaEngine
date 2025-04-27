@@ -34,3 +34,4 @@ void webgpu_image_copy_from_buffer(
 
 
 void webgpu_image_destroy(WEBGPU_IMAGE* image);
+

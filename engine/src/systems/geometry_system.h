@@ -53,7 +53,7 @@ void geometry_system_release(GEOMETRY* geometry);
  * 
  * @return A pointer to the default geometry. 
  */
-GEOMETRY* geometry_system_get_default();
+GEOMETRY* geometry_system_get_default(void);
 
 /**
  * @brief Generates configuration for plane geometries given the provided parameters.

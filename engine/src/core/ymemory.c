@@ -115,7 +115,7 @@ b8 memory_system_init(MEMORY_SYSTEM_CONFIG config) {
     return true;
 }
 
-void memory_system_shutdown() {
+void memory_system_shutdown(void) {
     if (state_ptr) {
         hpha_allocator_destroy(&state_ptr->allocator);
         // Free the entire block.
@@ -168,9 +168,9 @@ void yfree_report(u64 size, E_MEMORY_TAG tag) {
     state_ptr->alloc_count--;
 }
 
-b8 ymemory_get_size_alignment(void* block, u64* out_size, u16* out_alignment) {
+b8 ymemory_get_size(void* block, u64* out_size) {
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
-    b8 result = hpha_get_size_alignment(&state_ptr->allocator, block, out_size, out_alignment);
+    b8 result = hpha_get_size(&state_ptr->allocator, block, out_size);
 #else
     *out_size = 0;
     *out_alignment = 1;
@@ -194,7 +194,7 @@ void* yreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment
     void* new_block = yallocate_aligned(new_size, alignment, tag);
     if (block && new_block) {
         ycopy_memory(new_block, block, old_size);
-        yfree_aligned(block, old_size, alignment, tag);
+        yfree(block, tag);
     }
     return new_block;
 }
@@ -205,39 +205,22 @@ void yreallocate_report(u64 old_size, u64 new_size, E_MEMORY_TAG tag) {
 }
 
 
-void yfree(void* block, u64 size, E_MEMORY_TAG tag) {
-    yfree_aligned(block, size, 1, tag);
-}
-
-void yfree_aligned(void* block, u64 size, u16 alignment, E_MEMORY_TAG tag) {
+void yfree(void* block, E_MEMORY_TAG tag) {
     if (tag == MEMORY_TAG_UNKNOWN) {
-        PRINT_WARNING("yfree_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
+        PRINT_WARNING("yfree called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
     if (state_ptr) {
+#if Y_USE_CUSTOM_MEMORY_ALLOCATOR
         // Track stats
-        yfree_report(size, tag);
-#if Y_USE_CUSTOM_MEMORY_ALLOCATOR
-    u64 actual_size;
-    u16 actual_alignment;
-    if (hpha_get_size_alignment(&state_ptr->allocator, block, &actual_size, &actual_alignment)) {
-        if (actual_size != size) {
-            PRINT_WARNING("Size mismatch on free (actual: %llu, requested: %llu)", 
-                actual_size, size);
-        }
-        if (actual_alignment != alignment) {
-            PRINT_WARNING("Alignment mismatch on free (actual: %hu, requested: %hu)",
-                actual_alignment, alignment);
-        }
-    }
-#endif
-#if Y_USE_CUSTOM_MEMORY_ALLOCATOR
+        u64 size;
         // Use HPHA for freeing
-        b8 result = hpha_free(&state_ptr->allocator, block);
+        b8 result = hpha_free(&state_ptr->allocator, block, &size);
         if (!result) {
             PRINT_ERROR("Failed to free memory block in custom allocator %p", block);
         }
+        yfree_report(size, tag);
 #else
-        yaligned_free(block);
+        yfree(block);
         b8 result = true;
 #endif
 
@@ -387,7 +370,7 @@ char* get_memory_usage_str(void) {
     return out_string;
 }
 
-u64 get_memory_alloc_count() {
+u64 get_memory_alloc_count(void) {
     if (state_ptr) {
         return state_ptr->alloc_count;
     }

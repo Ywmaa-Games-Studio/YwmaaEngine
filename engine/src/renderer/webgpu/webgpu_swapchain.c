@@ -4,7 +4,7 @@
 b8 webgpu_swapchain_create(WEBGPU_CONTEXT* context,
     u32 width,
     u32 height) {
-    WGPUSurfaceConfiguration config = {};
+    WGPUSurfaceConfiguration config = {0};
     config.nextInChain = NULL;
     config.width = width;
     config.height = height;

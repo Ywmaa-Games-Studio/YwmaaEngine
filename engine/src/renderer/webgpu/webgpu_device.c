@@ -8,7 +8,7 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     //Adapter
     PRINT_DEBUG("Requesting adapter...");
 
-    WGPURequestAdapterOptions adapter_opts = {};
+    WGPURequestAdapterOptions adapter_opts = {0};
     adapter_opts.nextInChain = NULL;
     adapter_opts.compatibleSurface = context->surface;
     context->adapter = request_adapter_sync(context->instance, &adapter_opts);
@@ -16,7 +16,7 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     PRINT_INFO("Got adapter: %i", context->adapter);
 
 #ifdef _DEBUG
-    WGPUAdapterInfo properties = {};
+    WGPUAdapterInfo properties = {0};
     properties.nextInChain = NULL;
     wgpuAdapterGetInfo(context->adapter, &properties);
     PRINT_INFO("Adapter properties:");
@@ -39,10 +39,10 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
 
 #endif
 
-    WGPUNativeLimits required_limits = get_required_limits(context);
+    //WGPUNativeLimits required_limits = get_required_limits(context);
     // Device
     PRINT_DEBUG("Requesting device...");
-    WGPUDeviceDescriptor device_desc = {};
+    WGPUDeviceDescriptor device_desc = {0};
     char *device_name = "WebGPU Device";
     device_desc.label = (WGPUStringView){device_name, sizeof(device_name)};
     device_desc.requiredFeatureCount = 0; // we do not require any specific feature
@@ -123,7 +123,7 @@ WGPUAdapter request_adapter_sync(WGPUInstance instance, WGPURequestAdapterOption
 // is to convey what we want to capture through the pUserData pointer,
 // provided as the last argument of wgpuInstanceRequestAdapter and received
 // by the callback as its last argument.
-void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapter, WGPUStringView message, void* userdata1, void* /* userdata2 */) {
+void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapter, WGPUStringView message, void* userdata1, void* userdata2 ) {
     struct adapter_request_data* adapter_data = (userdata1);
     if (status == WGPURequestAdapterStatus_Success) {
         adapter_data->adapter = adapter;
@@ -131,7 +131,7 @@ void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapt
         PRINT_ERROR("Could not get WebGPU adapter: ", message);
     }
     adapter_data->requestEnded = true;
-};
+}
 
 
 
@@ -176,25 +176,25 @@ void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, 
         PRINT_ERROR("Could not get WebGPU device: ", message);
     }
     device_data->requestEnded = true;
-};
+}
 
 
 
 void on_device_lost(WGPUDevice const * device, WGPUDeviceLostReason reason, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
     PRINT_ERROR("Device lost: reason ", reason);
     if (message.data) PRINT_ERROR("message: ", message.data);
-};
+}
 
-void on_device_error(WGPUErrorType type, char const* message, void* /* pUserData */) {
+void on_device_error(WGPUErrorType type, char const* message, void* pUserData) {
     PRINT_ERROR("Uncaptured device error: type %i", type);
     if (message) PRINT_ERROR("message: %s", message);
-};
+}
 
 
 
 void on_queue_work_done(WGPUQueueWorkDoneStatus status, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
     PRINT_DEBUG("Queued work finished with status: ", status);
-};
+}
 
 void webgpu_set_default(WGPULimits limits) {
     limits.maxTextureDimension1D = WGPU_LIMIT_U32_UNDEFINED;

@@ -49,10 +49,10 @@ YINLINE b8 is_power_of_2(u64 value) {
     return (value != 0) && ((value & (value - 1)) == 0);
 }
 
-YAPI i32 yrandom();
+YAPI i32 yrandom(void);
 YAPI i32 yrandom_in_range(i32 min, i32 max);
 
-YAPI f32 fyrandom();
+YAPI f32 fyrandom(void);
 YAPI f32 fyrandom_in_range(f32 min, f32 max);
 
 // ------------------------------------------
@@ -76,42 +76,42 @@ YINLINE Vector2 Vector2_create(f32 x, f32 y) {
 /**
  * @brief Creates and returns a 2-component vector with all components set to 0.0f.
  */
-YINLINE Vector2 Vector2_zero() {
+YINLINE Vector2 Vector2_zero(void) {
     return (Vector2){0.0f, 0.0f};
 }
 
 /**
  * @brief Creates and returns a 2-component vector with all components set to 1.0f.
  */
-YINLINE Vector2 Vector2_one() {
+YINLINE Vector2 Vector2_one(void) {
     return (Vector2){1.0f, 1.0f};
 }
 
 /**
  * @brief Creates and returns a 2-component vector pointing up (0, 1).
  */
-YINLINE Vector2 Vector2_up() {
+YINLINE Vector2 Vector2_up(void) {
     return (Vector2){0.0f, 1.0f};
 }
 
 /**
  * @brief Creates and returns a 2-component vector pointing down (0, -1).
  */
-YINLINE Vector2 Vector2_down() {
+YINLINE Vector2 Vector2_down(void) {
     return (Vector2){0.0f, -1.0f};
 }
 
 /**
  * @brief Creates and returns a 2-component vector pointing left (-1, 0).
  */
-YINLINE Vector2 Vector2_left() {
+YINLINE Vector2 Vector2_left(void) {
     return (Vector2){-1.0f, 0.0f};
 }
 
 /**
  * @brief Creates and returns a 2-component vector pointing right (1, 0).
  */
-YINLINE Vector2 Vector2_right() {
+YINLINE Vector2 Vector2_right(void) {
     return (Vector2){1.0f, 0.0f};
 }
 
@@ -285,56 +285,56 @@ YINLINE Vector4 Vector3_to_Vector4(Vector3 vector, f32 w) {
 /**
  * @brief Creates and returns a 3-component vector with all components set to 0.0f.
  */
-YINLINE Vector3 Vector3_zero() {
+YINLINE Vector3 Vector3_zero(void) {
     return (Vector3){0.0f, 0.0f, 0.0f};
 }
 
 /**
  * @brief Creates and returns a 3-component vector with all components set to 1.0f.
  */
-YINLINE Vector3 Vector3_one() {
+YINLINE Vector3 Vector3_one(void) {
     return (Vector3){1.0f, 1.0f, 1.0f};
 }
 
 /**
  * @brief Creates and returns a 3-component vector pointing up (0, 1, 0).
  */
-YINLINE Vector3 Vector3_up() {
+YINLINE Vector3 Vector3_up(void) {
     return (Vector3){0.0f, 1.0f, 0.0f};
 }
 
 /**
  * @brief Creates and returns a 3-component vector pointing down (0, -1, 0).
  */
-YINLINE Vector3 Vector3_down() {
+YINLINE Vector3 Vector3_down(void) {
     return (Vector3){0.0f, -1.0f, 0.0f};
 }
 
 /**
  * @brief Creates and returns a 3-component vector pointing left (-1, 0, 0).
  */
-YINLINE Vector3 Vector3_left() {
+YINLINE Vector3 Vector3_left(void) {
     return (Vector3){-1.0f, 0.0f, 0.0f};
 }
 
 /**
  * @brief Creates and returns a 3-component vector pointing right (1, 0, 0).
  */
-YINLINE Vector3 Vector3_right() {
+YINLINE Vector3 Vector3_right(void) {
     return (Vector3){1.0f, 0.0f, 0.0f};
 }
 
 /**
  * @brief Creates and returns a 3-component vector pointing forward (0, 0, -1).
  */
-YINLINE Vector3 Vector3_forward() {
+YINLINE Vector3 Vector3_forward(void) {
     return (Vector3){0.0f, 0.0f, -1.0f};
 }
 
 /**
  * @brief Creates and returns a 3-component vector pointing backward (0, 0, 1).
  */
-YINLINE Vector3 Vector3_back() {
+YINLINE Vector3 Vector3_back(void) {
     return (Vector3){0.0f, 0.0f, 1.0f};
 }
 
@@ -580,14 +580,14 @@ YINLINE Vector4 Vector4_from_Vector3(Vector3 vector, f32 w) {
 /**
  * @brief Creates and returns a 3-component vector with all components set to 0.0f.
  */
-YINLINE Vector4 Vector4_zero() {
+YINLINE Vector4 Vector4_zero(void) {
     return (Vector4){0.0f, 0.0f, 0.0f, 0.0f};
 }
 
 /**
  * @brief Creates and returns a 3-component vector with all components set to 1.0f.
  */
-YINLINE Vector4 Vector4_one() {
+YINLINE Vector4 Vector4_one(void) {
     return (Vector4){1.0f, 1.0f, 1.0f, 1.0f};
 }
 
@@ -720,7 +720,7 @@ YINLINE f32 Vector4_dot_f32(
  * 
  * @return A new identity matrix 
  */
-YINLINE Matrice4 Matrice4_identity() {
+YINLINE Matrice4 Matrice4_identity(void) {
     Matrice4 out_matrix;
     yzero_memory(out_matrix.data, sizeof(f32) * 16);
     out_matrix.data[0] = 1.0f;
@@ -1121,7 +1121,7 @@ YINLINE Vector3 Matrice4_right(Matrice4 matrix) {
 // Quaternion
 // ------------------------------------------
 
-YINLINE Quaternion Quaternion_identity() {
+YINLINE Quaternion Quaternion_identity(void) {
     return (Quaternion){0, 0, 0, 1.0f};
 }
 

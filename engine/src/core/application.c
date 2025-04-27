@@ -106,7 +106,8 @@ b8 application_create(GAME* game_instance) {
     }
 
     // Memory system must be the first thing to be stood up.
-    MEMORY_SYSTEM_CONFIG memory_system_config = {};
+    MEMORY_SYSTEM_CONFIG memory_system_config = {0};
+    
     memory_system_config.total_alloc_size = MEBIBYTES(512);
     if (!memory_system_init(memory_system_config)) {
         PRINT_ERROR("Failed to initialize memory system; shutting down.");
@@ -120,7 +121,7 @@ b8 application_create(GAME* game_instance) {
     // and it consumes the large pool
     game_instance->state = yallocate(game_instance->state_memory_requirement, MEMORY_TAG_GAME);
 
-    game_instance->application_state = yallocate(sizeof(APPLICATION_STATE), MEMORY_TAG_APPLICATION);
+    game_instance->application_state = yallocate_aligned(sizeof(APPLICATION_STATE), 8, MEMORY_TAG_APPLICATION);
     app_state = game_instance->application_state;
     app_state->game_instance = game_instance;
     app_state->is_running = false;
@@ -222,8 +223,8 @@ b8 application_create(GAME* game_instance) {
     app_state->test_geometry = geometry_system_acquire_from_config(g_config, true);
 
     // Clean up the allocations for the geometry config.
-    yfree(g_config.vertices, sizeof(Vertex3D) * g_config.vertex_count, MEMORY_TAG_ARRAY);
-    yfree(g_config.indices, sizeof(u32) * g_config.index_count, MEMORY_TAG_ARRAY);
+    yfree(g_config.vertices, MEMORY_TAG_ARRAY);
+    yfree(g_config.indices, MEMORY_TAG_ARRAY);
 
     // Load up default geometry.
     //app_state->test_geometry = geometry_system_get_default();
@@ -242,8 +243,7 @@ b8 application_create(GAME* game_instance) {
 
     return true;
 }
-
-b8 application_run() {
+b8 application_run(void) {
     app_state->is_running = true;
     clock_start(&app_state->clock);
     clock_update(&app_state->clock);
@@ -251,6 +251,10 @@ b8 application_run() {
     f64 running_time = 0;
     u8 frame_count = 0;
     f64 target_frame_seconds = 1.0f / 60;
+
+    // This is just a stupid way to bypass the warning of them not being used
+    running_time = frame_count;
+    frame_count = running_time;
 
     char* mem_usage = get_memory_usage_str();
     PRINT_INFO(mem_usage);
@@ -374,7 +378,7 @@ b8 application_on_key(u16 code, void* sender, void* listener_instance, EVENT_CON
         u16 key_code = context.data.u16[0];
         if (key_code == KEY_ESCAPE) {
             // NOTE: Technically firing an event to itself, but there may be other listeners.
-            EVENT_CONTEXT data = {};
+            EVENT_CONTEXT data = {0};
             event_fire(EVENT_CODE_APPLICATION_QUIT, 0, data);
 
             // Block anything else from processing this.

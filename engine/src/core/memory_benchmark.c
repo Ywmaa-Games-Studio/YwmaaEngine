@@ -8,7 +8,7 @@
 
 #define NUM_ITERATIONS 10000
 #define NUM_ALLOCATIONS 10000
-#define MAX_ALLOC_SIZE 256
+#define MAX_ALLOC_SIZE 1024
 #define ALIGNMENT_TEST_CASES 7
 static const u16 alignments[] = {1, 4, 8, 16, 32, 64, 256}; // Test various alignments
 
@@ -18,7 +18,7 @@ typedef struct {
     u16 alignment;
 } Allocation;
 
-void warmup_cache() {
+void warmup_cache(void) {
     // Warm up cache with dummy allocations
     for (int i = 0; i < 1000; i++) {
         void* p = malloc(16);
@@ -85,7 +85,7 @@ void benchmark_yallocate(u16 alignment) {
         // Free phase
         start = clock();
         for (int i = 0; i < NUM_ALLOCATIONS; i++) {
-            yfree_aligned(allocs[i].ptr, allocs[i].size, alignment, MEMORY_TAG_APPLICATION);
+            yfree(allocs[i].ptr, MEMORY_TAG_APPLICATION);
         }
         end = clock();
         total_time += ((double)(end - start)) / CLOCKS_PER_SEC;
@@ -99,7 +99,7 @@ void benchmark_yallocate(u16 alignment) {
 
 }
 
-void run_alignment_tests() {
+void run_alignment_tests(void) {
     printf("\n=== Alignment Validation ===\n");
     for (int i = 0; i < ALIGNMENT_TEST_CASES; i++) {
         u16 alignment = alignments[i];
@@ -108,11 +108,11 @@ void run_alignment_tests() {
         printf("Requested: %3hu bytes, Actual: %s\n", 
                alignment, 
                is_aligned ? "Aligned" : "Unaligned");
-        yfree_aligned(ptr, 128, alignment, MEMORY_TAG_APPLICATION);
+        yfree(ptr, MEMORY_TAG_APPLICATION);
     }
 }
 
-void run_benchmarks() {
+void run_benchmarks(void) {
     MEMORY_SYSTEM_CONFIG config = {
         .total_alloc_size = MEBIBYTES(1024)
     };

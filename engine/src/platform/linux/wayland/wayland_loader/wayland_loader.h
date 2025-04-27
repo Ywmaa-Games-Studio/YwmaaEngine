@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:06
  * Last edited:
- *   2025.04.15 -02:17
+ *   2025.04.27 -04:20
  * Auto updated?
  *   Yes
  *
@@ -68,9 +68,9 @@ struct libdecor_state;
 struct libdecor_configuration;
 struct libdecor_interface;
 struct libdecor_frame_interface;
-enum libdecor_resize_edge;
-enum libdecor_capabilities;
-enum libdecor_window_state;
+typedef int libdecor_resize_edge;
+typedef int libdecor_capabilities;
+typedef int libdecor_window_state;
 
 #include "wayland-cursor.h"
 #include "wayland-util.h"

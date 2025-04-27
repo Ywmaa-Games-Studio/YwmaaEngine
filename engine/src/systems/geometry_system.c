@@ -111,7 +111,7 @@ void geometry_system_release(GEOMETRY* geometry) {
         GEOMETRY_REFERENCE* ref = &state_ptr->registered_geometries[geometry->id];
 
         // Take a copy of the id;
-        u32 id = geometry->id;
+        //u32 id = geometry->id;
         if (ref->geometry.id == geometry->id) {
             if (ref->reference_count > 0) {
                 ref->reference_count--;
@@ -132,7 +132,7 @@ void geometry_system_release(GEOMETRY* geometry) {
     PRINT_WARNING("geometry_system_acquire_by_id cannot release invalid geometry id. Nothing was done.");
 }
 
-GEOMETRY* geometry_system_get_default() {
+GEOMETRY* geometry_system_get_default(void) {
     if (state_ptr) {
         return &state_ptr->default_geometry;
     }
@@ -321,3 +321,4 @@ GEOMETRY_CONFIG geometry_system_generate_plane_config(f32 width, f32 height, u32
 
     return config;
 }
+

@@ -27,7 +27,7 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
 
     
     // [...] Describe render pipeline
-    WGPURenderPipelineDescriptor pipelineDesc = {};
+    WGPURenderPipelineDescriptor pipelineDesc = {0};
     pipelineDesc.nextInChain = NULL;
     // [...] Describe vertex pipeline state
     pipelineDesc.label = (WGPUStringView){ "Object shader pipeline", sizeof("Object shader pipeline") };
@@ -60,13 +60,13 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     // [...] Describe fragment pipeline state
     // We tell that the programmable fragment shader stage is described
     // by the function called 'fs_main' in the shader module.
-    WGPUFragmentState fragmentState = {};
+    WGPUFragmentState fragmentState = {0};
     fragmentState.module = shader->shader_module;
     fragmentState.entryPoint = (WGPUStringView){ "fs_main",7};
     fragmentState.constantCount = 0;
     fragmentState.constants = NULL;
     // [...] We'll configure the blending stage here
-    WGPUBlendState blendState = {};
+    WGPUBlendState blendState = {0};
     // [...] Configure color blending equation
     blendState.color.srcFactor = WGPUBlendFactor_SrcAlpha;
     blendState.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
@@ -75,7 +75,7 @@ b8 webgpu_pipeline_create(WEBGPU_CONTEXT* context, WGPUVertexBufferLayout vertex
     blendState.alpha.srcFactor = WGPUBlendFactor_Zero;
     blendState.alpha.dstFactor = WGPUBlendFactor_One;
     blendState.alpha.operation = WGPUBlendOperation_Add;
-    WGPUColorTargetState colorTarget = {};
+    WGPUColorTargetState colorTarget = {0};
     colorTarget.format = context->swapchain_format;
     colorTarget.blend = &blendState;
     colorTarget.writeMask = WGPUColorWriteMask_All; // We could write to only some of the color channels.

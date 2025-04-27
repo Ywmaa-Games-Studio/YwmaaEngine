@@ -218,7 +218,7 @@ void webgpu_material_shader_apply_material(WEBGPU_CONTEXT* context, struct WEBGP
     // Obtain material data.
     WEBGPU_MATERIAL_SHADER_INSTANCE_STATE* object_state = &shader->instance_states[material->internal_id];
 
-    u32 range = sizeof(MATERIAL_UNIFORM_OBJECT);
+    //u32 range = sizeof(MATERIAL_UNIFORM_OBJECT);
     u64 offset = sizeof(MATERIAL_UNIFORM_OBJECT) * material->internal_id;  // also the index into the array.
     MATERIAL_UNIFORM_OBJECT obo;
     
@@ -336,7 +336,7 @@ void bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout) {
 void webgpu_create_bind_group(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER* shader){
 
     // Create a binding
-    WGPUBindGroupEntry binding[BINDINGS_ENTRY_COUNT] = {};
+    WGPUBindGroupEntry binding[BINDINGS_ENTRY_COUNT] = {0};
     binding[0].nextInChain = NULL;
     // The index of the binding (the entries in bindGroupDesc can be in any order)
     binding[0].binding = 0;
@@ -372,7 +372,7 @@ void webgpu_create_bind_group(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER* s
     binding[2].size = sizeof(MATERIAL_UNIFORM_OBJECT) * WEBGPU_MAX_MATERIAL_COUNT;
 
     // A bind group contains one or multiple bindings
-    WGPUBindGroupDescriptor bindGroupDesc = {};
+    WGPUBindGroupDescriptor bindGroupDesc = {0};
     bindGroupDesc.nextInChain = NULL;
     bindGroupDesc.label = (WGPUStringView){ "bind group", sizeof("bind group") };
     bindGroupDesc.layout = shader->bind_group_layout;
@@ -384,7 +384,7 @@ void webgpu_create_bind_group(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER* s
 
 void webgpu_create_textures_bind_group(WEBGPU_CONTEXT* context, WGPUTextureView* view, WGPUSampler* sampler, WEBGPU_MATERIAL_SHADER* shader, WEBGPU_MATERIAL_SHADER_INSTANCE_STATE* object_state){
     // Create a binding
-    WGPUBindGroupEntry binding[TEXTURES_BINDINGS_ENTRY_COUNT] = {};
+    WGPUBindGroupEntry binding[TEXTURES_BINDINGS_ENTRY_COUNT] = {0};
     binding[0].nextInChain = NULL;
     binding[0].binding = 0;
     binding[0].textureView = *view;
@@ -394,7 +394,7 @@ void webgpu_create_textures_bind_group(WEBGPU_CONTEXT* context, WGPUTextureView*
     binding[1].sampler = *sampler;
 
     // A bind group contains one or multiple bindings
-    WGPUBindGroupDescriptor texture_bind_group_desc = {};
+    WGPUBindGroupDescriptor texture_bind_group_desc = {0};
     texture_bind_group_desc.nextInChain = NULL;
     texture_bind_group_desc.label = (WGPUStringView){"texture bind group", sizeof("texture bind group")};
     texture_bind_group_desc.layout = shader->texture_bind_group_layout;

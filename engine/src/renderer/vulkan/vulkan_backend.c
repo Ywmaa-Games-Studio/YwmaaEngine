@@ -31,7 +31,7 @@
 // Since these are just for clean code, I put/declare them in .c file
 void vulkan_setup_extensions(VkInstanceCreateInfo* create_info);
 b8 vulkan_setup_validation_layers(VkInstanceCreateInfo* create_info);
-void vulkan_setup_debugger();
+void vulkan_setup_debugger(void);
 
 // static Vulkan context
 static VULKAN_CONTEXT context;
@@ -808,7 +808,8 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
 }
 
 
-
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpedantic"
 void vulkan_setup_extensions(VkInstanceCreateInfo* create_info){
     //START Obtain a list of required extensions
     const char** required_extensions = darray_create(const char*);
@@ -828,7 +829,7 @@ void vulkan_setup_extensions(VkInstanceCreateInfo* create_info){
     create_info->ppEnabledExtensionNames = required_extensions;
     //END Obtain a list of required extensions
 }
-
+#pragma clang diagnostic pop
 
 b8 vulkan_setup_validation_layers(VkInstanceCreateInfo* create_info){
     //START Validation layers.
@@ -842,7 +843,10 @@ b8 vulkan_setup_validation_layers(VkInstanceCreateInfo* create_info){
 
     // The list of validation layers required.
     required_validation_layer_names = darray_create(const char*);
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpedantic"
     darray_push(required_validation_layer_names, &"VK_LAYER_KHRONOS_validation");
+#pragma clang diagnostic pop
     required_validation_layer_count = darray_length(required_validation_layer_names);
 
     // Obtain a list of available validation layers
@@ -878,7 +882,7 @@ b8 vulkan_setup_validation_layers(VkInstanceCreateInfo* create_info){
 }
 
 
-void vulkan_setup_debugger(){
+void vulkan_setup_debugger(void){
     // Debugger
 #if defined(_DEBUG)
     PRINT_DEBUG("Creating Vulkan debugger...");
@@ -904,7 +908,7 @@ void vulkan_setup_debugger(){
 void vulkan_renderer_create_texture(const u8* pixels, TEXTURE* texture) {
     // Internal data creation.
     // TODO: Use an allocator for this.
-    texture->internal_data = (VULKAN_TEXTURE_DATA*)yallocate(sizeof(VULKAN_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+    texture->internal_data = (VULKAN_TEXTURE_DATA*)yallocate_aligned(sizeof(VULKAN_TEXTURE_DATA), 8, MEMORY_TAG_TEXTURE);
     VULKAN_TEXTURE_DATA* data = (VULKAN_TEXTURE_DATA*)texture->internal_data;
     VkDeviceSize image_size = texture->width * texture->height * texture->channel_count;
     
@@ -1004,7 +1008,7 @@ void vulkan_renderer_destroy_texture(struct TEXTURE* texture) {
         vkDestroySampler(context.device.logical_device, data->sampler, context.allocator);
         data->sampler = 0;
 
-        yfree(texture->internal_data, sizeof(VULKAN_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+        yfree(texture->internal_data, MEMORY_TAG_TEXTURE);
     }
     yzero_memory(texture, sizeof(struct TEXTURE));
 }

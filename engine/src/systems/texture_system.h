@@ -14,4 +14,4 @@ void texture_system_shutdown(void* state);
 TEXTURE* texture_system_acquire(const char* name, b8 auto_release);
 void texture_system_release(const char* name);
 
-TEXTURE* texture_system_get_default_texture();
+TEXTURE* texture_system_get_default_texture(void);

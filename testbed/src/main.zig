@@ -5,12 +5,11 @@ pub extern fn engine_main(backend: RendererBackend) void;
 // The main entry point of the application.
 
 // Define renderer options (matches C enum)
-pub const RendererBackend = enum(c_int) { 
-    VULKAN,  // 0 (default)
-    WEBGPU,  // 1
+pub const RendererBackend = enum(c_int) {
+    VULKAN, // 0 (default)
+    WEBGPU, // 1
     _,
 };
-
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;

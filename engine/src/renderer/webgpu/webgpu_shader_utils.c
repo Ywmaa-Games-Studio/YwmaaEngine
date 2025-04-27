@@ -8,9 +8,9 @@
 
 b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader_module) {
 
-    WGPUShaderModuleDescriptor shaderDesc = {};
+    WGPUShaderModuleDescriptor shaderDesc = {0};
 
-    WGPUShaderSourceWGSL shaderCodeDesc = {};
+    WGPUShaderSourceWGSL shaderCodeDesc = {0};
     // Set the chained struct's header
     shaderCodeDesc.chain.next = NULL;
     shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
@@ -49,7 +49,7 @@ b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader
     shaderCodeDesc.code = (WGPUStringView){code, read_size};
     (*shader_module) = wgpuDeviceCreateShaderModule(context->device, &shaderDesc);
 
-    yfree(code, sizeof(char) * file_size+1, MEMORY_TAG_ARRAY);
+    yfree(code, MEMORY_TAG_ARRAY);
 
     return true;
 }

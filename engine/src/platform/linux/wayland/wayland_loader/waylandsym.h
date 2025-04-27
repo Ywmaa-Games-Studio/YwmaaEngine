@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:18
  * Last edited:
- *   2025.04.15 -02:18
+ *   2025.04.27 -04:33
  * Auto updated?
  *   Yes
  *
@@ -255,4 +255,4 @@ WAYLAND_SYM_OPT(enum libdecor_wm_capabilities, libdecor_frame_get_wm_capabilitie
 #undef WAYLAND_SYM_OPT
 #undef WAYLAND_INTERFACE
 
-/* *INDENT-ON* */ // clang-format on
+/* *INDENT-ON* */ // clang-format on4

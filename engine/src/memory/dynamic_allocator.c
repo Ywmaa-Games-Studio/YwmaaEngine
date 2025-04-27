@@ -14,8 +14,7 @@ typedef struct dynamic_allocator_state {
 
 typedef struct alloc_header {
     u32 size;
-    u16 alignment;
-    void* start;
+    u16 padding;
 } alloc_header;
 
 b8 dynamic_allocator_create(u64 total_size, u64* memory_requirement, void* memory, DYNAMIC_ALLOCATOR* out_allocator) {
@@ -73,7 +72,6 @@ void* dynamic_allocator_allocate(DYNAMIC_ALLOCATOR* allocator, u64 size) {
     return dynamic_allocator_allocate_aligned(allocator, size, 1);
 }
 
-// the actual alignment is actually at minimum alignof(alloc_header)
 void* dynamic_allocator_allocate_aligned(DYNAMIC_ALLOCATOR* allocator, u64 size, u16 alignment) {
     if (!allocator || !size || !alignment) {
         PRINT_ERROR("dynamic_allocator_allocate_aligned requires a valid allocator, size and alignment.");
@@ -113,18 +111,17 @@ void* dynamic_allocator_allocate_aligned(DYNAMIC_ALLOCATOR* allocator, u64 size,
     x bytes/void padding
     alloc_header
     x bytes/void user memory block
-
     */
+
     // Get the base pointer, or the unaligned memory block.
     void* ptr = (void*)((u64)state->memory_block + base_offset);
     // Align the header first
     u64 header_position = get_aligned((u64)ptr, required_alignment);
     alloc_header* header = (alloc_header*)header_position;
-    header->start = ptr;
-    YASSERT_MSG(header->start, "dynamic_allocator_allocate_aligned got a null pointer (0x0). Memory corruption likely as this should always be nonzero.");
-    header->alignment = required_alignment;
-    YASSERT_MSG(header->alignment, "dynamic_allocator_allocate_aligned got an alignment of 0. Memory corruption likely as this should always be nonzero.");
-    header->size = (u32)size;
+
+    YASSERT_MSG((header_position - (u64)ptr) < 65536U, "dynamic_allocator_allocate_aligned got padding bigger than 65536. the padding variable is u16");
+    header->padding = (header_position - (u64)ptr);
+    header->size = (u32)required_size;
     YASSERT_MSG(header->size, "dynamic_allocator_allocate_aligned got a size of 0. Memory corruption likely as this should always be nonzero.");
     
     // Align the user block after the header.
@@ -133,40 +130,35 @@ void* dynamic_allocator_allocate_aligned(DYNAMIC_ALLOCATOR* allocator, u64 size,
     return (void*)aligned_block_offset;
 }
 
-b8 dynamic_allocator_free(DYNAMIC_ALLOCATOR* allocator, void* block, u64 size) {
-    return dynamic_allocator_free_aligned(allocator, block);
-}
-
-b8 dynamic_allocator_free_aligned(DYNAMIC_ALLOCATOR* allocator, void* block) {
+b8 dynamic_allocator_free(DYNAMIC_ALLOCATOR* allocator, void* block) {
     if (!allocator || !block) {
-        PRINT_ERROR("dynamic_allocator_free_aligned requires both a valid allocator (0x%p) and a block (0x%p) to be freed.", allocator, block);
+        PRINT_ERROR("dynamic_allocator_free requires both a valid allocator (0x%p) and a block (0x%p) to be freed.", allocator, block);
         return false;
     }
 
     dynamic_allocator_state* state = allocator->memory;
     if (block < state->memory_block || block > state->memory_block + state->total_size) {
         void* end_of_block = (void*)(state->memory_block + state->total_size);
-        PRINT_WARNING("dynamic_allocator_free_aligned trying to release block (0x%p) outside of allocator range (0x%p)-(0x%p)", block, state->memory_block, end_of_block);
+        PRINT_WARNING("dynamic_allocator_free trying to release block (0x%p) outside of allocator range (0x%p)-(0x%p)", block, state->memory_block, end_of_block);
         return false;
     }
 
     u64 header_address = ((u64)block - sizeof(alloc_header));
     alloc_header* header = (alloc_header*)header_address;
-    u64 required_size = header->alignment + header->size + sizeof(alloc_header);
-    u64 offset = (u64)header->start - (u64)state->memory_block;
+    u64 offset = (header_address - header->padding) - (u64)state->memory_block;
 
     //PRINT_DEBUG("Freeing block at 0x%p, stored size: %u, stored alignment: %u", block, *block_size, header->alignment);
-    if (!freelist_free_block(&state->list, required_size, offset)) {
-        PRINT_ERROR("dynamic_allocator_free_aligned failed.");
+    if (!freelist_free_block(&state->list, header->size, offset)) {
+        PRINT_ERROR("dynamic_allocator_free failed.");
         return false;
     }
 
     return true;
 }
 
-b8 dynamic_allocator_get_size_alignment(DYNAMIC_ALLOCATOR* allocator, void* block, u64* out_size, u16* out_alignment) {
-    if (!allocator || !block || !out_size || !out_alignment) {
-        PRINT_ERROR("dynamic_allocator_get_size_alignment requires non-null inputs.");
+b8 dynamic_allocator_get_size(DYNAMIC_ALLOCATOR* allocator, void* block, u64* out_size) {
+    if (!allocator || !block || !out_size) {
+        PRINT_ERROR("dynamic_allocator_get_size requires non-null inputs.");
         return false;
     }
 
@@ -179,11 +171,8 @@ b8 dynamic_allocator_get_size_alignment(DYNAMIC_ALLOCATOR* allocator, void* bloc
     // Get the header.
     u64 header_position = ((u64)block - sizeof(alloc_header));
     alloc_header* header = (alloc_header*)header_position;
-    u64 header_alignment = alignof(alloc_header);
     *out_size = header->size;
-    *out_alignment = header->alignment;
-    YASSERT_MSG(*out_size, "dynamic_allocator_get_size_alignment found an out_size of 0. Memory corruption likely.");
-    YASSERT_MSG(*out_alignment, "dynamic_allocator_get_size_alignment found a header->alignment of 0. Memory corruption likely as this should always be at least 1.");
+    YASSERT_MSG(*out_size, "dynamic_allocator_get_size found an out_size of 0. Memory corruption likely.");
     return true;
 }
 

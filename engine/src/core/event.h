@@ -26,8 +26,8 @@ typedef struct EVENT_CONTEXT {
 // Should return true if handled.
 typedef b8 (*PFN_on_event)(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT data);
 
-void event_system_init();
-void event_system_shutdown();
+void event_system_init(u64* memory_requirement, void* state);
+void event_system_shutdown(void* state);
 
 /**
  * Register to listen for when events are sent with the provided code. Events with duplicate

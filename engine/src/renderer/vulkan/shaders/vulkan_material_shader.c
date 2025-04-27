@@ -310,7 +310,7 @@ void vulkan_material_shader_apply_material(VULKAN_CONTEXT* context, struct VULKA
         buffer_info.offset = offset;
         buffer_info.range = range;
 
-        PRINT_DEBUG("Updating descriptor set %d, binding %d, offset %d, range %d", object_descriptor_set, descriptor_index, offset, range);
+        //PRINT_DEBUG("Updating descriptor set %d, binding %d, offset %d, range %d", object_descriptor_set, descriptor_index, offset, range);
 
         VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         descriptor.dstSet = object_descriptor_set;

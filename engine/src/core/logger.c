@@ -60,7 +60,7 @@ void log_output(E_LOG_LEVEL level, const char* message, ...) {
     // moved to another thread eventually, along with the file writes, to
     // avoid slowing things down while the engine is trying to run.
     const char* level_strings[5] = {"[ERROR]: ", "[WARN]:  ", "[INFO]:  ", "[DEBUG]: ", "[TRACE]: "};
-    b8 is_error = level < LOG_LEVEL_WARNING;
+    //b8 is_error = level < LOG_LEVEL_WARNING;
 
     // Statically allocate memory for message instead of dynamically using malloc, for better performance.
     // Technically imposes a 32k character limit on a single log entry, but...

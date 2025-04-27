@@ -37,8 +37,8 @@ void webgpu_destroy_buffers(WEBGPU_CONTEXT* context);
 
 b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend);
 
-WGPUTextureView get_next_surface_texture_view();
-WGPUTextureView get_depth_texture_view();
+WGPUTextureView get_next_surface_texture_view(void);
+WGPUTextureView get_depth_texture_view(u32 width, u32 height);
 // static WebGPU context
 static WEBGPU_CONTEXT context;
 static u32 cached_framebuffer_width = 0;
@@ -53,7 +53,7 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
     cached_framebuffer_height = 0;
 
     // We create a descriptor
-    WGPUInstanceDescriptor desc = {};
+    WGPUInstanceDescriptor desc = {0};
     desc.nextInChain = NULL;
 
 // We create the instance using this descriptor
@@ -175,21 +175,21 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     context.target_view = get_next_surface_texture_view();
     if (!context.target_view) return false;
 
-    WGPUCommandEncoderDescriptor encoder_desc = {};
+    WGPUCommandEncoderDescriptor encoder_desc = {0};
     encoder_desc.nextInChain = NULL;
     encoder_desc.label = (WGPUStringView){"command encoder", sizeof("command encoder")};
     context.encoder = wgpuDeviceCreateCommandEncoder(context.device, &encoder_desc);
 
     //START Render Pass
     // Describe Render Pass
-    WGPURenderPassColorAttachment render_pass_color_attachment = {};
+    WGPURenderPassColorAttachment render_pass_color_attachment = {0};
     // [...] Describe the attachment
     render_pass_color_attachment.nextInChain = NULL;
     render_pass_color_attachment.view = context.target_view;
     render_pass_color_attachment.resolveTarget = NULL;
     render_pass_color_attachment.loadOp = WGPULoadOp_Clear;
     render_pass_color_attachment.storeOp = WGPUStoreOp_Store;
-    WGPUColor color = {};
+    WGPUColor color = {0};
     color.r = 0.0;
     color.g = 0.2;
     color.b = 0.2;
@@ -217,7 +217,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Store;
     depthStencilAttachment.stencilReadOnly = true;
     
-    WGPURenderPassDescriptor render_pass_desc = {};
+    WGPURenderPassDescriptor render_pass_desc = {0};
     render_pass_desc.nextInChain = NULL;
     //render_pass_desc.label = "";
     render_pass_desc.colorAttachmentCount = 1;
@@ -244,7 +244,7 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     wgpuRenderPassEncoderRelease(context.render_pass);
     //END Render Pass
     
-    WGPUCommandBufferDescriptor cmd_buffer_descriptor = {};
+    WGPUCommandBufferDescriptor cmd_buffer_descriptor = {0};
     cmd_buffer_descriptor.nextInChain = NULL;
     cmd_buffer_descriptor.label = (WGPUStringView){"Command buffer", sizeof("Command buffer")};
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(context.encoder, &cmd_buffer_descriptor);
@@ -467,7 +467,7 @@ WGPUTextureView get_depth_texture_view(u32 width, u32 height) {
     wgpuTextureRelease(depthTexture);
 }
 
-WGPUTextureView get_next_surface_texture_view() {
+WGPUTextureView get_next_surface_texture_view(void) {
     //Get the next surface texture
     WGPUSurfaceTexture surface_texture;
     surface_texture.nextInChain = NULL;
@@ -522,7 +522,7 @@ void webgpu_destroy_buffers(WEBGPU_CONTEXT* context){
 void webgpu_renderer_create_texture(const u8* pixels, TEXTURE* texture){
     // Internal data creation.
     // TODO: Use an allocator for this.
-    texture->internal_data = (WEBGPU_TEXTURE_DATA*)yallocate(sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+    texture->internal_data = (WEBGPU_TEXTURE_DATA*)yallocate_aligned(sizeof(WEBGPU_TEXTURE_DATA), 8, MEMORY_TAG_TEXTURE);
     WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)texture->internal_data;
 
     webgpu_image_create(
@@ -569,7 +569,7 @@ void webgpu_renderer_destroy_texture(TEXTURE* texture){
         wgpuSamplerRelease(data->sampler);
         data->sampler = 0;
 
-        yfree(texture->internal_data, sizeof(WEBGPU_TEXTURE_DATA), MEMORY_TAG_TEXTURE);
+        yfree(texture->internal_data, MEMORY_TAG_TEXTURE);
     }
     
 

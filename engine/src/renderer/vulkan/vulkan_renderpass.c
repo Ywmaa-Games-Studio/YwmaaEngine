@@ -23,7 +23,7 @@ void vulkan_renderpass_create(
     out_renderpass->stencil = stencil;
 
     // Main subpass
-    VkSubpassDescription subpass = {};
+    VkSubpassDescription subpass = {0};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
     // Attachments TODO: make this configurable.
@@ -52,7 +52,7 @@ void vulkan_renderpass_create(
     subpass.pColorAttachments = &color_attachment_reference;
 
     // Depth attachment, if there is one
-    VkAttachmentDescription depth_attachment = {};
+    VkAttachmentDescription depth_attachment = {0};
     depth_attachment.format = context->device.depth_format;
     depth_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
     depth_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;

@@ -221,7 +221,7 @@ void material_system_release(const char* name) {
     }
 }
 
-MATERIAL* material_system_get_default() {
+MATERIAL* material_system_get_default(void) {
     if (state_ptr) {
         return &state_ptr->default_material;
     }

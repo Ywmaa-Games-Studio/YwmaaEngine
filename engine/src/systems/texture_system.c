@@ -194,7 +194,7 @@ void texture_system_release(const char* name) {
     }
 }
 
-TEXTURE* texture_system_get_default_texture() {
+TEXTURE* texture_system_get_default_texture(void) {
     if (state_ptr) {
         return &state_ptr->default_texture;
     }

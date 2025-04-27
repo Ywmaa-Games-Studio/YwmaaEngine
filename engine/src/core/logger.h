@@ -37,31 +37,31 @@ YAPI void log_output(E_LOG_LEVEL level, const char* message, ...);
 
 #ifndef PRINT_ERROR
 // Logs an error-level message.
-#define PRINT_ERROR(message, ...) log_output(LOG_LEVEL_ERROR, message, ##__VA_ARGS__);
+#define PRINT_ERROR(...) log_output(LOG_LEVEL_ERROR, __VA_ARGS__);
 #endif
 
 #if LOG_WARNING_ENABLED == 1
 // Logs a warning-level message.
-#define PRINT_WARNING(message, ...) log_output(LOG_LEVEL_WARNING, message, ##__VA_ARGS__);
+#define PRINT_WARNING(...) log_output(LOG_LEVEL_WARNING, __VA_ARGS__);
 #else
 // Does nothing when LOG_WARNING_ENABLED != 1
-#define PRINT_WARNING(message, ...)
+#define PRINT_WARNING(...)
 #endif
 
 #if LOG_INFO_ENABLED == 1
 // Logs a info-level message.
-#define PRINT_INFO(message, ...) log_output(LOG_LEVEL_INFO, message, ##__VA_ARGS__);
+#define PRINT_INFO(...) log_output(LOG_LEVEL_INFO, __VA_ARGS__);
 #else
 // Does nothing when LOG_INFO_ENABLED != 1
-#define PRINT_INFO(message, ...)
+#define PRINT_INFO(...)
 #endif
 
 #if LOG_DEBUG_ENABLED == 1
 // Logs a debug-level message.
-#define PRINT_DEBUG(message, ...) log_output(LOG_LEVEL_DEBUG, message, ##__VA_ARGS__);
+#define PRINT_DEBUG(...) log_output(LOG_LEVEL_DEBUG, __VA_ARGS__);
 #else
 // Does nothing when LOG_DEBUG_ENABLED != 1
-#define PRINT_DEBUG(message, ...)
+#define PRINT_DEBUG(...)
 #endif
 
 #if LOG_TRACE_ENABLED == 1
@@ -70,7 +70,7 @@ YAPI void log_output(E_LOG_LEVEL level, const char* message, ...);
  * @param message The message to be logged.
  * @param ... Any formatted data that should be included in the log entry.
  */
-#define PRINT_TRACE(message, ...) log_output(LOG_LEVEL_TRACE, message, ##__VA_ARGS__);
+#define PRINT_TRACE(...) log_output(LOG_LEVEL_TRACE, __VA_ARGS__);
 #else
 /** 
  * @brief Logs a trace-level message. Should be used for verbose debugging purposes.
@@ -78,5 +78,5 @@ YAPI void log_output(E_LOG_LEVEL level, const char* message, ...);
  * @param message The message to be logged.
  * @param ... Any formatted data that should be included in the log entry.
  */
-#define PRINT_TRACE(message, ...)
+#define PRINT_TRACE(...)
 #endif

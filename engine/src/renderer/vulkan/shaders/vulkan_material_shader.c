@@ -1,3 +1,5 @@
+#pragma clang optimize off // Disable optimizations here because sometimes they cause damage by removing important zeroed variables
+
 #include "vulkan_material_shader.h"
 
 #include "core/logger.h"
@@ -36,6 +38,7 @@ b8 vulkan_material_shader_create(VULKAN_CONTEXT* context, VULKAN_MATERIAL_SHADER
     global_ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
     VkDescriptorSetLayoutCreateInfo global_layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    global_layout_info.pNext = NULL;
     global_layout_info.bindingCount = 1;
     global_layout_info.pBindings = &global_ubo_layout_binding;
     VK_CHECK(vkCreateDescriptorSetLayout(context->device.logical_device, &global_layout_info, context->allocator, &out_shader->global_descriptor_set_layout));
@@ -67,9 +70,12 @@ b8 vulkan_material_shader_create(VULKAN_CONTEXT* context, VULKAN_MATERIAL_SHADER
         bindings[i].descriptorCount = 1;
         bindings[i].descriptorType = descriptor_types[i];
         bindings[i].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        bindings[i].pImmutableSamplers = 0;
     }
 
-    VkDescriptorSetLayoutCreateInfo layout_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    VkDescriptorSetLayoutCreateInfo layout_info = {0};
+    layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layout_info.pNext = NULL;
     layout_info.bindingCount = VULKAN_MATERIAL_SHADER_DESCRIPTOR_COUNT;
     layout_info.pBindings = bindings;
     VK_CHECK(vkCreateDescriptorSetLayout(context->device.logical_device, &layout_info, 0, &out_shader->object_descriptor_set_layout));
@@ -83,7 +89,9 @@ b8 vulkan_material_shader_create(VULKAN_CONTEXT* context, VULKAN_MATERIAL_SHADER
     object_pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     object_pool_sizes[1].descriptorCount = VULKAN_MATERIAL_SHADER_SAMPLER_COUNT * VULKAN_MAX_MATERIAL_COUNT;
 
-    VkDescriptorPoolCreateInfo object_pool_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    VkDescriptorPoolCreateInfo object_pool_info = {0};
+    object_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    object_pool_info.pNext = NULL;
     object_pool_info.poolSizeCount = 2;
     object_pool_info.pPoolSizes = object_pool_sizes;
     object_pool_info.maxSets = VULKAN_MAX_MATERIAL_COUNT;
@@ -178,7 +186,7 @@ b8 vulkan_material_shader_create(VULKAN_CONTEXT* context, VULKAN_MATERIAL_SHADER
 
     VkDescriptorSetAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     alloc_info.descriptorPool = out_shader->global_descriptor_pool;
-    alloc_info.descriptorSetCount = 3;
+    alloc_info.descriptorSetCount = context->swapchain.image_count;
     alloc_info.pSetLayouts = global_layouts;
     VK_CHECK(vkAllocateDescriptorSets(context->device.logical_device, &alloc_info, out_shader->global_descriptor_sets));
 
@@ -245,7 +253,11 @@ void vulkan_material_shader_update_global_state(VULKAN_CONTEXT* context, struct 
     bufferInfo.range = range;
 
     // Update descriptor sets.
-    VkWriteDescriptorSet descriptor_write = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    VkWriteDescriptorSet descriptor_write = {0};
+    descriptor_write.pNext = NULL;
+    descriptor_write.pImageInfo = NULL;
+    descriptor_write.pTexelBufferView = NULL;
+    descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptor_write.dstSet = shader->global_descriptor_sets[image_index];
     descriptor_write.dstBinding = 0;
     descriptor_write.dstArrayElement = 0;
@@ -312,7 +324,11 @@ void vulkan_material_shader_apply_material(VULKAN_CONTEXT* context, struct VULKA
 
         //PRINT_DEBUG("Updating descriptor set %d, binding %d, offset %d, range %d", object_descriptor_set, descriptor_index, offset, range);
 
-        VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        VkWriteDescriptorSet descriptor = {0};
+        descriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor.pNext = NULL;
+        descriptor.pImageInfo = NULL;
+        descriptor.pTexelBufferView = NULL;
         descriptor.dstSet = object_descriptor_set;
         descriptor.dstBinding = descriptor_index;
         descriptor.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -362,12 +378,17 @@ void vulkan_material_shader_apply_material(VULKAN_CONTEXT* context, struct VULKA
             image_infos[sampler_index].imageView = internal_data->image.view;
             image_infos[sampler_index].sampler = internal_data->sampler;
 
-            VkWriteDescriptorSet descriptor = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+            VkWriteDescriptorSet descriptor = {0};
+            descriptor.pNext = NULL;
+            descriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptor.dstSet = object_descriptor_set;
             descriptor.dstBinding = descriptor_index;
+            descriptor.dstArrayElement = 0;
             descriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             descriptor.descriptorCount = 1;
             descriptor.pImageInfo = &image_infos[sampler_index];
+            descriptor.pBufferInfo = NULL;
+            descriptor.pTexelBufferView = NULL;
 
             descriptor_writes[descriptor_count] = descriptor;
             descriptor_count++;
@@ -410,7 +431,7 @@ b8 vulkan_material_shader_acquire_resources(VULKAN_CONTEXT* context, struct VULK
 
     VkDescriptorSetAllocateInfo alloc_info = {VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     alloc_info.descriptorPool = shader->object_descriptor_pool;
-    alloc_info.descriptorSetCount = 3;  // one per frame
+    alloc_info.descriptorSetCount = context->swapchain.image_count;  // one per frame
     alloc_info.pSetLayouts = layouts;
     VkResult result = vkAllocateDescriptorSets(context->device.logical_device, &alloc_info, object_state->descriptor_sets);
     if (result != VK_SUCCESS) {
@@ -424,7 +445,7 @@ b8 vulkan_material_shader_acquire_resources(VULKAN_CONTEXT* context, struct VULK
 void vulkan_material_shader_release_resources(VULKAN_CONTEXT* context, struct VULKAN_MATERIAL_SHADER* shader, MATERIAL* material) {
     VULKAN_MATERIAL_SHADER_INSTANCE_STATE* instance_state = &shader->instance_states[material->internal_id];
 
-    const u32 descriptor_set_count = 3;
+    const u32 descriptor_set_count = context->swapchain.image_count;
 
     // Wait for any pending operations using the descriptor set to finish.
     vkDeviceWaitIdle(context->device.logical_device);
@@ -446,3 +467,4 @@ void vulkan_material_shader_release_resources(VULKAN_CONTEXT* context, struct VU
 
     // TODO: add the object_id to the free list
 }
+#pragma clang optimize on

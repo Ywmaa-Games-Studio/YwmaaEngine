@@ -58,13 +58,13 @@ extracted from https://ziglang.org/documentation/master/#Build-Mode
 
 ### Windows
 
- - `zig` the compiler
+ - `zig 0.14` the compiler
  - There shouldn't be other required dependencies, if it fails please report.
 
 ### Linux
 
 Install these via package manager:
- - `zig` the compiler
+ - `zig 0.14` the compiler
  - There shouldn't be other required dependencies, if it fails please report.
 
 You can also check the required dependecies for linux in shell.nix

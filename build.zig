@@ -4,7 +4,7 @@
 // Created:
 //   2025.04.14 -20:32
 // Last edited:
-//   2025.04.27 -09:06
+//   2025.04.28 -03:21
 // Auto updated?
 //   Yes
 //
@@ -49,15 +49,19 @@ pub fn build(b: *std.Build) !void {
         break :blk apk;
     };
 
-    const engine_flags = [_][]const u8{
-        "-DYEXPORT",
-        "-DDEBUG",
-        "-Wall",
-        "-Wpedantic",
-        "-Werror",
-        "-Wno-gnu", // Allow GNU extensions
-        "-Wno-missing-braces",
-    };
+    const is_debug = optimize == .Debug;
+
+    var engine_flags = std.ArrayList([]const u8).init(b.allocator);
+    try engine_flags.append("-DYEXPORT");
+    if (is_debug) {
+        try engine_flags.append("-D_DEBUG");
+    }
+    try engine_flags.append("-Wall");
+    try engine_flags.append("-Wpedantic");
+    try engine_flags.append("-Werror");
+    try engine_flags.append("-Wno-gnu");
+    try engine_flags.append("-Wno-missing-braces");
+
     const testbed_flags = [_][]const u8{
         "-DYIMPORT",
     };
@@ -94,7 +98,7 @@ pub fn build(b: *std.Build) !void {
             } else false;
             if (include_file) {
                 std.debug.print("Engine: Found {s} file to compile: '{s}'. path: '{s}'\n", .{ ext, entry.basename, entry.path });
-                libengine.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "engine/src", entry.path })), .flags = &engine_flags });
+                libengine.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "engine/src", entry.path })), .flags = engine_flags.items });
             }
         }
     }

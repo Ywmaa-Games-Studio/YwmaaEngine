@@ -144,7 +144,9 @@ const char* resource_system_base_path(void) {
 
 b8 load(const char* name, RESOURCE_LOADER* loader, RESOURCE* out_resource) {
     if (!name || !loader || !loader->load || !out_resource) {
-        out_resource->loader_id = INVALID_ID;
+        if (out_resource) {
+            out_resource->loader_id = INVALID_ID;
+        }
         return false;
     }
 

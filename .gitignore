@@ -11,3 +11,5 @@
 #Zig Compiler folders
 .zig-cache/*
 zig-out/*
+
+*.spv

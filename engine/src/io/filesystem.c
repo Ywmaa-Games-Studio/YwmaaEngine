@@ -102,19 +102,16 @@ b8 filesystem_read(FILE_HANDLE* handle, u64 data_size, void* out_data, u64* out_
     return false;
 }
 
-b8 filesystem_read_all_bytes(FILE_HANDLE* handle, u8** out_bytes, u64* out_bytes_read) {
-    if (handle->handle) {
+b8 filesystem_read_all_bytes(FILE_HANDLE* handle, u8* out_bytes, u64* out_bytes_read) {
+    if (handle->handle && out_bytes && out_bytes_read) {
         // File size
-        fseek((FILE*)handle->handle, 0, SEEK_END);
-        u64 size = ftell((FILE*)handle->handle);
-        rewind((FILE*)handle->handle);
-
-        *out_bytes = yallocate(sizeof(u8) * size, MEMORY_TAG_STRING);
-        *out_bytes_read = fread(*out_bytes, 1, size, (FILE*)handle->handle);
-        if (*out_bytes_read != size) {
+        u64 size = 0;
+        if(!filesystem_size(handle, &size)) {
             return false;
         }
-        return true;
+
+        *out_bytes_read = fread(out_bytes, 1, size, (FILE*)handle->handle);
+        return *out_bytes_read == size;
     }
     return false;
 }

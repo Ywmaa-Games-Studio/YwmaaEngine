@@ -4,9 +4,9 @@
 #include "core/logger.h"
 #include "core/ymemory.h"
 
-#include "io/filesystem.h"
+#include "systems/resource_system.h"
 
-b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader_module) {
+b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader_module, const char* name) {
 
     WGPUShaderModuleDescriptor shaderDesc = {0};
 
@@ -15,41 +15,24 @@ b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader
     shaderCodeDesc.chain.next = NULL;
     shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
     // Build file name.
-    char file_name[512] = "assets/shaders/shader.wgsl";
+    char file_name[512];
+    string_format(file_name, "shaders/%s.wgsl", name);
 
-    // Obtain file handle.
-    FILE_HANDLE handle;
-    if (!filesystem_open(file_name, FILE_MODE_READ, false, &handle)) {
-        PRINT_ERROR("Unable to read wgsl shader: %s.", file_name);
+    // Read the resource.
+    RESOURCE text_resource;
+    if (!resource_system_load(file_name, RESOURCE_TYPE_TEXT, &text_resource)) {
+        PRINT_ERROR("Unable to read shader module: %s.", file_name);
         return false;
     }
-
-    u64 file_size = 0;
-    if (!filesystem_size(&handle, &file_size)) {
-        PRINT_ERROR("Unable to wgsl shader file: %s.", file_name);
-        filesystem_close(&handle);
-        return false;
-    }
-
-    // Read the entire file as binary.
-    char* code = yallocate(sizeof(char) * file_size+1, MEMORY_TAG_ARRAY);
-    u64 read_size = 0;
-    if (!filesystem_read_all_text(&handle, code, &read_size)) {
-        PRINT_ERROR("Unable to text read shader module %s.", file_name);
-        filesystem_close(&handle);
-        return false;
-    }
-
-    // Close the file.
-    filesystem_close(&handle);
 
     // Connect the chain
     shaderDesc.nextInChain = &shaderCodeDesc.chain;
 
-    shaderCodeDesc.code = (WGPUStringView){code, read_size};
+    shaderCodeDesc.code = (WGPUStringView){(char*)text_resource.data, text_resource.data_size};
     (*shader_module) = wgpuDeviceCreateShaderModule(context->device, &shaderDesc);
 
-    yfree(code, MEMORY_TAG_ARRAY);
+    // Release the resource.
+    resource_system_unload(&text_resource);
 
     return true;
 }

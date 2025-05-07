@@ -83,7 +83,7 @@ YAPI b8 filesystem_read(FILE_HANDLE* handle, u64 data_size, void* out_data, u64*
  * @param out_bytes_read A pointer to a number which will be populated with the number of bytes actually read from the file.
  * @returns True if successful; otherwise false.
  */
-YAPI b8 filesystem_read_all_bytes(FILE_HANDLE* handle, u8** out_bytes, u64* out_bytes_read);
+YAPI b8 filesystem_read_all_bytes(FILE_HANDLE* handle, u8* out_bytes, u64* out_bytes_read);
 
 /**
  * @brief Reads all characters of data into out_text.

@@ -25,7 +25,7 @@ void bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout);
 b8 webgpu_material_shader_create(WEBGPU_CONTEXT* context, WEBGPU_MATERIAL_SHADER* out_shader) {
 
 
-    if (!webgpu_create_shader_module(context, &out_shader->shader_module)) {
+    if (!webgpu_create_shader_module(context, &out_shader->shader_module, "shader")) {
         PRINT_ERROR("Unable to create shader module for '%s'.", BUILTIN_SHADER_NAME_OBJECT);
         return false;
     }

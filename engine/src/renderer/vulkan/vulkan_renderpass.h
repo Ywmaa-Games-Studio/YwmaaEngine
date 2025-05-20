@@ -2,13 +2,23 @@
 
 #include "vulkan_types.inl"
 
+typedef enum E_RENDERPASS_CLEAR_FLAG {
+    RENDERPASS_CLEAR_NONE_FLAG = 0x0,
+    RENDERPASS_CLEAR_COLOUR_BUFFER_FLAG = 0x1,
+    RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG = 0x2,
+    RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG = 0x4
+} E_RENDERPASS_CLEAR_FLAG;
+
 void vulkan_renderpass_create(
     VULKAN_CONTEXT* context, 
     VULKAN_RENDERPASS* out_renderpass,
-    f32 x, f32 y, f32 w, f32 h,
-    f32 r, f32 g, f32 b, f32 a,
+    Vector4 render_area,
+    Vector4 clear_colour,
     f32 depth,
-    u32 stencil);
+    u32 stencil,
+    u8 clear_flags,
+    b8 has_prev_pass,
+    b8 has_next_pass);
 
 void vulkan_renderpass_destroy(VULKAN_CONTEXT* context, VULKAN_RENDERPASS* renderpass);
 

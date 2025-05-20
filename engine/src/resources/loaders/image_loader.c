@@ -5,6 +5,7 @@
 #include "core/ystring.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
+#include "loader_utils.h"
 
 // TODO: resource loader.
 #define STB_IMAGE_IMPLEMENTATION
@@ -58,7 +59,7 @@ b8 image_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_reso
     out_resource->full_path = string_duplicate(full_file_path);
 
     // TODO: Should be using an allocator here.
-    IMAGE_RESOURCE_DATA* resource_data = yallocate(sizeof(IMAGE_RESOURCE_DATA), MEMORY_TAG_TEXTURE);
+    IMAGE_RESOURCE_DATA* resource_data = yallocate_aligned(sizeof(IMAGE_RESOURCE_DATA), 8, MEMORY_TAG_TEXTURE);
     resource_data->pixels = data;
     resource_data->width = width;
     resource_data->height = height;
@@ -72,21 +73,9 @@ b8 image_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_reso
 }
 
 void image_loader_unload(RESOURCE_LOADER* self, RESOURCE* resource) {
-    if (!self || !resource) {
+    if (!resource_unload(self, resource, MEMORY_TAG_TEXTURE)) {
         PRINT_WARNING("image_loader_unload called with nullptr for self or resource.");
         return;
-    }
-
-    u32 path_length = string_length(resource->full_path);
-    if (path_length) {
-        yfree(resource->full_path, MEMORY_TAG_STRING);
-    }
-
-    if (resource->data) {
-        yfree(resource->data, MEMORY_TAG_TEXTURE);
-        resource->data = 0;
-        resource->data_size = 0;
-        resource->loader_id = INVALID_ID;
     }
 }
 

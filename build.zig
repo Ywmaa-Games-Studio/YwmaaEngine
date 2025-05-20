@@ -4,7 +4,7 @@
 // Created:
 //   2025.04.14 -20:32
 // Last edited:
-//   2025.04.28 -03:21
+//   2025.05.19 -19:26
 // Auto updated?
 //   Yes
 //
@@ -222,8 +222,10 @@ pub fn build(b: *std.Build) !void {
         apk_file.installApk();
     }
 
-    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin-shader.vert"), "builtin.shader.vert.spv"), "bin/assets/shaders/builtin.shader.vert.spv").step);
-    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin-shader.frag"), "builtin.shader.frag.spv"), "bin/assets/shaders/builtin.shader.frag.spv").step);
+    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_shader.vert"), "builtin.shader.vert.spv"), "bin/assets/shaders/builtin.shader.vert.spv").step);
+    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_shader.frag"), "builtin.shader.frag.spv"), "bin/assets/shaders/builtin.shader.frag.spv").step);
+    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_UI_shader.vert"), "builtin.UIshader.vert.spv"), "bin/assets/shaders/builtin.UIshader.vert.spv").step);
+    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_UI_shader.frag"), "builtin.UIshader.frag.spv"), "bin/assets/shaders/builtin.UIshader.frag.spv").step);
 
     //try addShader(b, exe, "builtin.shader.vert.glsl", "builtin.shader.vert.spv", "-fshader-stage=vert");
     //try addShader(b, exe, "builtin.shader.frag.glsl", "builtin.shader.frag.spv", "-fshader-stage=frag");

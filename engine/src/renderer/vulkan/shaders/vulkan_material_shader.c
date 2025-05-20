@@ -152,6 +152,7 @@ b8 vulkan_material_shader_create(VULKAN_CONTEXT* context, VULKAN_MATERIAL_SHADER
     if (!vulkan_graphics_pipeline_create(
             context,
             &context->main_renderpass,
+            sizeof(Vertex3D),
             ATTRIBUTE_COUNT,
             attribute_descriptions,
             descriptor_set_layout_count,
@@ -161,6 +162,7 @@ b8 vulkan_material_shader_create(VULKAN_CONTEXT* context, VULKAN_MATERIAL_SHADER
             viewport,
             scissor,
             false,
+            true,
             &out_shader->pipeline)) {
         PRINT_ERROR("Failed to load graphics pipeline for object shader.");
         return false;
@@ -169,7 +171,7 @@ b8 vulkan_material_shader_create(VULKAN_CONTEXT* context, VULKAN_MATERIAL_SHADER
     // Create uniform buffer.
     if (!vulkan_buffer_create(
             context,
-            sizeof(GLOBAL_UNIFORM_OBJECT) * 3,
+            sizeof(MATERIAL_SHADER_GLOBAL_UBO) * 3,
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | device_local_bits,
             true,
@@ -193,7 +195,7 @@ b8 vulkan_material_shader_create(VULKAN_CONTEXT* context, VULKAN_MATERIAL_SHADER
     // Create the object uniform buffer.
     if (!vulkan_buffer_create(
         context,
-        sizeof(MATERIAL_UNIFORM_OBJECT) * VULKAN_MAX_MATERIAL_COUNT,  //* MAX_MATERIAL_INSTANCE_COUNT,
+        sizeof(MATERIAL_SHADER_INSTANCE_UBO) * VULKAN_MAX_MATERIAL_COUNT,  //* MAX_MATERIAL_INSTANCE_COUNT,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         true,
@@ -241,8 +243,8 @@ void vulkan_material_shader_update_global_state(VULKAN_CONTEXT* context, struct 
     VkCommandBuffer command_buffer = context->graphics_command_buffers[image_index].handle;
     VkDescriptorSet global_descriptor = shader->global_descriptor_sets[image_index];
     // Configure the descriptors for the given index.
-    u32 range = sizeof(GLOBAL_UNIFORM_OBJECT);
-    u64 offset = sizeof(GLOBAL_UNIFORM_OBJECT)*image_index;
+    u32 range = sizeof(MATERIAL_SHADER_GLOBAL_UBO);
+    u64 offset = sizeof(MATERIAL_SHADER_GLOBAL_UBO)*image_index;
 
     // Copy data to buffer
     vulkan_buffer_load_data(context, &shader->global_uniform_buffer, offset, range, 0, &shader->global_ubo);
@@ -298,21 +300,21 @@ void vulkan_material_shader_apply_material(VULKAN_CONTEXT* context, struct VULKA
     u32 descriptor_index = 0;
 
     // Descriptor 0 - Uniform buffer
-    u32 range = sizeof(MATERIAL_UNIFORM_OBJECT);
-    u64 offset = sizeof(MATERIAL_UNIFORM_OBJECT) * material->internal_id;  // also the index into the array.
-    MATERIAL_UNIFORM_OBJECT obo;
+    u32 range = sizeof(MATERIAL_SHADER_INSTANCE_UBO);
+    u64 offset = sizeof(MATERIAL_SHADER_INSTANCE_UBO) * material->internal_id;  // also the index into the array.
+    MATERIAL_SHADER_INSTANCE_UBO instance_obo;
 
 /*         static f32 accumulator = 0.0f;
     accumulator += context->frame_delta_time;
     f32 s = (ysin(accumulator) + 1.0f) / 2.0f;  // scale from -1, 1 to 0, 1
     obo.diffuse_color = Vector4_create(s, s, s, 1.0f); */
-    obo.diffuse_color = material->diffuse_colour;
-    obo.v_reserved0 = Vector4_zero();
-    obo.v_reserved1 = Vector4_zero();
-    obo.v_reserved2 = Vector4_zero();
+    instance_obo.diffuse_color = material->diffuse_colour;
+    instance_obo.v_reserved0 = Vector4_zero();
+    instance_obo.v_reserved1 = Vector4_zero();
+    instance_obo.v_reserved2 = Vector4_zero();
 
     // Load the data into the buffer.
-    vulkan_buffer_load_data(context, &shader->object_uniform_buffer, offset, range, 0, &obo);
+    vulkan_buffer_load_data(context, &shader->object_uniform_buffer, offset, range, 0, &instance_obo);
 
     // Only do this if the descriptor has not yet been updated.
     u32* global_ubo_generation = &object_state->descriptor_states[descriptor_index].generations[image_index];

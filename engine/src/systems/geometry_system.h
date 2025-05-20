@@ -11,10 +11,12 @@ typedef struct GEOMETRY_SYSTEM_CONFIG {
 } GEOMETRY_SYSTEM_CONFIG;
 
 typedef struct GEOMETRY_CONFIG {
+    u32 vertex_size;
     u32 vertex_count;
-    Vertex3D* vertices;
+    void* vertices;
+    u32 index_size;
     u32 index_count;
-    u32* indices;
+    void* indices;
     char name[GEOMETRY_NAME_MAX_LENGTH];
     char material_name[MATERIAL_NAME_MAX_LENGTH];
 } GEOMETRY_CONFIG;
@@ -54,6 +56,14 @@ void geometry_system_release(GEOMETRY* geometry);
  * @return A pointer to the default geometry. 
  */
 GEOMETRY* geometry_system_get_default(void);
+
+/**
+ * @brief Obtains a pointer to the default geometry.
+ * 
+ * @return A pointer to the default geometry. 
+ */
+GEOMETRY* geometry_system_get_default_2d(void);
+
 
 /**
  * @brief Generates configuration for plane geometries given the provided parameters.

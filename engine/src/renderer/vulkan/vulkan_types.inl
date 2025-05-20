@@ -76,22 +76,19 @@ typedef enum VULKAN_RENDER_PASS_STATE {
 
 typedef struct VULKAN_RENDERPASS {
     VkRenderPass handle;
-    f32 x, y, w, h;
-    f32 r, g, b, a;
+    Vector4 render_area;
+    Vector4 clear_colour;
 
     f32 depth;
     u32 stencil;
 
+    u8 clear_flags;
+    b8 has_prev_pass;
+    b8 has_next_pass;
+
     VULKAN_RENDER_PASS_STATE state;
 } VULKAN_RENDERPASS;
 
-
-typedef struct VULKAN_FRAMEBUFFER {
-    VkFramebuffer handle;
-    u32 attachment_count;
-    VkImageView* attachments;
-    VULKAN_RENDERPASS* renderpass;
-} VULKAN_FRAMEBUFFER;
 typedef struct VULKAN_SWAPCHAIN {
     VkSurfaceFormatKHR image_format;
     u8 max_frames_in_flight;
@@ -102,8 +99,8 @@ typedef struct VULKAN_SWAPCHAIN {
 
     VULKAN_IMAGE depth_attachment;
 
-    // framebuffers used for on-screen rendering.
-    VULKAN_FRAMEBUFFER* framebuffers;
+    // Framebuffers used for on-screen rendering, one per frame
+    VkFramebuffer framebuffers[3];
 } VULKAN_SWAPCHAIN;
 
 typedef enum VULKAN_COMMAND_BUFFER_STATE {
@@ -121,11 +118,6 @@ typedef struct VULKAN_COMMAND_BUFFER {
     // Command buffer state.
     VULKAN_COMMAND_BUFFER_STATE state;
 } VULKAN_COMMAND_BUFFER;
-
-typedef struct VULKAN_FENCE {
-    VkFence handle;
-    b8 is_signaled;
-} VULKAN_FENCE;
 typedef struct VULKAN_SHADER_STAGE {
     VkShaderModuleCreateInfo create_info;
     VkShaderModule handle;
@@ -170,10 +162,10 @@ typedef struct VULKAN_GEOMETRY_DATA {
     u32 id;
     u32 generation;
     u32 vertex_count;
-    u32 vertex_size;
+    u32 vertex_element_size;
     u64 vertex_buffer_offset;
     u32 index_count;
-    u32 index_size;
+    u32 index_element_size;
     u64 index_buffer_offset;
 } VULKAN_GEOMETRY_DATA;
 typedef struct VULKAN_MATERIAL_SHADER {
@@ -188,7 +180,7 @@ typedef struct VULKAN_MATERIAL_SHADER {
     b8 descriptor_updated[3];
 
     // Global uniform object.
-    GLOBAL_UNIFORM_OBJECT global_ubo;
+    MATERIAL_SHADER_GLOBAL_UBO global_ubo;
 
     // Global uniform buffer.
     VULKAN_BUFFER global_uniform_buffer;
@@ -210,6 +202,55 @@ typedef struct VULKAN_MATERIAL_SHADER {
 
 
 } VULKAN_MATERIAL_SHADER;
+
+#define UI_SHADER_STAGE_COUNT 2
+#define VULKAN_UI_SHADER_DESCRIPTOR_COUNT 2
+#define VULKAN_UI_SHADER_SAMPLER_COUNT 1
+
+// Max number of ui control instances
+// TODO: make configurable
+#define VULKAN_MAX_UI_COUNT 1024
+
+typedef struct VULKAN_UI_SHADER_INSTANCE_STATE {
+    // Per frame
+    VkDescriptorSet descriptor_sets[3];
+
+    // Per descriptor
+    VULKAN_DESCRIPTOR_STATE descriptor_states[VULKAN_UI_SHADER_DESCRIPTOR_COUNT];
+} VULKAN_UI_SHADER_INSTANCE_STATE;
+
+typedef struct VULKAN_UI_SHADER {
+    // vertex, fragment
+    VULKAN_SHADER_STAGE stages[UI_SHADER_STAGE_COUNT];
+
+    VkDescriptorPool global_descriptor_pool;
+    VkDescriptorSetLayout global_descriptor_set_layout;
+
+    // One descriptor set per frame - max 3 for triple-buffering.
+    VkDescriptorSet global_descriptor_sets[3];
+
+    // Global uniform object.
+    UI_SHADER_GLOBAL_UBO global_ubo;
+
+    // Global uniform buffer.
+    VULKAN_BUFFER global_uniform_buffer;
+
+    VkDescriptorPool object_descriptor_pool;
+    VkDescriptorSetLayout object_descriptor_set_layout;
+    // Object uniform buffers.
+    VULKAN_BUFFER object_uniform_buffer;
+    // TODO: manage a free list of some kind here instead.
+    u32 object_uniform_buffer_index;
+
+    E_TEXTURE_USE sampler_uses[VULKAN_UI_SHADER_SAMPLER_COUNT];
+
+    // TODO: make dynamic
+    VULKAN_UI_SHADER_INSTANCE_STATE instance_states[VULKAN_MAX_UI_COUNT];
+
+    VULKAN_PIPELINE pipeline;
+
+} VULKAN_UI_SHADER;
+
 typedef struct VULKAN_CONTEXT {
     f32 frame_delta_time;
 
@@ -234,6 +275,7 @@ typedef struct VULKAN_CONTEXT {
 
     VULKAN_SWAPCHAIN swapchain;
     VULKAN_RENDERPASS main_renderpass;
+    VULKAN_RENDERPASS ui_renderpass;
 
     VULKAN_BUFFER object_vertex_buffer;
     VULKAN_BUFFER object_index_buffer;
@@ -248,10 +290,10 @@ typedef struct VULKAN_CONTEXT {
     VkSemaphore* queue_complete_semaphores;
 
     u32 in_flight_fence_count;
-    VULKAN_FENCE* in_flight_fences;
+    VkFence in_flight_fences[2];
 
-    // Holds pointers to fences which exist and are owned elsewhere.
-    VULKAN_FENCE** images_in_flight;
+    // Holds pointers to fences which exist and are owned elsewhere, one per frame.
+    VkFence* images_in_flight[3];
 
     u32 image_index;
     u32 current_frame;
@@ -259,9 +301,13 @@ typedef struct VULKAN_CONTEXT {
     b8 recreating_swapchain;
 
     VULKAN_MATERIAL_SHADER material_shader;
+    VULKAN_UI_SHADER ui_shader;
 
     // TODO: make dynamic
     VULKAN_GEOMETRY_DATA geometries[VULKAN_MAX_GEOMETRY_COUNT];
+
+    // Framebuffers used for world rendering, one per frame
+    VkFramebuffer world_framebuffers[3];
 
     i32 (*find_memory_index)(u32 type_filter, u32 property_flags);
 #if defined(_DEBUG)

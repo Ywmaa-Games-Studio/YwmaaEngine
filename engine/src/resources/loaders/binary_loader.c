@@ -8,6 +8,7 @@
 #include "math/ymath.h"
 
 #include "io/filesystem.h"
+#include "loader_utils.h"
 
 b8 binary_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
@@ -18,14 +19,14 @@ b8 binary_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_res
     char full_file_path[512];
     string_format(full_file_path, format_str, resource_system_base_path(), self->type_path, name, "");
 
-    // TODO: Should be using an allocator here.
-    out_resource->full_path = string_duplicate(full_file_path);
-
     FILE_HANDLE f;
     if (!filesystem_open(full_file_path, FILE_MODE_READ, true, &f)) {
         PRINT_ERROR("binary_loader_load - unable to open file for binary reading: '%s'.", full_file_path);
         return false;
     }
+
+    // TODO: Should be using an allocator here.
+    out_resource->full_path = string_duplicate(full_file_path);
 
     u64 file_size = 0;
     if (!filesystem_size(&f, &file_size)) {
@@ -53,21 +54,9 @@ b8 binary_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_res
 }
 
 void binary_loader_unload(RESOURCE_LOADER* self, RESOURCE* resource) {
-    if (!self || !resource) {
+    if (!resource_unload(self, resource, MEMORY_TAG_ARRAY)) {
         PRINT_WARNING("binary_loader_unload called with nullptr for self or resource.");
         return;
-    }
-
-    u32 path_length = string_length(resource->full_path);
-    if (path_length) {
-        yfree(resource->full_path, MEMORY_TAG_STRING);
-    }
-
-    if (resource->data) {
-        yfree(resource->data, MEMORY_TAG_ARRAY);
-        resource->data = 0;
-        resource->data_size = 0;
-        resource->loader_id = INVALID_ID;
     }
 }
 

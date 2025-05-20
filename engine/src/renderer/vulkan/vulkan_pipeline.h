@@ -5,6 +5,7 @@
 b8 vulkan_graphics_pipeline_create(
     VULKAN_CONTEXT* context,
     VULKAN_RENDERPASS* renderpass,
+    u32 stride,
     u32 attribute_count,
     VkVertexInputAttributeDescription* attributes,
     u32 descriptor_set_layout_count,
@@ -14,6 +15,7 @@ b8 vulkan_graphics_pipeline_create(
     VkViewport viewport,
     VkRect2D scissor,
     b8 is_wireframe,
+    b8 depth_test_enabled,
     VULKAN_PIPELINE* out_pipeline);
 
 void vulkan_pipeline_destroy(VULKAN_CONTEXT* context, VULKAN_PIPELINE* pipeline);

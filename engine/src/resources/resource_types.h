@@ -52,8 +52,13 @@ typedef struct TEXTURE_MAP {
 } TEXTURE_MAP;
 
 #define MATERIAL_NAME_MAX_LENGTH 256
+typedef enum E_MATERIAL_TYPE {
+    MATERIAL_TYPE_WORLD,
+    MATERIAL_TYPE_UI
+} E_MATERIAL_TYPE;
 typedef struct MATERIAL_CONFIG {
     char name[MATERIAL_NAME_MAX_LENGTH];
+    E_MATERIAL_TYPE type;
     b8 auto_release;
     Vector4 diffuse_colour;
     char diffuse_map_name[TEXTURE_NAME_MAX_LENGTH];
@@ -63,6 +68,7 @@ typedef struct MATERIAL {
     u32 id;
     u32 generation;
     u32 internal_id;
+    E_MATERIAL_TYPE type;
     char name[MATERIAL_NAME_MAX_LENGTH];
     Vector4 diffuse_colour;
     TEXTURE_MAP diffuse_map;

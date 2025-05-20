@@ -45,3 +45,7 @@ typedef struct Vertex3D {
     Vector3 position;
     Vector2 texcoord;
 } Vertex3D;
+typedef struct Vertex2D {
+    Vector2 position;
+    Vector2 texcoord;
+} Vertex2D;

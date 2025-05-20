@@ -63,6 +63,7 @@ typedef struct APPLICATION_STATE {
 
     // TODO: temp
     GEOMETRY* test_geometry;
+    GEOMETRY* test_ui_geometry;
     // TODO: end temp
 } APPLICATION_STATE;
 
@@ -205,26 +206,25 @@ b8 application_create(GAME* game_instance) {
     geometry_sys_config.max_geometry_count = 4096;
     geometry_system_init(&app_state->geometry_system_memory_requirement, 0, geometry_sys_config);
     app_state->geometry_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->geometry_system_memory_requirement);
-    
     // Renderer system
     app_state->renderer_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_system_memory_requirement);
     if (!renderer_system_init(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_instance->app_config.name, game_instance->app_config.renderer_backend_api)) { //RENDERER_BACKEND_API_WEBGPU|RENDERER_BACKEND_API_VULKAN
         PRINT_ERROR("Failed to initialize renderer. Aborting application.");
         return false;
     }
-
+    
     // Texture system.
     if (!texture_system_init(&app_state->texture_system_memory_requirement, app_state->texture_system_state, texture_sys_config)) {
         PRINT_ERROR("Failed to initialize texture system. Application cannot continue.");
         return false;
     }
-
+    
     // Material system.
     if (!material_system_init(&app_state->material_system_memory_requirement, app_state->material_system_state, material_sys_config)) {
         PRINT_ERROR("Failed to initialize material system. Application cannot continue.");
         return false;
     }
-
+    
     // Geometry system.
     if (!geometry_system_init(&app_state->geometry_system_memory_requirement, app_state->geometry_system_state, geometry_sys_config)) {
         PRINT_ERROR("Failed to initialize geometry system. Application cannot continue.");
@@ -244,6 +244,46 @@ b8 application_create(GAME* game_instance) {
     // Load up default geometry.
     //app_state->test_geometry = geometry_system_get_default();
     // TODO: end temp 
+
+    // Load up some test UI geometry.
+    GEOMETRY_CONFIG ui_config;
+    ui_config.vertex_size = sizeof(Vertex2D);
+    ui_config.vertex_count = 4;
+    ui_config.index_size = sizeof(u32);
+    ui_config.index_count = 6;
+    string_ncopy(ui_config.material_name, "test_ui_material", MATERIAL_NAME_MAX_LENGTH);
+    string_ncopy(ui_config.name, "test_ui_geometry", GEOMETRY_NAME_MAX_LENGTH);
+
+    const f32 f = 512.0f;
+    Vertex2D uiverts [4];
+    uiverts[0].position.x = 0.0f;  // 0    3
+    uiverts[0].position.y = 0.0f;  //
+    uiverts[0].texcoord.x = 0.0f;  //
+    uiverts[0].texcoord.y = 0.0f;  // 2    1
+
+    uiverts[1].position.y = f;
+    uiverts[1].position.x = f;
+    uiverts[1].texcoord.x = 1.0f;
+    uiverts[1].texcoord.y = 1.0f;
+
+    uiverts[2].position.x = 0.0f;
+    uiverts[2].position.y = f;
+    uiverts[2].texcoord.x = 0.0f;
+    uiverts[2].texcoord.y = 1.0f;
+
+    uiverts[3].position.x = f;
+    uiverts[3].position.y = 0.0;
+    uiverts[3].texcoord.x = 1.0f;
+    uiverts[3].texcoord.y = 0.0f;
+    ui_config.vertices = uiverts;
+
+    // Indices - counter-clockwise
+    u32 uiindices[6] = {2, 1, 0, 3, 0, 1};
+    ui_config.indices = uiindices;
+
+    // Get UI geometry from config.
+    app_state->test_ui_geometry = geometry_system_acquire_from_config(ui_config, true);
+
 
 
 
@@ -309,6 +349,12 @@ b8 application_run(void) {
 
             packet.geometry_count = 1;
             packet.geometries = &test_render;
+
+            GEOMETRY_RENDER_DATA test_ui_render;
+            test_ui_render.geometry = app_state->test_ui_geometry;
+            test_ui_render.model = Matrice4_translation((Vector3){0, 0, 0});
+            packet.ui_geometry_count = 1;
+            packet.ui_geometries = &test_ui_render;
             // TODO: end temp
 
             renderer_draw_frame(&packet);

@@ -1,3 +1,5 @@
+#pragma clang optimize off // Disable optimizations here because sometimes they cause damage by removing important zeroed variables
+
 #include "webgpu_types.inl"
 
 #include "webgpu_backend.h"
@@ -7,6 +9,7 @@
 #include "webgpu_image.h"
 #include "webgpu_buffer.h"
 #include "shaders/webgpu_material_shader.h"
+#include "shaders/webgpu_ui_shader.h"
 
 #include "core/logger.h"
 #include "core/ymemory.h"
@@ -27,6 +30,7 @@ b8 webgpu_upload_data_range(WEBGPU_CONTEXT* context, WEBGPU_BUFFER* buffer, u64*
 }
 
 void webgpu_free_data_range(WEBGPU_BUFFER* buffer, u64 offset, u64 size) {
+    // Free the data range.
     if (buffer) {
         webgpu_buffer_free(buffer, size, offset);
     }
@@ -100,6 +104,11 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
         return false;
     }
 
+    if (!webgpu_ui_shader_create(&context, &context.ui_shader)) {
+        PRINT_ERROR("Error loading built-in basic_lighting shader.");
+        return false;
+    }
+
     webgpu_create_buffers(&context);
 
     // Mark all geometries as invalid
@@ -119,6 +128,7 @@ void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
     webgpu_destroy_buffers(&context);
 
     webgpu_material_shader_destroy(&context, &context.material_shader);
+    webgpu_ui_shader_destroy(&context, &context.ui_shader);
 
     wgpuTextureViewRelease(context.depth_view);
 
@@ -179,8 +189,53 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     encoder_desc.nextInChain = NULL;
     encoder_desc.label = (WGPUStringView){"command encoder", sizeof("command encoder")};
     context.encoder = wgpuDeviceCreateCommandEncoder(context.device, &encoder_desc);
+    
+    return true;
+}
+void webgpu_renderer_update_global_world_state(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode) {
+    
+    webgpu_material_shader_use(&context, &context.material_shader);
+    
+    context.material_shader.global_ubo.projection = projection;
+    context.material_shader.global_ubo.view = view;
+    
+    webgpu_material_shader_update_global_state(&context, &context.material_shader, context.frame_delta_time);
+}
 
+void webgpu_renderer_update_global_ui_state(Matrice4 projection, Matrice4 view, i32 mode) {
+
+    webgpu_ui_shader_use(&context, &context.ui_shader);
+
+    context.ui_shader.global_ubo.projection = projection;
+    context.ui_shader.global_ubo.view = view;
+
+    // TODO: other ubo properties
+
+    webgpu_ui_shader_update_global_state(&context, &context.ui_shader, context.frame_delta_time);
+}
+b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+    
+    WGPUCommandBufferDescriptor cmd_buffer_descriptor = {0};
+    cmd_buffer_descriptor.nextInChain = NULL;
+    cmd_buffer_descriptor.label = (WGPUStringView){"Command buffer", sizeof("Command buffer")};
+    WGPUCommandBuffer command = wgpuCommandEncoderFinish(context.encoder, &cmd_buffer_descriptor);
+    wgpuCommandEncoderRelease(context.encoder);
+    
+    // Finally submit the command queue
+    wgpuQueueSubmit(context.queue, 1, &command);
+    wgpuCommandBufferRelease(command);
+    
+    wgpuTextureViewRelease(context.target_view);
+
+    //Present Texture
+    wgpuSurfacePresent(context.surface);
+
+    return true;
+}
+
+b8 webgpu_renderer_begin_renderpass(struct RENDERER_BACKEND* backend, u8 renderpass_id) {
     //START Render Pass
+
     // Describe Render Pass
     WGPURenderPassColorAttachment render_pass_color_attachment = {0};
     // [...] Describe the attachment
@@ -216,53 +271,75 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     depthStencilAttachment.stencilLoadOp = WGPULoadOp_Clear;
     depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Store;
     depthStencilAttachment.stencilReadOnly = true;
-    
-    WGPURenderPassDescriptor render_pass_desc = {0};
-    render_pass_desc.nextInChain = NULL;
+
+    WGPURenderPassDescriptor world_render_pass_desc = {0};
+    world_render_pass_desc.nextInChain = NULL;
     //render_pass_desc.label = "";
-    render_pass_desc.colorAttachmentCount = 1;
-    render_pass_desc.colorAttachments = &render_pass_color_attachment;
-    render_pass_desc.depthStencilAttachment = &depthStencilAttachment;
-    render_pass_desc.timestampWrites = NULL;
+    world_render_pass_desc.colorAttachmentCount = 1;
+    world_render_pass_desc.colorAttachments = &render_pass_color_attachment;
+    world_render_pass_desc.depthStencilAttachment = &depthStencilAttachment;
+    world_render_pass_desc.timestampWrites = NULL;
 
-    context.render_pass = wgpuCommandEncoderBeginRenderPass(context.encoder, &render_pass_desc);
-    
+    WGPURenderPassDescriptor ui_render_pass_desc = {0};
+    ui_render_pass_desc.nextInChain = NULL;
+    //render_pass_desc.label = "";
+    ui_render_pass_desc.colorAttachmentCount = 1;
+    ui_render_pass_desc.colorAttachments = &render_pass_color_attachment;
+    ui_render_pass_desc.depthStencilAttachment = &depthStencilAttachment;
+    ui_render_pass_desc.timestampWrites = NULL;
+
+    // Choose a renderpass based on ID.
+    switch (renderpass_id) {
+        case BUILTIN_RENDERPASS_WORLD:
+            //START World Render Pass
+            context.world_render_pass = wgpuCommandEncoderBeginRenderPass(context.encoder, &world_render_pass_desc);
+            break;
+
+        case BUILTIN_RENDERPASS_UI:
+            //START UI Render Pass
+            context.ui_render_pass = wgpuCommandEncoderBeginRenderPass(context.encoder, &ui_render_pass_desc);
+            break;
+
+        default:
+            PRINT_ERROR("webgpu_renderer_begin_renderpass called on unrecognized renderpass id: %#02x", renderpass_id);
+            return false;
+    }
+
+    // Use the appropriate shader.
+    switch (renderpass_id) {
+        case BUILTIN_RENDERPASS_WORLD:
+            webgpu_material_shader_use(&context, &context.material_shader);
+            break;
+        case BUILTIN_RENDERPASS_UI:
+            webgpu_ui_shader_use(&context, &context.ui_shader);
+            break;
+    }
+
     return true;
 }
-void webgpu_renderer_update_global_state(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode) {
-    
-    webgpu_material_shader_use(&context, &context.material_shader);
-    
-    context.material_shader.global_ubo.projection = projection;
-    context.material_shader.global_ubo.view = view;
-    
-    webgpu_material_shader_update_global_state(&context, &context.material_shader, context.frame_delta_time);
-}
-b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
-    
-    wgpuRenderPassEncoderEnd(context.render_pass);
-    wgpuRenderPassEncoderRelease(context.render_pass);
-    //END Render Pass
-    
-    WGPUCommandBufferDescriptor cmd_buffer_descriptor = {0};
-    cmd_buffer_descriptor.nextInChain = NULL;
-    cmd_buffer_descriptor.label = (WGPUStringView){"Command buffer", sizeof("Command buffer")};
-    WGPUCommandBuffer command = wgpuCommandEncoderFinish(context.encoder, &cmd_buffer_descriptor);
-    wgpuCommandEncoderRelease(context.encoder);
-    
-    // Finally submit the command queue
-    wgpuQueueSubmit(context.queue, 1, &command);
-    wgpuCommandBufferRelease(command);
-    
-    wgpuTextureViewRelease(context.target_view);
 
-    //Present Texture
-    wgpuSurfacePresent(context.surface);
+b8 webgpu_renderer_end_renderpass(struct RENDERER_BACKEND* backend, u8 renderpass_id) {
+    // Choose a renderpass based on ID.
+    switch (renderpass_id) {
+        case BUILTIN_RENDERPASS_WORLD:
+            wgpuRenderPassEncoderEnd(context.world_render_pass);
+            wgpuRenderPassEncoderRelease(context.world_render_pass);
+            //END World Render Pass
+            break;
+        case BUILTIN_RENDERPASS_UI:
+            wgpuRenderPassEncoderEnd(context.ui_render_pass);
+            wgpuRenderPassEncoderRelease(context.ui_render_pass);
+            //END UI Render Pass
+            break;
+        default:
+            PRINT_ERROR("vulkan_renderer_end_renderpass called on unrecognized renderpass id:  %#02x", renderpass_id);
+            return false;
+    }
 
     return true;
 }
 
-b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_count, const Vertex3D* vertices, u32 index_count, const u32* indices) {
+b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
     if (!vertex_count || !vertices) {
         PRINT_ERROR("webgpu_renderer_create_geometry requires vertex data, and none was supplied. vertex_count=%d, vertices=%p", vertex_count, vertices);
         return false;
@@ -279,10 +356,10 @@ b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_count, const V
         // Take a copy of the old range.
         old_range.index_buffer_offset = internal_data->index_buffer_offset;
         old_range.index_count = internal_data->index_count;
-        old_range.index_size = internal_data->index_size;
+        old_range.index_element_size = internal_data->index_element_size;
         old_range.vertex_buffer_offset = internal_data->vertex_buffer_offset;
         old_range.vertex_count = internal_data->vertex_count;
-        old_range.vertex_size = internal_data->vertex_size;
+        old_range.vertex_element_size = internal_data->vertex_element_size;
     } else {
         for (u32 i = 0; i < WEBGPU_MAX_GEOMETRY_COUNT; ++i) {
             if (context.geometries[i].id == INVALID_ID) {
@@ -300,9 +377,10 @@ b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_count, const V
     }
 
     // Vertex data.
+    //PRINT_DEBUG("webgpu_renderer_create_geometry: vertex_size=%d, vertex_count=%d, vertices=%p ", vertex_size, vertex_count, vertices);
     internal_data->vertex_count = vertex_count;
-    internal_data->vertex_size = sizeof(Vertex3D) * vertex_count;
-    u32 total_size = vertex_count * internal_data->vertex_size;
+    internal_data->vertex_element_size = sizeof(Vertex3D);
+    u32 total_size = vertex_count * vertex_size;
     if (!webgpu_upload_data_range(&context, &context.object_vertex_buffer, &internal_data->vertex_buffer_offset, total_size, vertices)) {
         PRINT_ERROR("webgpu_renderer_create_geometry failed to upload to the vertex buffer!");
         return false;
@@ -311,8 +389,8 @@ b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_count, const V
     // Index data, if applicable
     if (index_count && indices) {
         internal_data->index_count = index_count;
-        internal_data->index_size = sizeof(u32) * index_count;
-        total_size = index_count * internal_data->index_size;
+        internal_data->index_element_size = sizeof(u32);
+        total_size = index_count * index_size;
         if (!webgpu_upload_data_range(&context, &context.object_index_buffer, &internal_data->index_buffer_offset, total_size, indices)){
             PRINT_ERROR("webgpu_renderer_create_geometry failed to upload to the index buffer!");
             return false;
@@ -327,11 +405,11 @@ b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_count, const V
 
     if (is_reupload) {
         // Free vertex data
-        webgpu_free_data_range(&context.object_vertex_buffer, old_range.vertex_buffer_offset, old_range.vertex_size);
+        webgpu_free_data_range(&context.object_vertex_buffer, old_range.vertex_buffer_offset, old_range.vertex_element_size * old_range.vertex_count);
 
         // Free index data, if applicable
-        if (old_range.index_size > 0) {
-            webgpu_free_data_range(&context.object_index_buffer, old_range.index_buffer_offset, old_range.index_size);
+        if (old_range.index_element_size > 0) {
+            webgpu_free_data_range(&context.object_index_buffer, old_range.index_buffer_offset, old_range.index_element_size  * old_range.index_count);
         }
     }
 
@@ -343,11 +421,11 @@ void webgpu_renderer_destroy_geometry(GEOMETRY* geometry) {
         WEBGPU_GEOMETRY_DATA* internal_data = &context.geometries[geometry->internal_id];
 
         // Free vertex data
-        webgpu_free_data_range(&context.object_vertex_buffer, internal_data->vertex_buffer_offset, internal_data->vertex_size);
+        webgpu_free_data_range(&context.object_vertex_buffer, internal_data->vertex_buffer_offset, internal_data->vertex_element_size * internal_data->vertex_count);
 
         // Free index data, if applicable
-        if (internal_data->index_size > 0) {
-            webgpu_free_data_range(&context.object_index_buffer, internal_data->index_buffer_offset, internal_data->index_size);
+        if (internal_data->index_element_size > 0) {
+            webgpu_free_data_range(&context.object_index_buffer, internal_data->index_buffer_offset, internal_data->index_element_size  * internal_data->index_count);
         }
 
         // Clean up data.
@@ -364,31 +442,55 @@ void webgpu_renderer_draw_geometry(GEOMETRY_RENDER_DATA data) {
     }
 
     WEBGPU_GEOMETRY_DATA* buffer_data = &context.geometries[data.geometry->internal_id];
-    
-    webgpu_material_shader_use(&context, &context.material_shader);
-    
-    webgpu_material_shader_set_model(&context, &context.material_shader, data.model);
-    
+
     MATERIAL* m = 0;
     if (data.geometry->material) {
         m = data.geometry->material;
     } else {
         m = material_system_get_default();
     }
-    webgpu_material_shader_apply_material(&context, &context.material_shader, m);
-    
-    // Set vertex buffer while encoding the render pass
-    wgpuRenderPassEncoderSetVertexBuffer(context.render_pass, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
-    
-    // Draw indexed or non-indexed.
-    if (buffer_data->index_count > 0) {
-        // Bind index buffer at offset.
-        wgpuRenderPassEncoderSetIndexBuffer(context.render_pass, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
-        // Issue the draw.
-        wgpuRenderPassEncoderDrawIndexed(context.render_pass, buffer_data->index_count, 1, 0, 0, 0);
-    } else {
-        wgpuRenderPassEncoderDraw(context.render_pass, buffer_data->vertex_count, 1, 0, 0);
+
+    switch (m->type) {
+        case MATERIAL_TYPE_WORLD:
+                webgpu_material_shader_set_model(&context, &context.material_shader, data.model);
+                webgpu_material_shader_apply_material(&context, &context.material_shader, m);
+                // Set vertex buffer while encoding the render pass
+                wgpuRenderPassEncoderSetVertexBuffer(context.world_render_pass, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
+                
+                // Draw indexed or non-indexed.
+                if (buffer_data->index_count > 0) {
+                    // Bind index buffer at offset.
+                    wgpuRenderPassEncoderSetIndexBuffer(context.world_render_pass, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
+                    // Issue the draw.
+                    wgpuRenderPassEncoderDrawIndexed(context.world_render_pass, buffer_data->index_count, 1, 0, 0, 0);
+                } else {
+                    wgpuRenderPassEncoderDraw(context.world_render_pass, buffer_data->vertex_count, 1, 0, 0);
+                }
+
+                break;
+            case MATERIAL_TYPE_UI:
+                webgpu_ui_shader_set_model(&context, &context.ui_shader, data.model);
+                webgpu_ui_shader_apply_material(&context, &context.ui_shader, m);
+                // Set vertex buffer while encoding the render pass
+                wgpuRenderPassEncoderSetVertexBuffer(context.ui_render_pass, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
+                
+                // Draw indexed or non-indexed.
+                if (buffer_data->index_count > 0) {
+                    // Bind index buffer at offset.
+                    wgpuRenderPassEncoderSetIndexBuffer(context.ui_render_pass, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
+                    // Issue the draw.
+                    wgpuRenderPassEncoderDrawIndexed(context.ui_render_pass, buffer_data->index_count, 1, 0, 0, 0);
+                } else {
+                    wgpuRenderPassEncoderDraw(context.ui_render_pass, buffer_data->vertex_count, 1, 0, 0);
+                }
+
+                break;
+        default:
+            PRINT_ERROR("webgpu_renderer_draw_geometry - unknown material type: %i", m->type);
+            return;
     }
+    
+    
 }
 
 
@@ -579,12 +681,24 @@ void webgpu_renderer_destroy_texture(TEXTURE* texture){
 
 b8 webgpu_renderer_create_material(struct MATERIAL* material) {
     if (material) {
-        if (!webgpu_material_shader_acquire_resources(&context, &context.material_shader, material)) {
-            PRINT_ERROR("webgpu_renderer_create_material - Failed to acquire shader resources.");
-            return false;
+        switch (material->type) {
+            case MATERIAL_TYPE_WORLD:
+                if (!webgpu_material_shader_acquire_resources(&context, &context.material_shader, material)) {
+                    PRINT_ERROR("webgpu_renderer_create_material - Failed to acquire world shader resources.");
+                    return false;
+                }
+                break;
+            case MATERIAL_TYPE_UI:
+                if (!webgpu_ui_shader_acquire_resources(&context, &context.ui_shader, material)) {
+                    PRINT_ERROR("webgpu_renderer_create_material - Failed to acquire UI shader resources.");
+                    return false;
+                }
+                break;
+            default:
+                PRINT_ERROR("webgpu_renderer_create_material - unknown material type");
+                return false;
         }
-
-        PRINT_DEBUG("Renderer: Material created.");
+        PRINT_TRACE("WEBGPU Renderer: Material created.");
         return true;
     }
 
@@ -595,7 +709,17 @@ b8 webgpu_renderer_create_material(struct MATERIAL* material) {
 void webgpu_renderer_destroy_material(struct MATERIAL* material) {
     if (material) {
         if (material->internal_id != INVALID_ID) {
-            webgpu_material_shader_release_resources(&context, &context.material_shader, material);
+            switch (material->type) {
+                case MATERIAL_TYPE_WORLD:
+                    webgpu_material_shader_release_resources(&context, &context.material_shader, material);
+                    break;
+                case MATERIAL_TYPE_UI:
+                    webgpu_ui_shader_release_resources(&context, &context.ui_shader, material);
+                    break;
+                default:
+                    PRINT_ERROR("webgpu_renderer_destroy_material - unknown material type");
+                    break;
+            }
         } else {
             PRINT_WARNING("webgpu_renderer_destroy_material called with internal_id=INVALID_ID. Nothing was done.");
         }
@@ -603,3 +727,4 @@ void webgpu_renderer_destroy_material(struct MATERIAL* material) {
         PRINT_WARNING("webgpu_renderer_destroy_material called with nullptr. Nothing was done.");
     }
 }
+#pragma clang optimize on

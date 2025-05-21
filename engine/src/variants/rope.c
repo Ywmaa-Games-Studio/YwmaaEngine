@@ -57,6 +57,9 @@ RopeNode* rope_from_list(const char** strings, const u64* lengths, u64 count) {
 
 
 RopeNode* rope_concat(RopeNode* left, RopeNode* right) {
+    if (!left) return right;
+    if (!right) return left;
+    if (!left && !right) return NULL;
     RopeNode* node = (RopeNode*)yallocate_aligned(sizeof(RopeNode), 8, MEMORY_TAG_ROPE);
     if (!node) return NULL;
 
@@ -66,6 +69,48 @@ RopeNode* rope_concat(RopeNode* left, RopeNode* right) {
     node->concat.weight = rope_byte_length(left);
     node->concat.flattened_cache = NULL;
     return node;
+}
+
+RopeNode* rope_duplicate(RopeNode* node){
+    if (!node) return NULL;
+
+    RopeNode* new_node = (RopeNode*)yallocate_aligned(sizeof(RopeNode), 8, MEMORY_TAG_ROPE);
+    if (!new_node) return NULL;
+
+    new_node->type = node->type;
+    if (node->type == ROPE_LEAF) {
+        new_node->leaf.data = (char*)yallocate(node->leaf.length, MEMORY_TAG_ROPE);
+        ycopy_memory(new_node->leaf.data, node->leaf.data, node->leaf.length);
+        new_node->leaf.length = node->leaf.length;
+    } else {
+        new_node->concat.left = rope_duplicate(node->concat.left);
+        new_node->concat.right = rope_duplicate(node->concat.right);
+        new_node->concat.weight = node->concat.weight;
+        new_node->concat.flattened_cache = NULL;
+    }
+    return new_node;
+}
+
+b8 rope_is_empty(RopeNode* node){
+    if (!node) return true;
+    if (node->type == ROPE_LEAF) return node->leaf.length == 0;
+    return rope_is_empty(node->concat.left) && rope_is_empty(node->concat.right);
+}
+
+
+b8 rope_are_equal(RopeNode* node1, RopeNode* node2) {
+    if (!node1 && !node2) return true;
+    if (!node1 || !node2) return false;
+
+    if (node1->type != node2->type) return false;
+
+    if (node1->type == ROPE_LEAF) {
+        if (node1->leaf.length != node2->leaf.length) return false;
+        return strings_equal(node1->leaf.data, node2->leaf.data);
+    } else {
+        return rope_are_equal(node1->concat.left, node2->concat.left) &&
+               rope_are_equal(node1->concat.right, node2->concat.right);
+    }
 }
 
 // Returns the length of the rope in bytes
@@ -164,8 +209,8 @@ RopeNode* rope_insert_at(RopeNode* root, u64 index, const char* insert_data) {
 RopeNode* rope_delete_at(RopeNode* root, u64 index, u64 delete_length) {
     char* flat = rope_flatten(root);
     u64 length = rope_byte_length(root);
-    size_t start = rope_codepoint_to_byte_offset(flat, length, index);
-    size_t end = rope_codepoint_to_byte_offset(flat, length, index + delete_length);
+    u64 start = rope_codepoint_to_byte_offset(flat, length, index);
+    u64 end = rope_codepoint_to_byte_offset(flat, length, index + delete_length);
     if (start > length) start = length;
     if (end > length) end = length;
 

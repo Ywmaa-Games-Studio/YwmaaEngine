@@ -16,7 +16,7 @@ b8 webgpu_create_shader_module(WEBGPU_CONTEXT* context, WGPUShaderModule* shader
     shaderCodeDesc.chain.sType = WGPUSType_ShaderSourceWGSL;
     // Build file name.
     char file_name[512];
-    string_format(file_name, "shaders/%s.wgsl", name);
+    string_format(file_name, "%s", name);
 
     // Read the resource.
     RESOURCE text_resource;

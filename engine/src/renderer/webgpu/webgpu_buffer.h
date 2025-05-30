@@ -7,6 +7,7 @@ b8 webgpu_buffer_create(
     u64 size,
     WGPUBufferUsage usage,
     b8 mapped_on_create,
+    b8 use_freelist,
     WEBGPU_BUFFER* out_buffer);
 
 void webgpu_buffer_destroy(WEBGPU_BUFFER* buffer);

@@ -8,6 +8,7 @@
 #include "resources/loaders/binary_loader.h"
 #include "resources/loaders/image_loader.h"
 #include "resources/loaders/material_loader.h"
+#include "resources/loaders/shader_loader.h"
 
 typedef struct RESOURCE_SYSTEM_STATE {
     RESOURCE_SYSTEM_CONFIG config;
@@ -18,9 +19,9 @@ static RESOURCE_SYSTEM_STATE* state_ptr = 0;
 
 b8 load(const char* name, RESOURCE_LOADER* loader, RESOURCE* out_resource);
 
-b8 resource_system_initialize(u64* memory_requirement, void* state, RESOURCE_SYSTEM_CONFIG config) {
+b8 resource_system_init(u64* memory_requirement, void* state, RESOURCE_SYSTEM_CONFIG config) {
     if (config.max_loader_count == 0) {
-        PRINT_ERROR("resource_system_initialize failed because config.max_loader_count==0.");
+        PRINT_ERROR("resource_system_init failed because config.max_loader_count==0.");
         return false;
     }
 
@@ -47,6 +48,7 @@ b8 resource_system_initialize(u64* memory_requirement, void* state, RESOURCE_SYS
     resource_system_register_loader(binary_resource_loader_create());
     resource_system_register_loader(image_resource_loader_create());
     resource_system_register_loader(material_resource_loader_create());
+    resource_system_register_loader(shader_resource_loader_create());
 
     PRINT_INFO("Resource system initialized with base path '%s'.", config.asset_base_path);
 

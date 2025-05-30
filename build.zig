@@ -4,7 +4,7 @@
 // Created:
 //   2025.04.14 -20:32
 // Last edited:
-//   2025.05.19 -19:26
+//   2025.05.30 -08:07
 // Auto updated?
 //   Yes
 //
@@ -164,7 +164,7 @@ pub fn build(b: *std.Build) !void {
         libengine.addLibraryPath(lib_file);
         libengine.linkSystemLibrary2("wgpu_native", .{
             .use_pkg_config = .no,
-            .preferred_link_mode = .static,
+            .preferred_link_mode = .dynamic,
         });
     }
 
@@ -222,10 +222,10 @@ pub fn build(b: *std.Build) !void {
         apk_file.installApk();
     }
 
-    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_shader.vert"), "builtin.shader.vert.spv"), "bin/assets/shaders/builtin.shader.vert.spv").step);
-    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_shader.frag"), "builtin.shader.frag.spv"), "bin/assets/shaders/builtin.shader.frag.spv").step);
-    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_UI_shader.vert"), "builtin.UIshader.vert.spv"), "bin/assets/shaders/builtin.UIshader.vert.spv").step);
-    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_UI_shader.frag"), "builtin.UIshader.frag.spv"), "bin/assets/shaders/builtin.UIshader.frag.spv").step);
+    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_shader.vert"), "builtin.shader.vertex.spv"), "bin/assets/shaders/builtin.shader.vertex.spv").step);
+    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_shader.frag"), "builtin.shader.fragment.spv"), "bin/assets/shaders/builtin.shader.fragment.spv").step);
+    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_UI_shader.vert"), "builtin.UIshader.vertex.spv"), "bin/assets/shaders/builtin.UIshader.vertex.spv").step);
+    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_UI_shader.frag"), "builtin.UIshader.fragment.spv"), "bin/assets/shaders/builtin.UIshader.fragment.spv").step);
 
     //try addShader(b, exe, "builtin.shader.vert.glsl", "builtin.shader.vert.spv", "-fshader-stage=vert");
     //try addShader(b, exe, "builtin.shader.frag.glsl", "builtin.shader.frag.spv", "-fshader-stage=frag");

@@ -2,15 +2,15 @@
 
 #include "vulkan/vulkan_backend.h"
 #include "webgpu/webgpu_backend.h"
+#include "core/ymemory.h"
 
 b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_renderer_backend) {
-
-    if (type == RENDERER_BACKEND_API_VULKAN) {
+    out_renderer_backend->backend_api = type;
+    
+    if (out_renderer_backend->backend_api == RENDERER_BACKEND_API_VULKAN) {
         out_renderer_backend->init = vulkan_renderer_backend_init;
         out_renderer_backend->shutdown = vulkan_renderer_backend_shutdown;
         out_renderer_backend->begin_frame = vulkan_renderer_backend_begin_frame;
-        out_renderer_backend->update_global_world_state = vulkan_renderer_update_global_world_state;
-        out_renderer_backend->update_global_ui_state = vulkan_renderer_update_global_ui_state;
         out_renderer_backend->end_frame = vulkan_renderer_backend_end_frame;
         out_renderer_backend->begin_renderpass = vulkan_renderer_begin_renderpass;
         out_renderer_backend->end_renderpass = vulkan_renderer_end_renderpass;
@@ -18,19 +18,31 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->draw_geometry = vulkan_renderer_draw_geometry;
         out_renderer_backend->create_texture = vulkan_renderer_create_texture;
         out_renderer_backend->destroy_texture = vulkan_renderer_destroy_texture;
-        out_renderer_backend->create_material = vulkan_renderer_create_material;
-        out_renderer_backend->destroy_material = vulkan_renderer_destroy_material;
+
         out_renderer_backend->create_geometry = vulkan_renderer_create_geometry;
         out_renderer_backend->destroy_geometry = vulkan_renderer_destroy_geometry;
+
+        out_renderer_backend->shader_create = vulkan_renderer_shader_create;
+        out_renderer_backend->shader_destroy = vulkan_renderer_shader_destroy;
+        out_renderer_backend->shader_set_uniform = vulkan_renderer_set_uniform;
+        out_renderer_backend->shader_init = vulkan_renderer_shader_init;
+        out_renderer_backend->shader_use = vulkan_renderer_shader_use;
+        out_renderer_backend->shader_bind_globals = vulkan_renderer_shader_bind_globals;
+        out_renderer_backend->shader_bind_instance = vulkan_renderer_shader_bind_instance;
+        
+        out_renderer_backend->shader_apply_globals = vulkan_renderer_shader_apply_globals;
+        out_renderer_backend->shader_apply_instance = vulkan_renderer_shader_apply_instance;
+        out_renderer_backend->shader_acquire_instance_resources = vulkan_renderer_shader_acquire_instance_resources;
+        out_renderer_backend->shader_release_instance_resources = vulkan_renderer_shader_release_instance_resources;
+        out_renderer_backend->shader_after_renderpass = vulkan_shader_after_renderpass;
+
         return true;
     }
 
-    if (type == RENDERER_BACKEND_API_WEBGPU) {
+    if (out_renderer_backend->backend_api == RENDERER_BACKEND_API_WEBGPU) {
         out_renderer_backend->init = webgpu_renderer_backend_init;
         out_renderer_backend->shutdown = webgpu_renderer_backend_shutdown;
         out_renderer_backend->begin_frame = webgpu_renderer_backend_begin_frame;
-        out_renderer_backend->update_global_world_state = webgpu_renderer_update_global_world_state;
-        out_renderer_backend->update_global_ui_state = webgpu_renderer_update_global_ui_state;
         out_renderer_backend->end_frame = webgpu_renderer_backend_end_frame;
         out_renderer_backend->begin_renderpass = webgpu_renderer_begin_renderpass;
         out_renderer_backend->end_renderpass = webgpu_renderer_end_renderpass;
@@ -38,10 +50,24 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->draw_geometry = webgpu_renderer_draw_geometry;
         out_renderer_backend->create_texture = webgpu_renderer_create_texture;
         out_renderer_backend->destroy_texture = webgpu_renderer_destroy_texture;
-        out_renderer_backend->create_material = webgpu_renderer_create_material;
-        out_renderer_backend->destroy_material = webgpu_renderer_destroy_material;
+
         out_renderer_backend->create_geometry = webgpu_renderer_create_geometry;
         out_renderer_backend->destroy_geometry = webgpu_renderer_destroy_geometry;
+
+        out_renderer_backend->shader_create = webgpu_renderer_shader_create;
+        out_renderer_backend->shader_destroy = webgpu_renderer_shader_destroy;
+        out_renderer_backend->shader_set_uniform = webgpu_renderer_set_uniform;
+        out_renderer_backend->shader_init = webgpu_renderer_shader_init;
+        out_renderer_backend->shader_use = webgpu_renderer_shader_use;
+        out_renderer_backend->shader_bind_globals = webgpu_renderer_shader_bind_globals;
+        out_renderer_backend->shader_bind_instance = webgpu_renderer_shader_bind_instance;
+        
+        out_renderer_backend->shader_apply_globals = webgpu_renderer_shader_apply_globals;
+        out_renderer_backend->shader_apply_instance = webgpu_renderer_shader_apply_instance;
+        out_renderer_backend->shader_acquire_instance_resources = webgpu_renderer_shader_acquire_instance_resources;
+        out_renderer_backend->shader_release_instance_resources = webgpu_renderer_shader_release_instance_resources;
+        out_renderer_backend->shader_after_renderpass = webgpu_shader_after_renderpass;
+
         return true;
     }
 
@@ -49,20 +75,5 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
 }
 
 void renderer_backend_destroy(RENDERER_BACKEND* renderer_backend) {
-    renderer_backend->init = 0;
-    renderer_backend->shutdown = 0;
-    renderer_backend->begin_frame = 0;
-    renderer_backend->update_global_world_state = 0;
-    renderer_backend->update_global_ui_state = 0;
-    renderer_backend->end_frame = 0;
-    renderer_backend->begin_renderpass = 0;
-    renderer_backend->end_renderpass = 0;
-    renderer_backend->resized = 0;
-    renderer_backend->draw_geometry = 0;
-    renderer_backend->create_texture = 0;
-    renderer_backend->destroy_texture = 0;
-    renderer_backend->create_material = 0;
-    renderer_backend->destroy_material = 0;
-    renderer_backend->create_geometry = 0;
-    renderer_backend->destroy_geometry = 0;
+    yzero_memory(renderer_backend, sizeof(renderer_backend));
 }

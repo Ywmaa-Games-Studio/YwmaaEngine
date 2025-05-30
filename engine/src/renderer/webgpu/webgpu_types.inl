@@ -9,20 +9,6 @@
 
 #include "memory/freelist.h"
 
-typedef struct WEBGPU_BIND_STATE {
-    // One per frame
-    u32 generations;
-    u32 ids;
-} WEBGPU_BIND_STATE;
-typedef struct WEBGPU_MATERIAL_SHADER_INSTANCE_STATE {
-    WGPUBindGroup texture_bind_group;
-    WEBGPU_BIND_STATE texture_bind_state;
-} WEBGPU_MATERIAL_SHADER_INSTANCE_STATE;
-typedef struct WEBGPU_UI_SHADER_INSTANCE_STATE {
-    WGPUBindGroup texture_bind_group;
-    WEBGPU_BIND_STATE texture_bind_state;
-} WEBGPU_UI_SHADER_INSTANCE_STATE;
-
 typedef struct WEBGPU_BUFFER {
     u64 total_size;
     WGPUBuffer handle;
@@ -34,6 +20,7 @@ typedef struct WEBGPU_BUFFER {
     void* freelist_block;
     /** @brief A freelist to track allocations. */
     FREELIST buffer_freelist;
+    b8 has_freelist;
 } WEBGPU_BUFFER;
 typedef struct WEBGPU_IMAGE {
     WGPUTexture handle;
@@ -73,71 +60,137 @@ typedef struct WEBGPU_GEOMETRY_DATA {
     u32 index_element_size;
     u64 index_buffer_offset;
 } WEBGPU_GEOMETRY_DATA;
-typedef struct WEBGPU_MATERIAL_SHADER {
-    WEBGPU_PIPELINE pipeline;
-    WGPUShaderModule shader_module;
-
-    // Global uniform object.
-    MATERIAL_SHADER_GLOBAL_UBO global_ubo;
-
-    // Global uniform buffer.
-    WEBGPU_BUFFER global_uniform_buffer;
-
-    // Global uniform buffer.
-    WEBGPU_BUFFER model_uniform_buffer;
-
-    // Object uniform buffer.
-    WEBGPU_BUFFER object_uniform_buffer;
-    u32 object_uniform_buffer_index;
-
-    WGPUBindGroup bind_group;
-    WEBGPU_BIND_STATE bind_state;
-    WGPUBindGroupLayout bind_group_layout;
-
-    E_TEXTURE_USE sampler_uses[WEBGPU_MATERIAL_SHADER_SAMPLER_COUNT];
-
-    // TODO: make dynamic
-    WGPUBindGroupLayout texture_bind_group_layout;
-    WEBGPU_MATERIAL_SHADER_INSTANCE_STATE instance_states[WEBGPU_MAX_MATERIAL_COUNT];
-
-
-} WEBGPU_MATERIAL_SHADER;
-
-#define WEBGPU_UI_SHADER_SAMPLER_COUNT 1
-
 // Max number of ui control instances
 // TODO: make configurable
 #define WEBGPU_MAX_UI_SHADER_COUNT 1024
 
-typedef struct WEBGPU_UI_SHADER {
-    WEBGPU_PIPELINE pipeline;
-    WGPUShaderModule shader_module;
+#define WEBGPU_SHADER_BIND_GROUPS 2
+/**
+ * @brief Put some hard limits in place for the count of supported textures,
+ * attributes, uniforms, etc. This is to maintain memory locality and avoid
+ * dynamic allocations.
+ */
+/** @brief The maximum number of stages (such as vertex, fragment, compute) allowed. */
+// Webgpu supports a maximum of 3 stages: vertex, fragment, and compute.
+#define WEBGPU_SHADER_MAX_STAGES 3
+/** @brief The maximum number of textures allowed at the global level. */
+#define WEBGPU_SHADER_MAX_GLOBAL_TEXTURES 31
+/** @brief The maximum number of textures allowed at the instance level. */
+#define WEBGPU_SHADER_MAX_INSTANCE_TEXTURES 31
+#define INSTANCE_BINDINGS_ENTRY_COUNT 3
+/** @brief The maximum number of vertex input attributes allowed. */
+#define WEBGPU_SHADER_MAX_ATTRIBUTES 16
+/**
+ * @brief The maximum number of uniforms and samplers allowed at the
+ * global, instance and local levels combined. It's probably more than
+ * will ever be needed.
+ */
+#define WEBGPU_SHADER_MAX_UNIFORMS 128
 
-    // Global uniform object.
-    UI_SHADER_GLOBAL_UBO global_ubo;
+/** @brief The maximum number of bindings per bind set. */
+#define WEBGPU_SHADER_MAX_BINDINGS 32
 
-    // Global uniform buffer.
-    WEBGPU_BUFFER global_uniform_buffer;
 
-    // Global uniform buffer.
-    WEBGPU_BUFFER model_uniform_buffer;
+typedef struct WEBGPU_BIND_GROUP_STATE {
+    // One per frame
+    u8 generations;
+    u32 ids;
+} WEBGPU_BIND_GROUP_STATE;
 
-    // Object uniform buffer.
-    WEBGPU_BUFFER object_uniform_buffer;
-    u32 object_uniform_buffer_index;
-
+/**
+ * @brief Represents the state for a descriptor set. This is used to track
+ * generations and updates, potentially for optimization via skipping
+ * sets which do not need updating.
+ */
+typedef struct WEBGPU_SHADER_BIND_GROUP_SET_STATE {
+    /** @brief The descriptor sets for this instance, one per frame. */
     WGPUBindGroup bind_group;
-    WEBGPU_BIND_STATE bind_state;
-    WGPUBindGroupLayout bind_group_layout;
 
-    E_TEXTURE_USE sampler_uses[WEBGPU_UI_SHADER_SAMPLER_COUNT];
+    /** @brief A bind state per bind group, which in turn handles frames. Count is managed in shader config. */
+    WEBGPU_BIND_GROUP_STATE bind_group_states[WEBGPU_SHADER_MAX_BINDINGS];
+} WEBGPU_SHADER_BIND_GROUP_SET_STATE;
 
-    // TODO: make dynamic
-    WGPUBindGroupLayout texture_bind_group_layout;
-    WEBGPU_UI_SHADER_INSTANCE_STATE instance_states[WEBGPU_MAX_UI_SHADER_COUNT];
+typedef struct WEBGPU_SHADER_INSTANCE_STATE {
 
+    /** @brief The instance id. INVALID_ID if not used. */
+    u32 id;
+    /** @brief The offset in bytes in the instance uniform buffer. */
+    u64 offset;
+    /** @brief  A state for the bind set. */
+    WEBGPU_SHADER_BIND_GROUP_SET_STATE instance_bind_state;
+    /**
+     * @brief Instance texture pointers, which are used during rendering. These
+     * are set by calls to set_sampler.
+     */
+    TEXTURE** instance_textures;
+} WEBGPU_SHADER_INSTANCE_STATE;
 
-} WEBGPU_UI_SHADER;
+/**
+ * @brief Configuration for a shader stage, such as vertex or fragment.
+ */
+typedef struct WEBGPU_SHADER_STAGE_CONFIG {
+    /** @brief The shader stage bit flag. */
+    WGPUShaderStage stage;
+    /** @brief The shader file name. */
+    char file_name[255];
+
+} WEBGPU_SHADER_STAGE_CONFIG;
+
+/** @brief Internal shader configuration generated by vulkan_shader_create(). */
+typedef struct WEBGPU_SHADER_CONFIG {
+    /** @brief The number of shader stages in this shader. */
+    u8 stage_count;
+    /** @brief  The configuration for every stage of this shader. */
+    WEBGPU_SHADER_STAGE_CONFIG stages[WEBGPU_SHADER_MAX_STAGES];
+    /**
+     * @brief The max number of bind sets that can be allocated from this shader.
+     * Should typically be a decently high number.
+     */
+    u16 max_bind_group_count;
+
+    /**
+     * @brief The total number of bind sets configured for this shader.
+     * Is 1 if only using global uniforms/samplers; otherwise 2.
+     */
+    u8 bind_group_count;
+    /** @brief bind sets, max of 3. Index 0=global, 1=instance, 2=local */
+    WGPUBindGroupLayoutEntry instance_bind_group_entries[INSTANCE_BINDINGS_ENTRY_COUNT];
+    WGPUBindGroupLayoutDescriptor bind_group_layout_desc[WEBGPU_SHADER_BIND_GROUPS];
+
+    /** @brief An array of attribute descriptions for this shader. */
+    WGPUVertexAttribute attributes[WEBGPU_SHADER_MAX_ATTRIBUTES];
+} WEBGPU_SHADER_CONFIG;
+
+typedef struct WEBGPU_SHADER {
+    /** @brief The block of memory mapped to the uniform buffer. */
+    void* mapped_uniform_buffer_block;
+
+    /** @brief The shader identifier. */
+    u32 id;
+
+    /** @brief The configuration of the shader generated by webgpu_create_shader(). */
+    WEBGPU_SHADER_CONFIG config;
+    WEBGPU_PIPELINE pipeline;
+    // shader modules for each stage. (vertex, fragment, compute), or even pointing to the same module
+    WGPUShaderModule shader_module[WEBGPU_SHADER_MAX_STAGES];
+    /** @brief A pointer to the renderpass to be used with this shader. */
+    WGPURenderPassEncoder* renderpass;
+
+    // Global uniform buffer.
+    WEBGPU_BUFFER uniform_buffer;
+    WEBGPU_BUFFER uniform_buffer_staging;
+    // Global uniform buffer.
+    //WEBGPU_BUFFER local_buffer;
+
+    WGPUBindGroupLayout bind_group_layouts[WEBGPU_SHADER_BIND_GROUPS];
+    WGPUBindGroup global_bind_group;
+
+    /** @brief The instance states for all instances. @todo TODO: make dynamic */
+    u32 instance_count;
+    WEBGPU_SHADER_INSTANCE_STATE instance_states[WEBGPU_MAX_MATERIAL_COUNT];
+
+    E_BUILTIN_RENDERPASS shader_renderpass;
+} WEBGPU_SHADER;
 
 typedef struct WEBGPU_CONTEXT {
     f32 frame_delta_time;
@@ -161,6 +214,7 @@ typedef struct WEBGPU_CONTEXT {
     WGPUInstance instance;
     WGPUAdapter adapter;
     WGPUDevice device;
+    WGPULimits device_supported_limits;
     WGPUSurface surface;
     WGPUQueue queue;
     WGPUTextureView target_view;
@@ -172,9 +226,6 @@ typedef struct WEBGPU_CONTEXT {
 
     WEBGPU_BUFFER object_vertex_buffer;
     WEBGPU_BUFFER object_index_buffer;
-
-    WEBGPU_MATERIAL_SHADER material_shader;
-    WEBGPU_UI_SHADER ui_shader;
 
     // TODO: make dynamic
     WEBGPU_GEOMETRY_DATA geometries[WEBGPU_MAX_GEOMETRY_COUNT];

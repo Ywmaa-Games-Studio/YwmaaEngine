@@ -8,14 +8,22 @@
 #include "webgpu_device.h"
 #include "webgpu_image.h"
 #include "webgpu_buffer.h"
-#include "shaders/webgpu_material_shader.h"
-#include "shaders/webgpu_ui_shader.h"
+#include "webgpu_shader_utils.h"
+#include "webgpu_pipeline.h"
 
 #include "core/logger.h"
 #include "core/ymemory.h"
+#include "core/ystring.h"
 #include "core/application.h"
 
+#include "variants/darray.h"
+
+#include "systems/shader_system.h"
 #include "systems/material_system.h"
+#include "systems/texture_system.h"
+#include "systems/resource_system.h"
+
+void webgpu_bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout);
 
 b8 webgpu_upload_data_range(WEBGPU_CONTEXT* context, WEBGPU_BUFFER* buffer, u64* out_offset, u64 size, const void* data) {
     // Allocate space in the buffer.
@@ -98,17 +106,6 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
         return false;
     }
 
-    // Create builtin shaders
-    if (!webgpu_material_shader_create(&context, &context.material_shader)) {
-        PRINT_ERROR("Error loading built-in basic_lighting shader.");
-        return false;
-    }
-
-    if (!webgpu_ui_shader_create(&context, &context.ui_shader)) {
-        PRINT_ERROR("Error loading built-in basic_lighting shader.");
-        return false;
-    }
-
     webgpu_create_buffers(&context);
 
     // Mark all geometries as invalid
@@ -126,9 +123,6 @@ void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
 
 
     webgpu_destroy_buffers(&context);
-
-    webgpu_material_shader_destroy(&context, &context.material_shader);
-    webgpu_ui_shader_destroy(&context, &context.ui_shader);
 
     wgpuTextureViewRelease(context.depth_view);
 
@@ -159,12 +153,22 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     context.frame_delta_time = delta_time;
     // Check if recreating swap chain and boot out.
     if (context.recreating_swapchain) {
+        b8 result = wgpuDevicePoll(context.device, true, NULL);
+        if (!result) {
+            PRINT_ERROR("webgpu_renderer_backend_begin_frame wgpuDevicePoll failed");
+            return false;
+        }
         PRINT_INFO("Recreating swapchain, booting.");
         return false;
     }
 
     // Check if the framebuffer has been resized. If so, a new swapchain must be created.
     if (context.framebuffer_size_generation != context.framebuffer_size_last_generation) {
+        b8 result = wgpuDevicePoll(context.device, true, NULL);
+        if (!result) {
+            PRINT_ERROR("webgpu_renderer_backend_begin_frame wgpuDevicePoll failed");
+            return false;
+        }
         // If the swapchain recreation failed (because, for example, the window was minimized),
         // boot out before unsetting the flag.
         if (!wgpu_recreate_swapchain(backend)) {
@@ -192,27 +196,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     
     return true;
 }
-void webgpu_renderer_update_global_world_state(Matrice4 projection, Matrice4 view, Vector3 view_position, Vector4 ambient_colour, i32 mode) {
-    
-    webgpu_material_shader_use(&context, &context.material_shader);
-    
-    context.material_shader.global_ubo.projection = projection;
-    context.material_shader.global_ubo.view = view;
-    
-    webgpu_material_shader_update_global_state(&context, &context.material_shader, context.frame_delta_time);
-}
 
-void webgpu_renderer_update_global_ui_state(Matrice4 projection, Matrice4 view, i32 mode) {
-
-    webgpu_ui_shader_use(&context, &context.ui_shader);
-
-    context.ui_shader.global_ubo.projection = projection;
-    context.ui_shader.global_ubo.view = view;
-
-    // TODO: other ubo properties
-
-    webgpu_ui_shader_update_global_state(&context, &context.ui_shader, context.frame_delta_time);
-}
 b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
     
     WGPUCommandBufferDescriptor cmd_buffer_descriptor = {0};
@@ -242,7 +226,7 @@ b8 webgpu_renderer_begin_renderpass(struct RENDERER_BACKEND* backend, u8 renderp
     render_pass_color_attachment.nextInChain = NULL;
     render_pass_color_attachment.view = context.target_view;
     render_pass_color_attachment.resolveTarget = NULL;
-    render_pass_color_attachment.loadOp = WGPULoadOp_Clear;
+    render_pass_color_attachment.loadOp = (renderpass_id <= 1 ? WGPULoadOp_Clear : WGPULoadOp_Load);
     render_pass_color_attachment.storeOp = WGPUStoreOp_Store;
     WGPUColor color = {0};
     color.r = 0.0;
@@ -305,16 +289,6 @@ b8 webgpu_renderer_begin_renderpass(struct RENDERER_BACKEND* backend, u8 renderp
             return false;
     }
 
-    // Use the appropriate shader.
-    switch (renderpass_id) {
-        case BUILTIN_RENDERPASS_WORLD:
-            webgpu_material_shader_use(&context, &context.material_shader);
-            break;
-        case BUILTIN_RENDERPASS_UI:
-            webgpu_ui_shader_use(&context, &context.ui_shader);
-            break;
-    }
-
     return true;
 }
 
@@ -332,7 +306,7 @@ b8 webgpu_renderer_end_renderpass(struct RENDERER_BACKEND* backend, u8 renderpas
             //END UI Render Pass
             break;
         default:
-            PRINT_ERROR("vulkan_renderer_end_renderpass called on unrecognized renderpass id:  %#02x", renderpass_id);
+            PRINT_ERROR("webgpu_renderer_end_renderpass called on unrecognized renderpass id:  %#02x", renderpass_id);
             return false;
     }
 
@@ -418,6 +392,7 @@ b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vert
 
 void webgpu_renderer_destroy_geometry(GEOMETRY* geometry) {
     if (geometry && geometry->internal_id != INVALID_ID) {
+        wgpuDevicePoll(context.device, true, NULL);
         WEBGPU_GEOMETRY_DATA* internal_data = &context.geometries[geometry->internal_id];
 
         // Free vertex data
@@ -435,62 +410,851 @@ void webgpu_renderer_destroy_geometry(GEOMETRY* geometry) {
     }
 }
 
+// The index of the global bind set.
+const u32 BIND_GROUP_SET_INDEX_GLOBAL = 0;
+// The index of the instance bind set.
+const u32 BIND_GROUP_SET_INDEX_INSTANCE = 1;
+// we have group 2 instead of push constants and local
+const u32 BIND_GROUP_SET_INDEX_LOCAL = 2;
+
+//START BINDINGS Of Global
+// The index of the UBO binding.
+const u32 ENTRY_BINDING_INDEX_UBO = 0;
+// The index of the image sampler binding.
+const u32 ENTRY_BINDING_INDEX_SAMPLER = 1;
+const u32 ENTRY_BINDING_INDEX_TEXTURE = 2;
+//END BINDINGS Of Global
+
+//START BINDINGS Of Local
+const u32 BINDING_INDEX_OBJECT_MATRIX = 0;
+//END BINDINGS Of Local
+
+b8 webgpu_renderer_shader_create(struct SHADER *shader, u8 renderpass_id, u8 stage_count, const char **stage_filenames, E_SHADER_STAGE *stages)
+{
+    shader->internal_data = yallocate_aligned(sizeof(WEBGPU_SHADER), 8, MEMORY_TAG_RENDERER);
+
+    // TODO: dynamic renderpasses
+    WGPURenderPassEncoder* renderpass = renderpass_id == 1 ? &context.world_render_pass : &context.ui_render_pass;
+
+    PRINT_DEBUG("webgpu_renderer_shader_create: Creating shader with %d stages.", stage_count);
+    // Translate stages
+    WGPUShaderStage webgpu_stages[WEBGPU_SHADER_MAX_STAGES];
+    for (u8 i = 0; i < stage_count; ++i) {
+        switch (stages[i]) {
+            case SHADER_STAGE_FRAGMENT:
+                webgpu_stages[i] = WGPUShaderStage_Fragment;
+                break;
+            case SHADER_STAGE_VERTEX:
+                webgpu_stages[i] = WGPUShaderStage_Vertex;
+                break;
+            case SHADER_STAGE_COMPUTE:
+                PRINT_WARNING("webgpu_renderer_shader_create: SHADER_STAGE_COMPUTE is set but not yet supported.");
+                webgpu_stages[i] = WGPUShaderStage_Compute;
+                break;
+            default:
+                PRINT_ERROR("Unsupported stage type: %d", stages[i]);
+                break;
+        }
+    }
+
+    // TODO: configurable max descriptor allocate count.
+
+    u32 max_bind_allocate_count = 1024;
+
+    // Take a copy of the pointer to the context.
+    WEBGPU_SHADER* out_shader = (WEBGPU_SHADER*)shader->internal_data;
+    out_shader->shader_renderpass = renderpass_id;
+    out_shader->renderpass = renderpass;
+
+    // Build out the configuration.
+    out_shader->config.max_bind_group_count = max_bind_allocate_count;
+
+    // Shader stages. Parse out the flags.
+    yzero_memory(out_shader->config.stages, sizeof(WEBGPU_SHADER_STAGE_CONFIG) * WEBGPU_SHADER_MAX_STAGES);
+    out_shader->config.stage_count = 0;
+    // Iterate provided stages.
+    for (u32 i = 0; i < stage_count; i++) {
+        // Make sure there is room enough to add the stage.
+        if (out_shader->config.stage_count + 1 > WEBGPU_SHADER_MAX_STAGES) {
+            PRINT_ERROR("WebGPU Shaders may have a maximum of %d stages", WEBGPU_SHADER_MAX_STAGES);
+            return false;
+        }
+
+        // Make sure the stage is a supported one.
+        WGPUShaderStage stage_flag;
+        switch (stages[i]) {
+            case SHADER_STAGE_VERTEX:
+                stage_flag = WGPUShaderStage_Vertex;
+                break;
+            case SHADER_STAGE_FRAGMENT:
+                stage_flag = WGPUShaderStage_Fragment;
+                break;
+            default:
+                // Go to the next type.
+                PRINT_ERROR("webgpu_shader_create: Unsupported shader stage flagged: %d. Stage ignored.", stages[i]);
+                continue;
+        }
+
+        // Set the stage and bump the counter.
+        out_shader->config.stages[out_shader->config.stage_count].stage = stage_flag;
+        string_ncopy(out_shader->config.stages[out_shader->config.stage_count].file_name, stage_filenames[i], 255);
+        out_shader->config.stage_count++;
+    }
+
+    // UBO is always available and first.
+    WGPUBindGroupLayoutDescriptor global_bind_group_layout_desc = {0};
+    global_bind_group_layout_desc.nextInChain = NULL;
+    global_bind_group_layout_desc.label = (WGPUStringView){"Global object shader bind group descriptor", sizeof("Global object shader bind group descriptor")};
+
+    // Define binding layout
+    WGPUBindGroupLayoutEntry* binding_layout = yallocate(sizeof(WGPUBindGroupLayoutEntry), MEMORY_TAG_RENDERER);
+    // The binding index as used in the @binding attribute in the shader
+    webgpu_bind_layout_set_default(binding_layout);
+    binding_layout->nextInChain = NULL;
+    binding_layout->binding = ENTRY_BINDING_INDEX_UBO;
+    binding_layout->buffer.type = WGPUBufferBindingType_Uniform;
+    binding_layout->buffer.minBindingSize = 0;
+    binding_layout->buffer.hasDynamicOffset = false;
+    binding_layout->visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+
+    global_bind_group_layout_desc.entries = binding_layout;
+    global_bind_group_layout_desc.entryCount += 1;
+
+    out_shader->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_GLOBAL] = global_bind_group_layout_desc;
+    out_shader->config.bind_group_count++;
+    
+    if (shader->use_instances) {
+        // If using instances, add a second descriptor set.
+        WGPUBindGroupLayoutDescriptor instance_bind_group_layout_desc = {0};
+        instance_bind_group_layout_desc.nextInChain = NULL;
+        instance_bind_group_layout_desc.label = (WGPUStringView){"Instance object shader bind group descriptor", sizeof("Instance object shader bind group descriptor")};
+
+        // Add a UBO to it, as instances should always have one available.
+        // NOTE: Might be a good idea to only add this if it is going to be used...
+        
+        webgpu_bind_layout_set_default(&out_shader->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_UBO]);
+        out_shader->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_UBO].nextInChain = NULL;
+        out_shader->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_UBO].binding = ENTRY_BINDING_INDEX_UBO;
+        out_shader->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_UBO].buffer.type = WGPUBufferBindingType_Uniform;
+        out_shader->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_UBO].buffer.minBindingSize = 0;
+        out_shader->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_UBO].buffer.hasDynamicOffset = 0;
+        out_shader->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_UBO].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+
+        instance_bind_group_layout_desc.entries = out_shader->config.instance_bind_group_entries;
+        instance_bind_group_layout_desc.entryCount += 1;
+
+        out_shader->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE] = instance_bind_group_layout_desc;
+        out_shader->config.bind_group_count++;
+    }
+    // Invalidate all instance states.
+    // TODO: dynamic
+    for (u32 i = 0; i < 1024; ++i) {
+        out_shader->instance_states[i].id = INVALID_ID;
+    }
+
+    return true;
+}
+
+void webgpu_renderer_shader_destroy(struct SHADER *s)
+{
+    if (s && s->internal_data) {
+        WEBGPU_SHADER* shader = s->internal_data;
+        if (!shader) {
+            PRINT_ERROR("webgpu_renderer_shader_destroy requires a valid pointer to a shader.");
+            return;
+        }
+        
+        if (shader->global_bind_group) {
+            wgpuBindGroupRelease(shader->global_bind_group);
+        }
+        
+        // bind groups layouts.
+        for (u32 i = 0; i < shader->config.bind_group_count; ++i) {
+            
+            if (shader->bind_group_layouts[i]) {
+                wgpuBindGroupLayoutRelease(shader->bind_group_layouts[i]);
+                shader->bind_group_layouts[i] = 0;
+            }
+        }
+
+        // Uniform buffer.
+        //wgpuBufferUnmap(shader->uniform_buffer.handle);
+        shader->mapped_uniform_buffer_block = 0;
+        webgpu_buffer_destroy(&shader->uniform_buffer);
+
+        // Pipeline
+        webgpu_pipeline_destroy(&context, &shader->pipeline);
+
+        // Shader modules
+        for (u32 i = 0; i < shader->config.stage_count; ++i) {
+            wgpuShaderModuleRelease(shader->shader_module[i]);
+        }
+
+        // Destroy the configuration.
+        yzero_memory(&shader->config, sizeof(WEBGPU_SHADER_CONFIG));
+
+        // Free the internal data memory.
+        yfree(s->internal_data, MEMORY_TAG_RENDERER);
+        s->internal_data = 0;
+    }
+    
+}
+
+b8 webgpu_renderer_shader_init(struct SHADER *shader)
+{
+    
+    WEBGPU_SHADER* shader_internal_data = (WEBGPU_SHADER*)shader->internal_data;
+
+    // TODO: should check if we are loading the same shader module
+    // Create a module for each stage.
+    yzero_memory(shader_internal_data->shader_module, sizeof(WGPUShaderModule) * WEBGPU_SHADER_MAX_STAGES);
+    for (u32 i = 0; i < shader_internal_data->config.stage_count; ++i) {
+        if (!webgpu_create_shader_module(&context, &shader_internal_data->shader_module[i], shader_internal_data->config.stages[i].file_name)) {
+            PRINT_ERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", shader_internal_data->config.stages[i].file_name, shader->name);
+            return false;
+        }
+    }
+
+
+    // Static lookup table for our types->WebGPU ones.
+    static WGPUVertexFormat* types = 0;
+    static WGPUVertexFormat t[11];
+    if (!types) {
+        t[SHADER_ATTRIB_TYPE_FLOAT32] = WGPUVertexFormat_Float32;
+        t[SHADER_ATTRIB_TYPE_FLOAT32_2] = WGPUVertexFormat_Float32x2;
+        t[SHADER_ATTRIB_TYPE_FLOAT32_3] = WGPUVertexFormat_Float32x3;
+        t[SHADER_ATTRIB_TYPE_FLOAT32_4] = WGPUVertexFormat_Float32x4;
+        t[SHADER_ATTRIB_TYPE_INT8] = WGPUVertexFormat_Sint8;
+        t[SHADER_ATTRIB_TYPE_UINT8] = WGPUVertexFormat_Uint8;
+        t[SHADER_ATTRIB_TYPE_INT16] = WGPUVertexFormat_Sint16;
+        t[SHADER_ATTRIB_TYPE_UINT16] = WGPUVertexFormat_Uint16;
+        t[SHADER_ATTRIB_TYPE_INT32] = WGPUVertexFormat_Sint32;
+        t[SHADER_ATTRIB_TYPE_UINT32] = WGPUVertexFormat_Uint32;
+        types = t;
+    }
+
+    // Process attributes
+    u32 attribute_count = darray_length(shader->attributes);
+    u32 offset = 0;
+    for (u32 i = 0; i < attribute_count; ++i) {
+        // Setup the new attribute.
+        WGPUVertexAttribute attribute;
+        attribute.shaderLocation = i;
+        attribute.offset = offset;
+        attribute.format = types[shader->attributes[i].type];
+
+        // Push into the config's attribute collection and add to the stride.
+        shader_internal_data->config.attributes[i] = attribute;
+
+        offset += shader->attributes[i].size;
+    }
+
+    WGPUVertexBufferLayout vertex_buffer_layout;
+    vertex_buffer_layout.attributeCount = attribute_count;
+    vertex_buffer_layout.attributes = shader_internal_data->config.attributes;
+    vertex_buffer_layout.arrayStride = shader->attribute_stride;
+    vertex_buffer_layout.stepMode = WGPUVertexStepMode_Vertex;
+
+    // Create a texture bind group layout
+    WGPUBindGroupLayoutDescriptor texture_bind_group_layout_desc;
+    texture_bind_group_layout_desc.nextInChain = NULL;
+    texture_bind_group_layout_desc.label = (WGPUStringView){"Texture bind group descriptor", sizeof("Texture bind group descriptor")};
+
+
+
+    // Process uniforms.
+    u32 uniform_count = darray_length(shader->uniforms);
+    for (u32 i = 0; i < uniform_count; ++i) {
+        // For samplers, the descriptor bindings need to be updated. Other types of uniforms don't need anything to be done here.
+        if (shader->uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER) {
+            const u32 set_index = (shader->uniforms[i].scope == SHADER_SCOPE_GLOBAL ? BIND_GROUP_SET_INDEX_GLOBAL : BIND_GROUP_SET_INDEX_INSTANCE);
+            WGPUBindGroupLayoutDescriptor* bind_config = &shader_internal_data->config.bind_group_layout_desc[set_index];
+            if (bind_config->entryCount < 3) {
+                // There isn't a binding yet, meaning this is the first sampler to be added.
+                // Create the binding with a single descriptor for this sampler.
+                bind_config->entryCount += 2;
+            }
+            // Define texture binding layout
+            // Setup texture binding
+            webgpu_bind_layout_set_default(&shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE]);
+            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE].nextInChain = NULL;
+            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE].binding = ENTRY_BINDING_INDEX_TEXTURE;
+            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE].texture.sampleType = WGPUTextureSampleType_Float;
+            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE].texture.viewDimension = WGPUTextureViewDimension_2D;
+            
+            webgpu_bind_layout_set_default(&shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_SAMPLER]);
+            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_SAMPLER].nextInChain = NULL;
+            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_SAMPLER].binding = ENTRY_BINDING_INDEX_SAMPLER;
+            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_SAMPLER].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_SAMPLER].sampler.type = WGPUSamplerBindingType_Filtering;
+
+        }
+    }
+
+    // Create descriptor set layouts.
+    yzero_memory(shader_internal_data->bind_group_layouts, shader_internal_data->config.bind_group_count);
+    for (u32 i = 0; i < shader_internal_data->config.bind_group_count; ++i) {
+        shader_internal_data->bind_group_layouts[i] = wgpuDeviceCreateBindGroupLayout(context.device, &shader_internal_data->config.bind_group_layout_desc[i]);
+        if (!shader_internal_data->bind_group_layouts[i]) {
+            PRINT_ERROR("webgpu_shader_init failed creating bind_group_layout");
+            return false;
+        }
+    }
+
+    WGPUVertexState vertex_stage_desc = {0};
+    WGPUFragmentState fragment_stage_desc = {0};
+    for (u32 i = 0; i < shader_internal_data->config.stage_count; ++i) {
+        WGPUShaderStage stage = shader_internal_data->config.stages[i].stage;
+        switch (stage)
+        {
+        case WGPUShaderStage_Vertex:
+            vertex_stage_desc.module = shader_internal_data->shader_module[i];
+            break;
+        case WGPUShaderStage_Fragment:
+            fragment_stage_desc.module = shader_internal_data->shader_module[i];
+            break;
+        
+        default:
+            PRINT_ERROR("webgpu_renderer_shader_init stage not supported");
+            break;
+        }
+        
+    }
+    if (!vertex_stage_desc.module){
+        PRINT_ERROR("webgpu_renderer_shader_init cannot init without vertex stage in graphics pipeline");
+        return false;
+    }
+
+    //START Vertex stage setup
+    vertex_stage_desc.bufferCount = 1;
+    vertex_stage_desc.buffers = &vertex_buffer_layout;
+    vertex_stage_desc.entryPoint = (WGPUStringView){ "vs_main", 7 };
+    vertex_stage_desc.constantCount = 0;
+    vertex_stage_desc.constants = 0;
+    //END Vertex stage setup
+    
+    //START Fragment stage setup
+    fragment_stage_desc.entryPoint = (WGPUStringView){ "fs_main", 7 };
+    fragment_stage_desc.constantCount = 0;
+    fragment_stage_desc.constants = 0;
+    // We'll configure the blending stage here
+    WGPUBlendState blend_state = {0};
+    // Configure color blending equation
+    blend_state.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+    blend_state.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    blend_state.color.operation = WGPUBlendOperation_Add;
+    // Configure alpha blending equation
+    blend_state.alpha.srcFactor = WGPUBlendFactor_Zero;
+    blend_state.alpha.dstFactor = WGPUBlendFactor_One;
+    blend_state.alpha.operation = WGPUBlendOperation_Add;
+    WGPUColorTargetState color_target = {0};
+    color_target.format = context.swapchain_format;
+    color_target.blend = &blend_state;
+    color_target.writeMask = WGPUColorWriteMask_All; // We could write to only some of the color channels.
+    
+    // We have only one target because our render pass has only one output color
+    // attachment.
+    fragment_stage_desc.targetCount = 1;
+    fragment_stage_desc.targets = &color_target;
+    //END Fragment stage setup
+
+    b8 pipeline_result = webgpu_pipeline_create(
+        &context,
+        shader_internal_data->config.bind_group_count,
+        shader_internal_data->bind_group_layouts,
+        &vertex_stage_desc,
+        &fragment_stage_desc,
+        shader->push_constant_range_count,
+        shader->push_constant_ranges,
+        &shader_internal_data->pipeline);
+
+    if (!pipeline_result) {
+        PRINT_ERROR("Failed to load graphics pipeline for object shader.");
+        return false;
+    }
+
+    // Grab the UBO alignment requirement from the device.
+    shader->required_ubo_alignment = context.device_supported_limits.minUniformBufferOffsetAlignment;
+
+    // Make sure the UBO is aligned according to device requirements.
+    shader->global_ubo_stride = get_aligned(shader->global_ubo_size, shader->required_ubo_alignment);
+    shader->ubo_stride = get_aligned(shader->ubo_size, shader->required_ubo_alignment);
+
+    // Uniform  buffer.
+    // TODO: max count should be configurable, or perhaps long term support of buffer resizing.
+    u64 total_buffer_size = shader->global_ubo_stride + (shader->ubo_stride * WEBGPU_MAX_MATERIAL_COUNT);  // global + (locals)
+    if (!webgpu_buffer_create(
+        &context,
+        total_buffer_size,
+        WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform,
+        false,
+        true,
+        &shader_internal_data->uniform_buffer)) {
+            PRINT_ERROR("WEBGPU global uniform buffer creation failed for object shader.");
+            return false;
+        }
+    if (!webgpu_buffer_create(
+        &context,
+        total_buffer_size,
+        WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite,
+        false,
+        true,
+        &shader_internal_data->uniform_buffer_staging)) {
+            PRINT_ERROR("WEBGPU global uniform buffer staging creation failed for object shader.");
+            return false;
+        }
+    // Allocate space for the global UBO, whcih should occupy the _stride_ space, _not_ the actual size used.
+    if (!webgpu_buffer_allocate(&shader_internal_data->uniform_buffer, shader->global_ubo_stride, &shader->global_ubo_offset)) {
+        PRINT_ERROR("Failed to allocate space for the uniform buffer!");
+        return false;
+    }
+
+    if (!webgpu_buffer_allocate(&shader_internal_data->uniform_buffer_staging, shader->global_ubo_stride, &shader->global_ubo_offset)) {
+        PRINT_ERROR("Failed to allocate space for the uniform buffer!");
+        return false;
+    }
+    
+    //shader_internal_data->mapped_uniform_buffer_block = wgpuBufferGetMappedRange(shader_internal_data->uniform_buffer_staging.handle, 0, wgpuBufferGetSize(shader_internal_data->uniform_buffer_staging.handle));//wgpuBufferGetMappedRange(shader_internal_data->uniform_buffer.handle, 0, wgpuBufferGetSize(shader_internal_data->uniform_buffer.handle));
+    
+    // Create a binding
+    WGPUBindGroupEntry binding_entry = {0};
+    binding_entry.nextInChain = NULL;
+    // The index of the binding (the entries in bindGroupDesc can be in any order)
+    binding_entry.binding = BIND_GROUP_SET_INDEX_GLOBAL;
+    // The buffer it is actually bound to
+    binding_entry.buffer = shader_internal_data->uniform_buffer.handle;
+    // We can specify an offset within the buffer, so that a single buffer can hold
+    // multiple uniform blocks.
+    binding_entry.offset = shader->global_ubo_offset;
+    // And we specify again the size of the buffer.
+    binding_entry.size = shader->global_ubo_stride;
+    // A bind group contains one or multiple bindings
+    WGPUBindGroupDescriptor bind_groupt_desc = {0};
+    bind_groupt_desc.nextInChain = NULL;
+    bind_groupt_desc.label = (WGPUStringView){ "global bind group", sizeof("global bind group") };
+    bind_groupt_desc.layout = shader_internal_data->bind_group_layouts[BIND_GROUP_SET_INDEX_GLOBAL];
+    // There must be as many bindings as declared in the layout!
+    bind_groupt_desc.entryCount = shader_internal_data->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_GLOBAL].entryCount;
+    bind_groupt_desc.entries = &binding_entry;
+    shader_internal_data->global_bind_group = wgpuDeviceCreateBindGroup(context.device, &bind_groupt_desc);
+
+    return true;
+}
+//b8 map_completed = false;
+void on_buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
+    WEBGPU_SHADER* s = userdata1;
+    if (status != WGPUMapAsyncStatus_Success){
+        PRINT_ERROR("Failed to map buffer, error: %s", message.data);
+    }
+    s->mapped_uniform_buffer_block = wgpuBufferGetMappedRange(s->uniform_buffer_staging.handle, 0, wgpuBufferGetSize(s->uniform_buffer_staging.handle));
+    //map_completed = true;
+}
+
+b8 webgpu_renderer_shader_use(struct SHADER *shader)
+{
+    WEBGPU_SHADER* s = shader->internal_data;
+    switch (s->shader_renderpass)
+    {
+        case BUILTIN_RENDERPASS_WORLD:
+            if (context.world_render_pass){
+                wgpuRenderPassEncoderSetPipeline(context.world_render_pass, s->pipeline.handle);
+            } else {
+                PRINT_WARNING("webgpu_renderer_shader_use: world_render_pass is not valid");
+            }
+            break;
+        case BUILTIN_RENDERPASS_UI:
+            if (context.ui_render_pass){
+                wgpuRenderPassEncoderSetPipeline(context.ui_render_pass, s->pipeline.handle);
+            } else {
+                PRINT_WARNING("webgpu_renderer_shader_use: ui_render_pass is not valid");
+            }
+            break;
+        
+        default:
+            break;
+    }
+    //map_completed = false;
+    WGPUBufferMapCallbackInfo info = {0};
+    info.callback = on_buffer_map_callback;
+    info.userdata1 = s;
+    wgpuBufferMapAsync(s->uniform_buffer_staging.handle, WGPUMapMode_Write, 0, wgpuBufferGetSize(s->uniform_buffer_staging.handle), info);
+
+    wgpuDevicePoll(context.device, true, NULL);
+/*     while (!map_completed){
+        
+        PRINT_INFO("waiting for mapping");
+    } */
+    
+    return true;
+}
+
+b8 webgpu_renderer_shader_bind_globals(struct SHADER *s)
+{
+    if (!s) {
+        return false;
+    }
+
+    // Global UBO is always at the beginning, but use this anyway.
+    s->bound_ubo_offset = s->global_ubo_offset;
+    return true;
+}
+
+b8 webgpu_renderer_shader_bind_instance(struct SHADER *s, u32 instance_id)
+{
+    if (!s) {
+        PRINT_ERROR("webgpu_shader_bind_instance requires a valid pointer to a shader.");
+        return false;
+    }
+    WEBGPU_SHADER* internal = s->internal_data;
+
+    s->bound_instance_id = instance_id;
+    WEBGPU_SHADER_INSTANCE_STATE* object_state = &internal->instance_states[instance_id];
+    s->bound_ubo_offset = object_state->offset;
+    return true;
+}
+
+b8 webgpu_renderer_shader_apply_globals(struct SHADER *s)
+{
+    WEBGPU_SHADER* internal = s->internal_data;
+    
+    u32 global_set_binding_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_GLOBAL].entryCount;
+    if (global_set_binding_count > 1) {
+        // TODO: There are samplers to be written. Support this.
+        global_set_binding_count = 1;
+        PRINT_ERROR("Global image samplers are not yet supported.");
+
+    }
+    // Set binding group here!
+    //u32 dynamic_offsets[3] = {0, 0, sizeof(MATERIAL_SHADER_INSTANCE_UBO)};
+    // Update uniform buffer
+    //wgpuQueueWriteBuffer(context.queue, internal->uniform_buffer.handle, s->global_ubo_offset, internal->mapped_uniform_buffer_block, s->global_ubo_size);
+    //wgpuCommandEncoderCopyBufferToBuffer(context.encoder, internal->uniform_buffer_staging.handle, 0, internal->uniform_buffer.handle, 0, s->global_ubo_size);
+    // Bind the global bind group to be updated.
+    switch (internal->shader_renderpass)
+    {
+        case BUILTIN_RENDERPASS_WORLD:
+            if (context.world_render_pass){
+                wgpuRenderPassEncoderSetBindGroup(context.world_render_pass, BIND_GROUP_SET_INDEX_GLOBAL, internal->global_bind_group, 0, NULL);
+            } else {
+                PRINT_WARNING("webgpu_renderer_shader_apply_globals: world_render_pass is not valid");
+            }
+            break;
+        case BUILTIN_RENDERPASS_UI:
+            if (context.ui_render_pass){
+                wgpuRenderPassEncoderSetBindGroup(context.ui_render_pass, BIND_GROUP_SET_INDEX_GLOBAL, internal->global_bind_group, 0, NULL);
+            } else {
+                PRINT_WARNING("webgpu_renderer_shader_apply_globals: ui_render_pass is not valid");
+            }
+            break;
+        
+        default:
+            break;
+    }
+    
+    
+    return true;
+}
+
+b8 webgpu_renderer_shader_apply_instance(struct SHADER *s)
+{
+    if (!s->use_instances) {
+        PRINT_ERROR("This shader does not use instances.");
+        return false;
+    }
+    WEBGPU_SHADER* internal = s->internal_data;
+
+    // Obtain instance data.
+    WEBGPU_SHADER_INSTANCE_STATE* object_state = &internal->instance_states[s->bound_instance_id];
+
+    u32 total_bind_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entryCount;
+    // TODO: if needs update
+    //u32 descriptor_count = 0;
+    u32 bind_index = 0;
+    WGPUBindGroupEntry binding[total_bind_count];
+    // Binding 0 - Uniform buffer
+    binding[ENTRY_BINDING_INDEX_UBO].binding = ENTRY_BINDING_INDEX_UBO;
+    binding[ENTRY_BINDING_INDEX_UBO].buffer = internal->uniform_buffer.handle;
+    // We can specify an offset within the buffer, so that a single buffer can hold
+    // multiple uniform blocks.
+    binding[ENTRY_BINDING_INDEX_UBO].offset = object_state->offset;
+    // And we specify again the size of the buffer.
+    binding[ENTRY_BINDING_INDEX_UBO].size = s->ubo_stride;
+    binding[ENTRY_BINDING_INDEX_UBO].sampler = NULL;
+    binding[ENTRY_BINDING_INDEX_UBO].textureView = NULL;
+    binding[ENTRY_BINDING_INDEX_UBO].nextInChain = NULL;
+    
+    // Only do this if the descriptor has not yet been updated.
+    u8* instance_ubo_generation = &object_state->instance_bind_state.bind_group_states[bind_index].generations;
+    // TODO: determine if update is required.
+    if (*instance_ubo_generation == INVALID_ID_U8 /*|| *global_ubo_generation != material->generation*/) {
+        *instance_ubo_generation = 1;  // material->generation; TODO: some generation from... somewhere
+    }
+    bind_index++;
+
+    // Samplers will always be in the binding. If the binding count is less than 2, there are no samplers.
+    if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entryCount > 1) {
+        u32 sampler_count = 0;
+        // Iterate samplers.
+        for (u32 i = 0; i < total_bind_count; ++i) {
+            if (i != ENTRY_BINDING_INDEX_SAMPLER) continue;
+            sampler_count++;
+        }
+        
+        //u32 update_sampler_count = 0;
+        // start from index 1 because 0 is UBO, increment by 2 because each sampler has a texture after it
+        for (u32 i = 1; i < (sampler_count*2); i+= 2) {
+            // TODO: only update in the list if actually needing an update.
+            TEXTURE* t = internal->instance_states[s->bound_instance_id].instance_textures[i-1];
+            WEBGPU_TEXTURE_DATA* internal_data = (WEBGPU_TEXTURE_DATA*)t->internal_data;
+            // Assign view and sampler.
+            // Create a binding
+
+            binding[i].binding = i;
+            binding[i].sampler = internal_data->sampler;
+            binding[i].textureView = NULL;
+            binding[i].buffer = NULL;
+            binding[i].nextInChain = NULL;
+            // The texture is always after the sampler
+            binding[i+1].binding = i+1;
+            binding[i+1].textureView = internal_data->image.view;
+            binding[i+1].sampler = NULL;
+            binding[i+1].buffer = NULL;
+            binding[i+1].nextInChain = NULL;
+            
+        }
+
+    }
+
+    // A bind group contains one or multiple bindings
+    WGPUBindGroupDescriptor instance_bind_group_desc = {0};
+    instance_bind_group_desc.nextInChain = NULL;
+    instance_bind_group_desc.label = (WGPUStringView){"instance bind group", sizeof("instance bind group")-1};
+    instance_bind_group_desc.layout = internal->bind_group_layouts[BIND_GROUP_SET_INDEX_INSTANCE];
+    // There must be as many bindings as declared in the layout!
+    instance_bind_group_desc.entryCount = total_bind_count;
+    instance_bind_group_desc.entries = binding;
+    
+    object_state->instance_bind_state.bind_group = wgpuDeviceCreateBindGroup(context.device, &instance_bind_group_desc);
+
+    //if (descriptor_count > 0) {
+        // Load the data into the buffer.
+        //PRINT_INFO("ubo wriitng");
+        //wgpuQueueWriteBuffer(context.queue, internal->uniform_buffer.handle, object_state->offset, internal->mapped_uniform_buffer_block, s->ubo_size);
+    //}
+    wgpuDevicePoll(context.device, true, NULL);
+    switch (internal->shader_renderpass)
+    {
+        case BUILTIN_RENDERPASS_WORLD:
+            if (context.world_render_pass){
+                wgpuRenderPassEncoderSetBindGroup(context.world_render_pass, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
+            } else {
+                PRINT_WARNING("webgpu_renderer_shader_apply_instance: world_render_pass is not valid");
+            }
+            break;
+        case BUILTIN_RENDERPASS_UI:
+            if (context.ui_render_pass){
+                wgpuRenderPassEncoderSetBindGroup(context.ui_render_pass, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
+            } else {
+                PRINT_WARNING("webgpu_renderer_shader_apply_instance: ui_render_pass is not valid");
+            }
+            break;
+        
+        default:
+            break;
+    }
+    
+    
+    return true;
+}
+
+b8 webgpu_renderer_shader_acquire_instance_resources(struct SHADER *s, u32 *out_instance_id)
+{
+    WEBGPU_SHADER* internal = s->internal_data;
+    // TODO: dynamic
+    *out_instance_id = INVALID_ID;
+    for (u32 i = 0; i < 1024; ++i) {
+        if (internal->instance_states[i].id == INVALID_ID) {
+            internal->instance_states[i].id = i;
+            *out_instance_id = i;
+            break;
+        }
+    }
+    if (*out_instance_id == INVALID_ID) {
+        PRINT_ERROR("webgpu_shader_acquire_instance_resources failed to acquire new id");
+        return false;
+    }
+
+    WEBGPU_SHADER_INSTANCE_STATE* instance_state = &internal->instance_states[*out_instance_id];
+    u32 binding_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entryCount; 
+    u32 instance_texture_count = 0;
+    for (u32 i = 0; i < binding_count; i++){
+        if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entries[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
+            instance_texture_count++;
+        }
+    }
+
+    // Wipe out the memory for the entire array, even if it isn't all used.
+    instance_state->instance_textures = yallocate_aligned(sizeof(TEXTURE*) * s->instance_texture_count, 8, MEMORY_TAG_ARRAY);
+    TEXTURE* default_texture = texture_system_get_default_texture();
+    // Set all the TEXTURE pointers to default until assigned.
+    for (u32 i = 0; i < instance_texture_count; ++i) {
+        instance_state->instance_textures[i] = default_texture;
+    }
+
+    // Allocate some space in the UBO - by the stride, not the size.
+    u64 size = s->ubo_stride;
+    if (!webgpu_buffer_allocate(&internal->uniform_buffer, size, &instance_state->offset)) {
+        PRINT_ERROR("webgpu_material_shader_acquire_resources failed to acquire ubo space");
+        return false;
+    }
+    if (!webgpu_buffer_allocate(&internal->uniform_buffer_staging, size, &instance_state->offset)) {
+        PRINT_ERROR("webgpu_material_shader_acquire_resources failed to acquire ubo space");
+        return false;
+    }
+
+    WEBGPU_SHADER_BIND_GROUP_SET_STATE* set_state = &instance_state->instance_bind_state;
+    yzero_memory(set_state->bind_group_states, sizeof(WEBGPU_BIND_GROUP_STATE) * WEBGPU_SHADER_MAX_BINDINGS);
+    for (u32 i = 0; i < binding_count; ++i) {
+        set_state->bind_group_states[i].generations = INVALID_ID_U8;
+        set_state->bind_group_states[i].ids = INVALID_ID;
+    }
+    
+
+
+    return true;
+}
+
+b8 webgpu_renderer_shader_release_instance_resources(struct SHADER *s, u32 instance_id)
+{
+    wgpuDevicePoll(context.device, true, NULL);
+
+    WEBGPU_SHADER* internal = s->internal_data;
+    WEBGPU_SHADER_INSTANCE_STATE* instance_state = &internal->instance_states[instance_id];
+
+
+    if (instance_state->instance_textures) {
+        yfree(instance_state->instance_textures, MEMORY_TAG_ARRAY);
+        instance_state->instance_textures = 0;
+    }
+
+    webgpu_buffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset);
+    instance_state->offset = INVALID_ID;
+    instance_state->id = INVALID_ID;
+
+    return true;
+}
+
+b8 webgpu_renderer_set_uniform(struct SHADER *frontend_shader, struct SHADER_UNIFORM *uniform, const void *value)
+{
+    WEBGPU_SHADER* internal = frontend_shader->internal_data;
+    if (uniform->type == SHADER_UNIFORM_TYPE_SAMPLER) {
+        if (uniform->scope == SHADER_SCOPE_GLOBAL) {
+            frontend_shader->global_textures[uniform->location] = (TEXTURE*)value;
+        } else {
+            internal->instance_states[frontend_shader->bound_instance_id].instance_textures[uniform->location] = (TEXTURE*)value;
+        }
+    } else {
+        if (uniform->scope == SHADER_SCOPE_LOCAL) {
+            // Is local, using push constants. Do this immediately.
+            switch (internal->shader_renderpass)
+            {
+                case BUILTIN_RENDERPASS_WORLD:
+                    if (context.world_render_pass){
+                        wgpuRenderPassEncoderSetPushConstants(
+                            context.world_render_pass,
+                            WGPUShaderStage_Vertex | WGPUShaderStage_Fragment, // Shader stage visibility
+                            uniform->offset,          // Byte offset
+                            uniform->size,            // Byte size
+                            value                     // Pointer to data
+                        );
+                    } else {
+                        PRINT_WARNING("webgpu_renderer_shader_apply_globals: world_render_pass is not valid");
+                    }
+                    break;
+                case BUILTIN_RENDERPASS_UI:
+                    if (context.ui_render_pass){
+                        wgpuRenderPassEncoderSetPushConstants(
+                            context.ui_render_pass,
+                            WGPUShaderStage_Vertex | WGPUShaderStage_Fragment, // Shader stage visibility
+                            uniform->offset,          // Byte offset
+                            uniform->size,            // Byte size
+                            value                     // Pointer to data
+                        );
+                    } else {
+                        PRINT_WARNING("webgpu_renderer_shader_apply_globals: ui_render_pass is not valid");
+                    }
+                    break;
+                
+                default:
+                    break;
+            }
+        } else {
+            // Map the appropriate memory location and copy the data over.
+            u64 addr = (u64)internal->mapped_uniform_buffer_block;
+            addr += frontend_shader->bound_ubo_offset + uniform->offset;
+            ycopy_memory((void*)addr, value, uniform->size);
+            if (addr) {
+            }
+            //wgpuBufferUnmap(internal->uniform_buffer_staging.handle);
+        }
+
+    }
+    return true;
+}
+
+b8 webgpu_shader_after_renderpass(struct SHADER *shader) {
+    //PRINT_INFO("buffer size after renderpass");
+    wgpuDevicePoll(context.device, true, NULL);
+    WEBGPU_SHADER* internal = shader->internal_data;
+    wgpuCommandEncoderCopyBufferToBuffer(context.encoder, internal->uniform_buffer_staging.handle, 0, internal->uniform_buffer.handle, 0, wgpuBufferGetSize(internal->uniform_buffer.handle));
+    wgpuBufferUnmap(internal->uniform_buffer_staging.handle);
+    return true;
+}
+
 void webgpu_renderer_draw_geometry(GEOMETRY_RENDER_DATA data) {
     // Ignore non-uploaded geometries.
     if (data.geometry && data.geometry->internal_id == INVALID_ID) {
         return;
     }
+    
+    SHADER* current_shader = shader_system_get_by_id(data.geometry->material->shader_id);
+    WEBGPU_SHADER* internal = current_shader->internal_data;
+
 
     WEBGPU_GEOMETRY_DATA* buffer_data = &context.geometries[data.geometry->internal_id];
+    // Set vertex buffer while encoding the render pass
+    
+    switch (internal->shader_renderpass){
+        case BUILTIN_RENDERPASS_WORLD:
+            wgpuRenderPassEncoderSetVertexBuffer(context.world_render_pass, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
+            // Draw indexed or non-indexed.
+            if (buffer_data->index_count > 0) {
+                // Bind index buffer at offset.
+                wgpuRenderPassEncoderSetIndexBuffer(context.world_render_pass, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
+                // Issue the draw.
+                wgpuRenderPassEncoderDrawIndexed(context.world_render_pass, buffer_data->index_count, 1, 0, 0, 0);
+            } else {
+                wgpuRenderPassEncoderDraw(context.world_render_pass, buffer_data->vertex_count, 1, 0, 0);
+            }
+            break;
+        case BUILTIN_RENDERPASS_UI:
+            wgpuRenderPassEncoderSetVertexBuffer(context.ui_render_pass, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
+            // Draw indexed or non-indexed.
+            if (buffer_data->index_count > 0) {
+                // Bind index buffer at offset.
+                wgpuRenderPassEncoderSetIndexBuffer(context.ui_render_pass, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
+                // Issue the draw.
+                wgpuRenderPassEncoderDrawIndexed(context.ui_render_pass, buffer_data->index_count, 1, 0, 0, 0);
+            } else {
+                wgpuRenderPassEncoderDraw(context.ui_render_pass, buffer_data->vertex_count, 1, 0, 0);
+            }
+            break;
 
-    MATERIAL* m = 0;
-    if (data.geometry->material) {
-        m = data.geometry->material;
-    } else {
-        m = material_system_get_default();
-    }
-
-    switch (m->type) {
-        case MATERIAL_TYPE_WORLD:
-                webgpu_material_shader_set_model(&context, &context.material_shader, data.model);
-                webgpu_material_shader_apply_material(&context, &context.material_shader, m);
-                // Set vertex buffer while encoding the render pass
-                wgpuRenderPassEncoderSetVertexBuffer(context.world_render_pass, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
-                
-                // Draw indexed or non-indexed.
-                if (buffer_data->index_count > 0) {
-                    // Bind index buffer at offset.
-                    wgpuRenderPassEncoderSetIndexBuffer(context.world_render_pass, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
-                    // Issue the draw.
-                    wgpuRenderPassEncoderDrawIndexed(context.world_render_pass, buffer_data->index_count, 1, 0, 0, 0);
-                } else {
-                    wgpuRenderPassEncoderDraw(context.world_render_pass, buffer_data->vertex_count, 1, 0, 0);
-                }
-
-                break;
-            case MATERIAL_TYPE_UI:
-                webgpu_ui_shader_set_model(&context, &context.ui_shader, data.model);
-                webgpu_ui_shader_apply_material(&context, &context.ui_shader, m);
-                // Set vertex buffer while encoding the render pass
-                wgpuRenderPassEncoderSetVertexBuffer(context.ui_render_pass, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
-                
-                // Draw indexed or non-indexed.
-                if (buffer_data->index_count > 0) {
-                    // Bind index buffer at offset.
-                    wgpuRenderPassEncoderSetIndexBuffer(context.ui_render_pass, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
-                    // Issue the draw.
-                    wgpuRenderPassEncoderDrawIndexed(context.ui_render_pass, buffer_data->index_count, 1, 0, 0, 0);
-                } else {
-                    wgpuRenderPassEncoderDraw(context.ui_render_pass, buffer_data->vertex_count, 1, 0, 0);
-                }
-
-                break;
         default:
-            PRINT_ERROR("webgpu_renderer_draw_geometry - unknown material type: %i", m->type);
-            return;
+            break;
     }
-    
-    
+
 }
 
 
@@ -501,7 +1265,7 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
         return false;
     }
 
-    // Detect if the window is too small to be drawn to
+    // Detect if the window is worldtoo small to be drawn to
     if (context.framebuffer_width == 0 || context.framebuffer_height == 0) {
         PRINT_DEBUG("recreate_swapchain called when window is < 1 in a dimension. Booting.");
         return false;
@@ -509,6 +1273,8 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
 
     // Mark as recreating if the dimensions are valid.
     context.recreating_swapchain = true;
+
+    wgpuDevicePoll(context.device, true, NULL);
 
     webgpu_recreate_swapchain(&context, backend, cached_framebuffer_width, cached_framebuffer_height);
     context.depth_view = get_depth_texture_view(cached_framebuffer_width, cached_framebuffer_height);
@@ -561,6 +1327,7 @@ WGPUTextureView get_depth_texture_view(u32 width, u32 height) {
     depthTextureViewDesc.mipLevelCount = 1;
     depthTextureViewDesc.dimension = WGPUTextureViewDimension_2D;
     depthTextureViewDesc.format = depthTextureFormat;
+    depthTextureViewDesc.usage = WGPUTextureUsage_RenderAttachment;
     WGPUTextureView depthTextureView = wgpuTextureCreateView(depthTexture, &depthTextureViewDesc);
     return depthTextureView;
 
@@ -598,13 +1365,13 @@ WGPUTextureView get_next_surface_texture_view(void) {
 
 b8 webgpu_create_buffers(WEBGPU_CONTEXT* context) {
     const u64 vertex_buffer_size = sizeof(Vertex3D) * 1024 * 1024;
-    if (!webgpu_buffer_create(context, vertex_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex, false, &context->object_vertex_buffer)) {
+    if (!webgpu_buffer_create(context, vertex_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex, false, true, &context->object_vertex_buffer)) {
         PRINT_ERROR("Error creating vertex buffer.");
         return false;
     }
 
     const u64 index_buffer_size = sizeof(u32) * 1024 * 1024;
-    if (!webgpu_buffer_create(context, index_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index, false, &context->object_index_buffer)) {
+    if (!webgpu_buffer_create(context, index_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index, false, true, &context->object_index_buffer)) {
         PRINT_ERROR("Error creating index buffer.");
         return false;
     }
@@ -662,8 +1429,9 @@ void webgpu_renderer_create_texture(const u8* pixels, TEXTURE* texture){
 }
 
 void webgpu_renderer_destroy_texture(TEXTURE* texture){
-    WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)texture->internal_data;
+    wgpuDevicePoll(context.device, true, NULL);
 
+    WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)texture->internal_data;
 
     if (data) {
         webgpu_image_destroy(&data->image);
@@ -679,52 +1447,24 @@ void webgpu_renderer_destroy_texture(TEXTURE* texture){
     
 }
 
-b8 webgpu_renderer_create_material(struct MATERIAL* material) {
-    if (material) {
-        switch (material->type) {
-            case MATERIAL_TYPE_WORLD:
-                if (!webgpu_material_shader_acquire_resources(&context, &context.material_shader, material)) {
-                    PRINT_ERROR("webgpu_renderer_create_material - Failed to acquire world shader resources.");
-                    return false;
-                }
-                break;
-            case MATERIAL_TYPE_UI:
-                if (!webgpu_ui_shader_acquire_resources(&context, &context.ui_shader, material)) {
-                    PRINT_ERROR("webgpu_renderer_create_material - Failed to acquire UI shader resources.");
-                    return false;
-                }
-                break;
-            default:
-                PRINT_ERROR("webgpu_renderer_create_material - unknown material type");
-                return false;
-        }
-        PRINT_TRACE("WEBGPU Renderer: Material created.");
-        return true;
-    }
+void webgpu_bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout) {
+    bindingLayout->buffer.nextInChain = NULL;
+    bindingLayout->buffer.type = WGPUBufferBindingType_BindingNotUsed;
+    bindingLayout->buffer.hasDynamicOffset = false;
+    bindingLayout->buffer.minBindingSize = 0;
 
-    PRINT_ERROR("webgpu_renderer_create_material called with nullptr. Creation failed.");
-    return false;
-}
+    bindingLayout->sampler.nextInChain = NULL;
+    bindingLayout->sampler.type = WGPUSamplerBindingType_BindingNotUsed;
 
-void webgpu_renderer_destroy_material(struct MATERIAL* material) {
-    if (material) {
-        if (material->internal_id != INVALID_ID) {
-            switch (material->type) {
-                case MATERIAL_TYPE_WORLD:
-                    webgpu_material_shader_release_resources(&context, &context.material_shader, material);
-                    break;
-                case MATERIAL_TYPE_UI:
-                    webgpu_ui_shader_release_resources(&context, &context.ui_shader, material);
-                    break;
-                default:
-                    PRINT_ERROR("webgpu_renderer_destroy_material - unknown material type");
-                    break;
-            }
-        } else {
-            PRINT_WARNING("webgpu_renderer_destroy_material called with internal_id=INVALID_ID. Nothing was done.");
-        }
-    } else {
-        PRINT_WARNING("webgpu_renderer_destroy_material called with nullptr. Nothing was done.");
-    }
+    bindingLayout->storageTexture.nextInChain = NULL;
+    bindingLayout->storageTexture.access = WGPUStorageTextureAccess_BindingNotUsed;
+    bindingLayout->storageTexture.format = WGPUTextureFormat_Undefined;
+    bindingLayout->storageTexture.viewDimension = WGPUTextureViewDimension_Undefined;
+
+    bindingLayout->texture.nextInChain = NULL;
+    bindingLayout->texture.multisampled = false;
+    bindingLayout->texture.sampleType = WGPUTextureSampleType_BindingNotUsed;
+    bindingLayout->texture.viewDimension = WGPUTextureViewDimension_Undefined;
 }
 #pragma clang optimize on
+

@@ -218,6 +218,7 @@ b8 create_default_geometries(GEOMETRY_SYSTEM_STATE* state) {
 
     u32 indices[6] = {0, 1, 2, 0, 3, 1};
 
+    state->default_geometry.internal_id = INVALID_ID;
     // Send the geometry off to the renderer to be uploaded to the GPU.
     if (!renderer_create_geometry(&state->default_geometry, sizeof(Vertex3D), 4, verts, sizeof(u32), 6, indices)) {
         PRINT_ERROR("Failed to create default geometry. Application cannot continue.");

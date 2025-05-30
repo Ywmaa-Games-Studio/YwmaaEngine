@@ -19,6 +19,7 @@
 #include "systems/material_system.h"
 #include "systems/geometry_system.h"
 #include "systems/resource_system.h"
+#include "systems/shader_system.h"
 
 // TODO: temp
 #include "math/ymath.h"
@@ -48,6 +49,9 @@ typedef struct APPLICATION_STATE {
 
     u64 resource_system_memory_requirement;
     void* resource_system_state;
+
+    u64 shader_system_memory_requirement;
+    void* shader_system_state;
 
     u64 renderer_system_memory_requirement;
     void* renderer_system_state;
@@ -183,9 +187,9 @@ b8 application_create(GAME* game_instance) {
     RESOURCE_SYSTEM_CONFIG resource_sys_config;
     resource_sys_config.asset_base_path = "assets";
     resource_sys_config.max_loader_count = 32;
-    resource_system_initialize(&app_state->resource_system_memory_requirement, 0, resource_sys_config);
+    resource_system_init(&app_state->resource_system_memory_requirement, 0, resource_sys_config);
     app_state->resource_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->resource_system_memory_requirement);
-    if(!resource_system_initialize(&app_state->resource_system_memory_requirement, app_state->resource_system_state, resource_sys_config)) {
+    if(!resource_system_init(&app_state->resource_system_memory_requirement, app_state->resource_system_state, resource_sys_config)) {
         PRINT_ERROR("Failed to initialize resource system. Aborting application.");
         return false;
     }
@@ -206,13 +210,27 @@ b8 application_create(GAME* game_instance) {
     geometry_sys_config.max_geometry_count = 4096;
     geometry_system_init(&app_state->geometry_system_memory_requirement, 0, geometry_sys_config);
     app_state->geometry_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->geometry_system_memory_requirement);
+    
+    // Shader system
+    SHADER_SYSTEM_CONFIG shader_sys_config;
+    shader_sys_config.max_shader_count = 1024;
+    shader_sys_config.max_uniform_count = 128;
+    shader_sys_config.max_global_textures = 31;
+    shader_sys_config.max_instance_textures = 31;
+    shader_system_init(&app_state->shader_system_memory_requirement, 0, shader_sys_config);
+    app_state->shader_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->shader_system_memory_requirement);
+    if(!shader_system_init(&app_state->shader_system_memory_requirement, app_state->shader_system_state, shader_sys_config)) {
+        PRINT_ERROR("Failed to initialize shader system. Aborting application.");
+        return false;
+    }
+
     // Renderer system
     app_state->renderer_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_system_memory_requirement);
     if (!renderer_system_init(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_instance->app_config.name, game_instance->app_config.renderer_backend_api)) { //RENDERER_BACKEND_API_WEBGPU|RENDERER_BACKEND_API_VULKAN
         PRINT_ERROR("Failed to initialize renderer. Aborting application.");
         return false;
     }
-    
+
     // Texture system.
     if (!texture_system_init(&app_state->texture_system_memory_requirement, app_state->texture_system_state, texture_sys_config)) {
         PRINT_ERROR("Failed to initialize texture system. Application cannot continue.");
@@ -224,25 +242,23 @@ b8 application_create(GAME* game_instance) {
         PRINT_ERROR("Failed to initialize material system. Application cannot continue.");
         return false;
     }
-    
+   
     // Geometry system.
     if (!geometry_system_init(&app_state->geometry_system_memory_requirement, app_state->geometry_system_state, geometry_sys_config)) {
         PRINT_ERROR("Failed to initialize geometry system. Application cannot continue.");
         return false;
     }
-
+    
     // TODO: temp 
 
     // Load up a plane configuration, and load geometry from it.
-    GEOMETRY_CONFIG g_config = geometry_system_generate_plane_config(10.0f, 5.0f, 5, 5, 5.0f, 2.0f, "test geometry", "");
+    GEOMETRY_CONFIG g_config = geometry_system_generate_plane_config(10.0f, 5.0f, 5, 5, 5.0f, 2.0f, "test geometry", "test_material");
     app_state->test_geometry = geometry_system_acquire_from_config(g_config, true);
 
     // Clean up the allocations for the geometry config.
     yfree(g_config.vertices, MEMORY_TAG_ARRAY);
     yfree(g_config.indices, MEMORY_TAG_ARRAY);
-
-    // Load up default geometry.
-    //app_state->test_geometry = geometry_system_get_default();
+    
     // TODO: end temp 
 
     // Load up some test UI geometry.
@@ -276,7 +292,7 @@ b8 application_create(GAME* game_instance) {
     uiverts[3].texcoord.x = 1.0f;
     uiverts[3].texcoord.y = 0.0f;
     ui_config.vertices = uiverts;
-
+    
     // Indices - counter-clockwise
     u32 uiindices[6] = {2, 1, 0, 3, 0, 1};
     ui_config.indices = uiindices;
@@ -295,7 +311,7 @@ b8 application_create(GAME* game_instance) {
 
     // Call resize once to ensure the proper size has been set.
     app_state->game_instance->on_resize(app_state->game_instance, app_state->width, app_state->height);
-
+    
     return true;
 }
 b8 application_run(void) {
@@ -313,6 +329,7 @@ b8 application_run(void) {
 
     char* mem_usage = get_memory_usage_str();
     PRINT_INFO(mem_usage);
+    
     while (app_state->is_running) { // Game Loop
         if(!platform_pump_messages()) {
             app_state->is_running = false;
@@ -405,6 +422,8 @@ b8 application_run(void) {
     material_system_shutdown(app_state->material_system_state);
 
     texture_system_shutdown(app_state->texture_system_state);
+
+    shader_system_shutdown(app_state->shader_system_state);
 
     renderer_system_shutdown(app_state->renderer_system_state);
 

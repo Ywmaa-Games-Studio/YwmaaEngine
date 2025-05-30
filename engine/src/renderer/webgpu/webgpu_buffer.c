@@ -16,21 +16,24 @@ b8 webgpu_buffer_create(
     u64 size,
     WGPUBufferUsage usage,
     b8 mapped_on_create,
+    b8 use_freelist,
     WEBGPU_BUFFER* out_buffer) {
     yzero_memory(out_buffer, sizeof(WEBGPU_BUFFER));
     out_buffer->total_size = size;
     out_buffer->usage = usage;
+    out_buffer->has_freelist = use_freelist;
 
-    // Create a new freelist
-    out_buffer->freelist_memory_requirement = 0;
-    freelist_create(size, &out_buffer->freelist_memory_requirement, 0, 0);
-    out_buffer->freelist_block = yallocate_aligned(out_buffer->freelist_memory_requirement, 8, MEMORY_TAG_RENDERER);
-    freelist_create(size, &out_buffer->freelist_memory_requirement, out_buffer->freelist_block, &out_buffer->buffer_freelist);
-
+    if (use_freelist) {
+        // Create a new freelist
+        out_buffer->freelist_memory_requirement = 0;
+        freelist_create(size, &out_buffer->freelist_memory_requirement, 0, 0);
+        out_buffer->freelist_block = yallocate_aligned(out_buffer->freelist_memory_requirement, 8, MEMORY_TAG_RENDERER);
+        freelist_create(size, &out_buffer->freelist_memory_requirement, out_buffer->freelist_block, &out_buffer->buffer_freelist);
+    }
 
     WGPUBufferDescriptor buffer_desc = {0};
     buffer_desc.nextInChain = NULL;
-    buffer_desc.label = (WGPUStringView){"Buffer", sizeof("Buffer")};
+    buffer_desc.label = (WGPUStringView){"Buffer", sizeof("Buffer")-1};
     buffer_desc.usage = usage;
     buffer_desc.size = size;
     buffer_desc.mappedAtCreation = mapped_on_create;
@@ -66,6 +69,12 @@ b8 webgpu_buffer_allocate(WEBGPU_BUFFER* buffer, u64 size, u64* out_offset) {
         return false;
     }
 
+    if (!buffer->has_freelist) {
+        PRINT_WARNING("webgpu_buffer_allocate called on a buffer not using freelists. Offset will not be valid. Call webgpu_buffer_load_data instead.");
+        *out_offset = 0;
+        return true;
+    }
+
     return freelist_allocate_block(&buffer->buffer_freelist, size, out_offset);
 }
 
@@ -73,6 +82,11 @@ b8 webgpu_buffer_free(WEBGPU_BUFFER* buffer, u64 size, u64 offset) {
     if (!buffer || !size) {
         PRINT_ERROR("webgpu_buffer_free requires valid buffer, a nonzero size.");
         return false;
+    }
+
+    if (!buffer->has_freelist) {
+        PRINT_WARNING("webgpu_buffer_free called on a buffer not using freelists. Nothing was done.");
+        return true;
     }
 
     return freelist_free_block(&buffer->buffer_freelist, size, offset);

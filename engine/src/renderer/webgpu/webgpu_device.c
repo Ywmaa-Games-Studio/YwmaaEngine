@@ -19,6 +19,7 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     WGPUAdapterInfo properties = {0};
     properties.nextInChain = NULL;
     wgpuAdapterGetInfo(context->adapter, &properties);
+    
     PRINT_INFO("Adapter properties:");
     PRINT_INFO(" - vendorID: %i", properties.vendorID);
     if (properties.vendor.data) {
@@ -39,27 +40,48 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
 
 #endif
 
-    //WGPUNativeLimits required_limits = get_required_limits(context);
+/*     WGPUNativeLimits required_limits_extras = get_required_limits(context);
+    required_limits_extras.chain.sType = WGPUSType_NativeLimits; */
+
+    WGPUNativeLimits required_limits_extras = {
+      .maxPushConstantSize = 128,
+    };
+    required_limits_extras.chain.next = NULL;
+    required_limits_extras.chain.sType = (WGPUSType)WGPUSType_NativeLimits;
+
+    WGPUNativeFeature required_features[] = {
+        WGPUNativeFeature_PushConstants
+    };
+
+    WGPULimits required_limits = {0};
+    wgpuAdapterGetLimits(context->adapter, &required_limits);
+    required_limits.nextInChain = &required_limits_extras.chain;
     // Device
     PRINT_DEBUG("Requesting device...");
     WGPUDeviceDescriptor device_desc = {0};
     char *device_name = "WebGPU Device";
     device_desc.label = (WGPUStringView){device_name, sizeof(device_name)};
-    device_desc.requiredFeatureCount = 0; // we do not require any specific feature
-    device_desc.requiredLimits = NULL;//&required_limits; // this crashes, see: https://github.com/eliemichel/WebGPU-distribution/issues/38
+    device_desc.requiredFeatureCount = 1;
+    device_desc.requiredFeatures = (WGPUFeatureName*)required_features;
+    device_desc.requiredLimits = &required_limits;
     device_desc.defaultQueue.nextInChain = NULL;
     device_desc.defaultQueue.label = (WGPUStringView){"The default queue", sizeof("The default queue")};
     device_desc.deviceLostCallbackInfo = (WGPUDeviceLostCallbackInfo){NULL, WGPUCallbackMode_AllowSpontaneous, on_device_lost};
     // [...] Build device descriptor
     context->device = request_device_sync(context->adapter, &device_desc);
 
-    //wgpuDeviceSetUncapturedErrorCallback(context->device, on_device_error, NULL /* pUserData */);
+    wgpuDeviceGetLimits(context->device, &context->device_supported_limits);
     PRINT_INFO("Got device: %i", context->device);
-
-	WGPULimits device_supported_limits;
-    wgpuDeviceGetLimits(context->device, &device_supported_limits);
-    PRINT_INFO("device.maxVertexAttributes: %i", device_supported_limits.maxVertexAttributes);
-
+#ifdef _DEBUG
+    PRINT_TRACE("device.maxVertexAttributes: %i", context->device_supported_limits.maxVertexAttributes);
+    PRINT_TRACE("device.minUniformBufferOffsetAlignment: %i", context->device_supported_limits.minUniformBufferOffsetAlignment);
+    PRINT_TRACE("device.maxBindGroups: %i", context->device_supported_limits.maxBindGroups);
+    PRINT_TRACE("device.maxVertexBufferArrayStride: %i", context->device_supported_limits.maxVertexBufferArrayStride);
+    PRINT_TRACE("device.maxUniformBuffersPerShaderStage: %i", context->device_supported_limits.maxUniformBuffersPerShaderStage);
+    PRINT_TRACE("device.maxUniformBufferBindingSize: %i", context->device_supported_limits.maxUniformBufferBindingSize);
+    PRINT_TRACE("device.maxSamplersPerShaderStage: %i", context->device_supported_limits.maxSamplersPerShaderStage);
+    PRINT_TRACE("device.maxSampledTexturesPerShaderStage: %i", context->device_supported_limits.maxSampledTexturesPerShaderStage);
+#endif
     //context->swapchain_format = wgpuSurfaceGetPreferredFormat(context->surface, context->adapter); This changed to the code below
     WGPUSurfaceCapabilities capabilities;
     wgpuSurfaceGetCapabilities( context->surface, context->adapter, &capabilities );
@@ -71,8 +93,9 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
 
     PRINT_INFO("Queues obtained.");
     wgpuQueueOnSubmittedWorkDone(context->queue, (WGPUQueueWorkDoneCallbackInfo) {NULL, WGPUCallbackMode_AllowSpontaneous, on_queue_work_done});
-
+#ifdef _DEBUG
     PRINT_DEBUG("Destroying WebGPU Adapter...");
+#endif
     wgpuAdapterRelease(context->adapter);
     
     return context->device != NULL;
@@ -145,7 +168,8 @@ void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapt
  */
 struct device_request_data {
     WGPUDevice device;
-    b8 requestEnded;
+    b8 request_ended;
+    b8 success;
 };
 
 WGPUDevice request_device_sync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor) {
@@ -163,7 +187,8 @@ WGPUDevice request_device_sync(WGPUAdapter adapter, WGPUDeviceDescriptor const *
     }
 #endif // __EMSCRIPTEN__
 
-    YASSERT(device_data.requestEnded);
+    YASSERT_MSG(device_data.success, "Failed to get WGPU Device");
+    
 
     return device_data.device;
 }
@@ -172,10 +197,12 @@ void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, 
     struct device_request_data* device_data = (userdata1);
     if (status == WGPURequestDeviceStatus_Success) {
         device_data->device = device;
+        device_data->success = true;
     } else {
-        PRINT_ERROR("Could not get WebGPU device: ", message);
+        PRINT_ERROR("Could not get WebGPU device: %s", message.data);
+        device_data->success = false;
     }
-    device_data->requestEnded = true;
+    device_data->request_ended = true;
 }
 
 
@@ -212,7 +239,8 @@ WGPUNativeLimits get_required_limits(WEBGPU_CONTEXT* context) {
     WGPUNativeLimits requiredLimits;
 
     // We use at most 1 vertex attribute for now
-    requiredLimits.maxNonSamplerBindings = 5;
+    //requiredLimits.maxNonSamplerBindings = 5;
+    requiredLimits.maxPushConstantSize = 0;
 
     // [...] Other device limits
 

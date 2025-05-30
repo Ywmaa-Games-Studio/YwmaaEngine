@@ -20,6 +20,14 @@ typedef double f64;
 typedef int b32;
 typedef _Bool b8;
 
+/** @brief A range, typically of memory */
+typedef struct range {
+    /** @brief The offset in bytes. */
+    u64 offset;
+    /** @brief The size in bytes. */
+    u64 size;
+} range;
+
 // Properly define static assertions.
 #if defined(__clang__) || defined(__gcc__)
 #define STATIC_ASSERT _Static_assert
@@ -49,6 +57,8 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
  * and not actually pointing to a real object. 
  */
 #define INVALID_ID 4294967295U
+#define INVALID_ID_U16 65535U
+#define INVALID_ID_U8 255U
 
 
 // Platform detection
@@ -149,4 +159,8 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 
 YINLINE u64 get_aligned(u64 operand, u64 granularity) {
     return ((operand + (granularity - 1)) & ~(granularity - 1));
+}
+
+YINLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
+    return (range){get_aligned(offset, granularity), get_aligned(size, granularity)};
 }

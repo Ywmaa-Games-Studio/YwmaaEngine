@@ -29,9 +29,9 @@ b8 material_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_r
     out_resource->full_path = string_duplicate(full_file_path);
 
     // TODO: Should be using an allocator here.
-    MATERIAL_CONFIG* resource_data = yallocate(sizeof(MATERIAL_CONFIG), MEMORY_TAG_MATERIAL_INSTANCE);
+    MATERIAL_CONFIG* resource_data = yallocate_aligned(sizeof(MATERIAL_CONFIG), 8, MEMORY_TAG_MATERIAL_INSTANCE);
     // Set some defaults.
-    resource_data->type = MATERIAL_TYPE_WORLD;
+    resource_data->shader_name = "builtin.material"; // default material
     resource_data->auto_release = true;
     resource_data->diffuse_colour = Vector4_one();  // white.
     resource_data->diffuse_map_name[0] = 0;
@@ -88,11 +88,9 @@ b8 material_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_r
                 PRINT_WARNING("Error parsing diffuse_colour in file '%s'. Using default of white instead.", full_file_path);
                 // NOTE: already assigned above, no need to have it here.
             }
-        } else if (strings_equali(trimmed_var_name, "type")) {
-            // TODO: other material types.
-            if (strings_equali(trimmed_value, "ui")) {
-                resource_data->type = MATERIAL_TYPE_UI;
-            }
+        } else if (strings_equali(trimmed_var_name, "shader")) {
+            // Take a copy of the material name.
+            resource_data->shader_name = string_duplicate(trimmed_value);
         }
 
         // TODO: more fields.

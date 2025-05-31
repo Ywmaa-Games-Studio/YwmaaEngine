@@ -381,6 +381,12 @@ b8 platform_x11_system_startup(
     // Map the window to the screen
     loader_xcb_map_window(platform_state->connection, platform_state->window);
 
+    // Fire initial resize event
+    EVENT_CONTEXT context;
+    context.data.u16[0] = width;
+    context.data.u16[1] = height;
+    event_fire(EVENT_CODE_RESIZED, 0, context);
+
     // Flush the stream
     i32 stream_result = loader_xcb_flush(platform_state->connection);
     if (stream_result <= 0) {
@@ -1329,6 +1335,12 @@ b8 platform_wayland_system_startup(
     
     // Second roundtrip to get surface created
     WAYLAND_wl_display_roundtrip(platform_state->display);
+
+    // Fire initial resize event
+    EVENT_CONTEXT context;
+    context.data.u16[0] = width;
+    context.data.u16[1] = height;
+    event_fire(EVENT_CODE_RESIZED, 0, context);
     
     PRINT_INFO("Wayland platform initialized successfully");
     return true;

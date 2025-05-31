@@ -358,9 +358,9 @@ b8 vulkan_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     // Dynamic state
     VkViewport viewport;
     viewport.x = 0.0f;
-    viewport.y = 0.0f;
+    viewport.y = (f32)context.framebuffer_height;
     viewport.width = (f32)context.framebuffer_width;
-    viewport.height = (f32)context.framebuffer_height;
+    viewport.height = -(f32)context.framebuffer_height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 

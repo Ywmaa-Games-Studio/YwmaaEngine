@@ -22,6 +22,7 @@ layout(push_constant) uniform push_constants {
 } u_push_constants;
 
 void main() {
+	// Flip the Y-Axis Locally
 	out_dto.tex_coord = vec2(in_texcoord.x, 1.0 - in_texcoord.y);
 	gl_Position = global_ubo.projection * global_ubo.view * u_push_constants.model * vec4(in_position, 0.0, 1.0);
 }

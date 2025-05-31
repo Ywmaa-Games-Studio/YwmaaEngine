@@ -87,7 +87,7 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
     state_ptr->ambient_colour = (Vector4){0.25f, 0.25f, 0.25f, 1.0f};
 
     // UI projection/view
-    state_ptr->ui_projection = Matrice4_orthographic(0, 1280.0f, 0, 720.0f, -100.f, 100.0f);
+    state_ptr->ui_projection = Matrice4_orthographic(0, 1280.0f, 720.0f, 0.0f, -100.f, 100.0f);
     state_ptr->ui_view = Matrice4_inverse(Matrice4_identity());
 
     return true;
@@ -104,7 +104,7 @@ void renderer_system_shutdown(void* state) {
 void renderer_on_resized(u16 width, u16 height) {
     if (state_ptr) {
         state_ptr->projection = Matrice4_perspective(deg_to_rad(45.0f), width / (f32)height, state_ptr->near_clip, state_ptr->far_clip);
-        state_ptr->ui_projection = Matrice4_orthographic(0, (f32)width, 0, (f32)height, -100.f, 100.0f);
+        state_ptr->ui_projection = Matrice4_orthographic(0, (f32)height, (f32)width, 0, -100.f, 100.0f); // Y-Axis is flipped intentionally
         state_ptr->backend.resized(&state_ptr->backend, width, height);
     } else {
         PRINT_WARNING("renderer backend does not exist to accept resize: %i %i", width, height);

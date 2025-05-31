@@ -30,11 +30,14 @@ var<push_constant> model_ubo: model_uniform_object;
 fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput; // create the output struct
 
-	out.position = global_ubo.projection * global_ubo.view * model_ubo.model * vec4f(in.position, 0.0, 1.0); // same as what we used to directly return
-    
+    out.color = vec3f(1.0); // forward the color attribute to the fragment shader
 
-	out.color = vec3f(1.0); // forward the color attribute to the fragment shader
-    out.tex_coord = in.texcoord;
+	// Transform position to clip space
+	let pos = global_ubo.projection * global_ubo.view * model_ubo.model * vec4f(in.position, 0.0, 1.0);
+	out.position = pos;
+
+    // Flip the Y-Axis Locally
+    out.tex_coord = vec2f(in.texcoord.x, 1.0 - in.texcoord.y);
 	return out;
 }
 

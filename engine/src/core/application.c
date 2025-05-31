@@ -252,7 +252,7 @@ b8 application_create(GAME* game_instance) {
     // TODO: temp 
 
     // Load up a plane configuration, and load geometry from it.
-    GEOMETRY_CONFIG g_config = geometry_system_generate_plane_config(10.0f, 5.0f, 5, 5, 5.0f, 2.0f, "test geometry", "test_material");
+    GEOMETRY_CONFIG g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube", "test_material");
     app_state->test_geometry = geometry_system_acquire_from_config(g_config, true);
 
     // Clean up the allocations for the geometry config.
@@ -270,24 +270,25 @@ b8 application_create(GAME* game_instance) {
     string_ncopy(ui_config.material_name, "test_ui_material", MATERIAL_NAME_MAX_LENGTH);
     string_ncopy(ui_config.name, "test_ui_geometry", GEOMETRY_NAME_MAX_LENGTH);
 
-    const f32 f = 512.0f;
+    const f32 w = 128.0f;
+    const f32 h = 128.0f;
     Vertex2D uiverts [4];
     uiverts[0].position.x = 0.0f;  // 0    3
     uiverts[0].position.y = 0.0f;  //
     uiverts[0].texcoord.x = 0.0f;  //
     uiverts[0].texcoord.y = 0.0f;  // 2    1
 
-    uiverts[1].position.y = f;
-    uiverts[1].position.x = f;
+    uiverts[1].position.y = h;
+    uiverts[1].position.x = w;
     uiverts[1].texcoord.x = 1.0f;
     uiverts[1].texcoord.y = 1.0f;
 
     uiverts[2].position.x = 0.0f;
-    uiverts[2].position.y = f;
+    uiverts[2].position.y = h;
     uiverts[2].texcoord.x = 0.0f;
     uiverts[2].texcoord.y = 1.0f;
 
-    uiverts[3].position.x = f;
+    uiverts[3].position.x = w;
     uiverts[3].position.y = 0.0;
     uiverts[3].texcoord.x = 1.0f;
     uiverts[3].texcoord.y = 0.0f;
@@ -363,7 +364,11 @@ b8 application_run(void) {
             GEOMETRY_RENDER_DATA test_render;
             test_render.geometry = app_state->test_geometry;
             test_render.model = Matrice4_identity();
-
+            static f32 angle = 0;
+            angle += (1.0f * delta);
+            Quaternion rotation = Quaternion_from_axis_angle((Vector3){0, 1, 0}, angle, true);
+            test_render.model = Quaternion_to_Matrice4(rotation);  //  quat_to_rotation_matrix(rotation, vec3_zero());
+            
             packet.geometry_count = 1;
             packet.geometries = &test_render;
 

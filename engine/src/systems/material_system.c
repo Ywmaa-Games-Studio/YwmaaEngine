@@ -13,6 +13,7 @@
 typedef struct MATERIAL_SHADER_UNIFORM_LOCATIONS {
     u16 projection;
     u16 view;
+    u16 ambient_colour;
     u16 diffuse_colour;
     u16 diffuse_texture;
     u16 model;
@@ -207,6 +208,7 @@ MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config) {
                 PRINT_DEBUG("Material shader id set to %d for material '%s'.", state_ptr->material_shader_id, config.name);
                 state_ptr->material_locations.projection = shader_system_uniform_index(s, "projection");
                 state_ptr->material_locations.view = shader_system_uniform_index(s, "view");
+                state_ptr->material_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
                 state_ptr->material_locations.diffuse_colour = shader_system_uniform_index(s, "diffuse_colour");
                 state_ptr->material_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
                 state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
@@ -292,10 +294,11 @@ MATERIAL* material_system_get_default(void) {
         return false;                                 \
     }
 
-b8 material_system_apply_global(u32 shader_id, const Matrice4* projection, const Matrice4* view) {
+b8 material_system_apply_global(u32 shader_id, const Matrice4* projection, const Matrice4* view, const Vector4* ambient_colour) {
     if (shader_id == state_ptr->material_shader_id) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.projection, projection));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.view, view));
+        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.ambient_colour, ambient_colour));
     } else if (shader_id == state_ptr->ui_shader_id) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.projection, projection));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.view, view));
@@ -415,6 +418,9 @@ b8 create_default_material(MATERIAL_SYSTEM_STATE* state) {
         PRINT_ERROR("Failed to acquire renderer resources for default texture. Application cannot continue.");
         return false;
     }
+
+    // Make sure to assign the shader id.Add commentMore actions
+    state->default_material.shader_id = s->id;
 
     return true;
 }

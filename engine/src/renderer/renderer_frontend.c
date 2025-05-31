@@ -19,6 +19,7 @@ typedef struct RENDERER_SYSTEM_STATE {
     RENDERER_BACKEND backend;
     Matrice4 projection;
     Matrice4 view;
+    Vector4 ambient_colour;
     Matrice4 ui_projection;
     Matrice4 ui_view;
     f32 near_clip;
@@ -82,9 +83,11 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
     // TODO: configurable camera starting position.
     state_ptr->view = Matrice4_translation((Vector3){0, 0, -30.0f});
     state_ptr->view = Matrice4_inverse(state_ptr->view);
+    // TODO: Obtain from scene
+    state_ptr->ambient_colour = (Vector4){0.25f, 0.25f, 0.25f, 1.0f};
 
     // UI projection/view
-    state_ptr->ui_projection = Matrice4_orthographic(0, 1280.0f, 720.0f, 0, -100.f, 100.0f);  // Intentionally flipped on y axis.
+    state_ptr->ui_projection = Matrice4_orthographic(0, 1280.0f, 0, 720.0f, -100.f, 100.0f);
     state_ptr->ui_view = Matrice4_inverse(Matrice4_identity());
 
     return true;
@@ -101,7 +104,7 @@ void renderer_system_shutdown(void* state) {
 void renderer_on_resized(u16 width, u16 height) {
     if (state_ptr) {
         state_ptr->projection = Matrice4_perspective(deg_to_rad(45.0f), width / (f32)height, state_ptr->near_clip, state_ptr->far_clip);
-        state_ptr->ui_projection = Matrice4_orthographic(0, (f32)width, (f32)height, 0, -100.f, 100.0f); // Intentionally flipped on y axis.
+        state_ptr->ui_projection = Matrice4_orthographic(0, (f32)width, 0, (f32)height, -100.f, 100.0f);
         state_ptr->backend.resized(&state_ptr->backend, width, height);
     } else {
         PRINT_WARNING("renderer backend does not exist to accept resize: %i %i", width, height);
@@ -123,7 +126,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
         }
 
         // Apply globals
-        if(!material_system_apply_global(state_ptr->material_shader_id, &state_ptr->projection, &state_ptr->view)) {
+        if(!material_system_apply_global(state_ptr->material_shader_id, &state_ptr->projection, &state_ptr->view, &state_ptr->ambient_colour)) {
             PRINT_ERROR("Failed to use apply globals for material shader. Render frame failed.");
             return false;
         }
@@ -175,7 +178,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
         }
 
         // Apply globals
-        if(!material_system_apply_global(state_ptr->ui_shader_id, &state_ptr->ui_projection, &state_ptr->ui_view)) {
+        if(!material_system_apply_global(state_ptr->ui_shader_id, &state_ptr->ui_projection, &state_ptr->ui_view, 0)) {
             PRINT_ERROR("Failed to use apply globals for UI shader. Render frame failed.");
             return false;
         }
@@ -196,7 +199,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
             }
 
             // Apply the locals
-            material_system_apply_local(m, &packet->geometries[i].model);
+            material_system_apply_local(m, &packet->ui_geometries[i].model);
 
             // Draw it.
             state_ptr->backend.draw_geometry(packet->ui_geometries[i]);

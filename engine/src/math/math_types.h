@@ -43,6 +43,8 @@ typedef union Matrice_u {
 
 typedef struct Vertex3D {
     Vector3 position;
+    /** @brief The normal of the vertex. */
+    Vector3 normal;
     Vector2 texcoord;
 } Vertex3D;
 typedef struct Vertex2D {

@@ -3,16 +3,19 @@ struct VertexInput {
     @location(0) position: vec3f,
     @location(1) normal: vec3f,
     @location(2) texcoord: vec2f,
+    @location(3) color: vec4f,
+    @location(4) tangent: vec4f,
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
-    @location(0) color: vec3f,
-    @location(1) ambient: vec4f,
-    @location(2) tex_coord: vec2f,
-    @location(3) normal: vec3f,
-    @location(4) view_position: vec3f,
-    @location(5) frag_position: vec3f,
+    @location(0) ambient: vec4f,
+    @location(1) tex_coord: vec2f,
+    @location(2) normal: vec3f,
+    @location(3) view_position: vec3f,
+    @location(4) frag_position: vec3f,
+    @location(5) color: vec4f,
+    @location(6) tangent: vec4f,
 };
 
 struct global_uniform_object {
@@ -34,6 +37,9 @@ struct object_uniform_object {
 @group(1) @binding(2) var diffuse_texture: texture_2d<f32>;
 @group(1) @binding(3) var specular_sampler: sampler;
 @group(1) @binding(4) var specular_texture: texture_2d<f32>;
+@group(1) @binding(5) var normal_sampler: sampler;
+@group(1) @binding(6) var normal_texture: texture_2d<f32>;
+
 var<push_constant> push_constants: model_uniform_object;
 
 struct directional_light {
@@ -66,18 +72,20 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 	out.position = global_ubo.projection * global_ubo.view * push_constants.model * vec4f(in.position, 1.0); // same as what we used to directly return
 
-
-	out.color = vec3f(1.0); // forward the color attribute to the fragment shader
     out.tex_coord = in.texcoord;
+    out.color = in.color;
+
 	// Fragment position in world space.
 	out.frag_position = (push_constants.model * vec4f(in.position, 1.0)).rgb;
 	// Copy the normal over.
-    let model_normal_matrix = mat3x3<f32>(
+    let m3_model = mat3x3<f32>(
         push_constants.model[0].xyz,
         push_constants.model[1].xyz,
         push_constants.model[2].xyz,
     );
-    out.normal = model_normal_matrix * in.normal;
+    out.normal = m3_model * in.normal;
+	out.tangent = vec4f(normalize(m3_model * in.tangent.xyz), in.tangent.w);
+
 	out.ambient = global_ubo.ambient_color;
     out.view_position = global_ubo.view_position;
 	return out;
@@ -85,13 +93,26 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    var TBN : mat3x3<f32>;
     // TODO: feed in from cpu
     var dir_light: directional_light = directional_light(
         vec3f(-0.57735, -0.57735, 0.57735),
         vec4f(0.8, 0.8, 0.8, 1.0)
     );
+
+    var normal : vec3f = in.normal;
+    var tangent : vec3f = in.tangent.xyz;
+    tangent = (tangent - dot(tangent, normal) *  normal);
+    var bitangent : vec3f = cross(in.normal, in.tangent.xyz) * in.tangent.w;
+    TBN = mat3x3<f32>(tangent, bitangent, normal);
+
+    // Update the normal to use a sample from the normal map.
+    
+    var local_normal : vec3f = 2.0 * textureSample(normal_texture, normal_sampler, in.tex_coord).rgb - 1.0;
+    normal = normalize(TBN * local_normal);
+
     var view_direction: vec3f = normalize(in.view_position - in.frag_position);
 
-    let color = calculate_directional_light(dir_light, in.normal, in.ambient, in.tex_coord, view_direction);
+    let color = calculate_directional_light(dir_light, normal, in.ambient, in.tex_coord, view_direction);
     return color;
 }

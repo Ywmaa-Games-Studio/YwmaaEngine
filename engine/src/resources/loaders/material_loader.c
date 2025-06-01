@@ -36,6 +36,7 @@ b8 material_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_r
     resource_data->diffuse_color = Vector4_one();  // white.
     resource_data->diffuse_map_name[0] = 0;
     resource_data->specular_map_name[0] = 0;
+    resource_data->normal_map_name[0] = 0;
     string_ncopy(resource_data->name, name, MATERIAL_NAME_MAX_LENGTH);
 
     // Read each line of the file.
@@ -85,6 +86,8 @@ b8 material_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_r
             string_ncopy(resource_data->diffuse_map_name, trimmed_value, TEXTURE_NAME_MAX_LENGTH);
         } else if (strings_equali(trimmed_var_name, "specular_map_name")) {
             string_ncopy(resource_data->specular_map_name, trimmed_value, TEXTURE_NAME_MAX_LENGTH);
+        } else if (strings_equali(trimmed_var_name, "normal_map_name")) {
+            string_ncopy(resource_data->normal_map_name, trimmed_value, TEXTURE_NAME_MAX_LENGTH);
         } else if (strings_equali(trimmed_var_name, "diffuse_color")) {
             // Parse the colour
             if (!string_to_vector4(trimmed_value, &resource_data->diffuse_color)) {

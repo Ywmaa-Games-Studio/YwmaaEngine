@@ -19,6 +19,7 @@ typedef struct MATERIAL_SHADER_UNIFORM_LOCATIONS {
     u16 diffuse_color;
     u16 diffuse_texture;
     u16 specular_texture;
+    u16 normal_texture;
     u16 model;
 } MATERIAL_SHADER_UNIFORM_LOCATIONS;
 
@@ -87,6 +88,7 @@ b8 material_system_init(u64* memory_requirement, void* state, MATERIAL_SYSTEM_CO
     state_ptr->material_locations.diffuse_color = INVALID_ID_U16;
     state_ptr->material_locations.diffuse_texture = INVALID_ID_U16;
     state_ptr->material_locations.specular_texture = INVALID_ID_U16;
+    state_ptr->material_locations.normal_texture = INVALID_ID_U16;
     state_ptr->material_locations.ambient_colour = INVALID_ID_U16;
     state_ptr->material_locations.shiness = INVALID_ID_U16;
     state_ptr->material_locations.model = INVALID_ID_U16;
@@ -225,6 +227,7 @@ MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config) {
                 state_ptr->material_locations.diffuse_color = shader_system_uniform_index(s, "diffuse_color");
                 state_ptr->material_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
                 state_ptr->material_locations.specular_texture = shader_system_uniform_index(s, "specular_texture");
+                state_ptr->material_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
                 state_ptr->material_locations.shiness = shader_system_uniform_index(s, "shiness");
                 state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
             } else if (state_ptr->ui_shader_id == INVALID_ID && strings_equal(config.shader_name, BUILTIN_SHADER_NAME_UI)) {
@@ -334,6 +337,7 @@ b8 material_system_apply_instance(MATERIAL* m) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_color, &m->diffuse_color));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.diffuse_texture, m->diffuse_map.texture));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, m->specular_map.texture));
+        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, m->normal_map.texture));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.shiness, &m->shiness));
     } else if (m->shader_id == state_ptr->ui_shader_id) {
         // UI shader
@@ -376,7 +380,7 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
         m->diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
         m->diffuse_map.texture = texture_system_acquire(config.diffuse_map_name, true);
         if (!m->diffuse_map.texture) {
-            PRINT_WARNING("Unable to load texture '%s' for material '%s', using default.", config.diffuse_map_name, m->name);
+            PRINT_WARNING("Unable to load diffuse texture '%s' for material '%s', using default.", config.diffuse_map_name, m->name);
             m->diffuse_map.texture = texture_system_get_default_texture();
         }
     } else {
@@ -390,13 +394,27 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
         m->specular_map.use = TEXTURE_USE_MAP_SPECULAR;
         m->specular_map.texture = texture_system_acquire(config.specular_map_name, true);
         if (!m->specular_map.texture) {
-            PRINT_WARNING("Unable to load texture '%s' for material '%s', using default.", config.specular_map_name, m->name);
-            m->specular_map.texture = texture_system_get_default_texture();
+            PRINT_WARNING("Unable to load specular texture '%s' for material '%s', using default.", config.specular_map_name, m->name);
+            m->specular_map.texture = texture_system_get_default_specular_texture();
         }
     } else {
         // NOTE: Only set for clarity, as call to kzero_memory above does this already.
         m->specular_map.use = TEXTURE_USE_UNKNOWN;
         m->specular_map.texture = 0;
+    }
+
+    // Normal mapAdd commentMore actions
+    if (string_length(config.normal_map_name) > 0) {
+        m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
+        m->normal_map.texture = texture_system_acquire(config.normal_map_name, true);
+        if (!m->normal_map.texture) {
+            PRINT_WARNING("Unable to load normal texture '%s' for material '%s', using default.", config.normal_map_name, m->name);
+            m->normal_map.texture = texture_system_get_default_normal_texture();
+        }
+    } else {
+        // Use default
+        m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
+        m->normal_map.texture = texture_system_get_default_normal_texture();
     }
 
     // TODO: other maps
@@ -427,6 +445,10 @@ void destroy_material(MATERIAL* m) {
         texture_system_release(m->specular_map.texture->name);
     }
 
+    if (m->normal_map.texture) {
+        texture_system_release(m->normal_map.texture->name);
+    }
+
     // Release renderer resources.
     if (m->shader_id != INVALID_ID && m->internal_id != INVALID_ID) {
         renderer_shader_release_instance_resources(shader_system_get_by_id(m->shader_id), m->internal_id);
@@ -446,10 +468,15 @@ b8 create_default_material(MATERIAL_SYSTEM_STATE* state) {
     state->default_material.generation = INVALID_ID;
     string_ncopy(state->default_material.name, DEFAULT_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
     state->default_material.diffuse_color = Vector4_one();  // white
+    
     state->default_material.diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
     state->default_material.diffuse_map.texture = texture_system_get_default_texture();
+
     state->default_material.specular_map.use = TEXTURE_USE_MAP_SPECULAR;
     state->default_material.specular_map.texture = texture_system_get_default_specular_texture();
+
+    state->default_material.normal_map.use = TEXTURE_USE_MAP_NORMAL;
+    state->default_material.normal_map.texture = texture_system_get_default_normal_texture();
 
     SHADER* s = shader_system_get(BUILTIN_SHADER_NAME_MATERIAL);
     if (!renderer_shader_acquire_instance_resources(s, &state->default_material.internal_id)) {

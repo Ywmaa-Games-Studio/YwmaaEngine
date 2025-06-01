@@ -46,6 +46,10 @@ typedef struct Vertex3D {
     /** @brief The normal of the vertex. */
     Vector3 normal;
     Vector2 texcoord;
+    /** @brief The color of the vertex. */
+    Vector4 color;
+    /** @brief The tangent of the vertex. */
+    Vector4 tangent;
 } Vertex3D;
 typedef struct Vertex2D {
     Vector2 position;

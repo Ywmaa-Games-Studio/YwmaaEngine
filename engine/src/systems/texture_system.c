@@ -13,6 +13,7 @@ typedef struct TEXTURE_SYSTEM_STATE {
     TEXTURE_SYSTEM_CONFIG config;
     TEXTURE default_texture;
     TEXTURE default_specular_texture;
+    TEXTURE default_normal_texture;
 
     // Array of registered textures.
     TEXTURE* registered_textures;
@@ -210,6 +211,15 @@ TEXTURE* texture_system_get_default_specular_texture(void) {
     return 0;
 }
 
+TEXTURE* texture_system_get_default_normal_texture(void) {
+    if (state_ptr) {
+        return &state_ptr->default_normal_texture;
+    }
+
+    PRINT_ERROR("texture_system_get_default_normal_texture called before texture system initialization! Null pointer returned.");
+    return 0;
+}
+
 b8 create_default_textures(TEXTURE_SYSTEM_STATE* state) {
     if (!state) {
         PRINT_ERROR("Texture system state is NULL!");
@@ -267,6 +277,34 @@ b8 create_default_textures(TEXTURE_SYSTEM_STATE* state) {
     // Manually set the texture generation to invalid since this is a default texture.
     state->default_specular_texture.generation = INVALID_ID;
 
+    // Normal texture.Add commentMore actions
+    PRINT_TRACE("Creating default normal texture...");
+    u8 normal_pixels[16 * 16 * 4];  // w * h * channels
+    yset_memory(normal_pixels, 0, sizeof(u8) * 16 * 16 * 4);
+
+    // Each pixel.
+    for (u64 row = 0; row < 16; ++row) {
+        for (u64 col = 0; col < 16; ++col) {
+            u64 index = (row * 16) + col;
+            u64 index_bpp = index * channels;
+            // Set blue, z-axis by default and alpha.
+            normal_pixels[index_bpp + 0] = 128;
+            normal_pixels[index_bpp + 1] = 128;
+            normal_pixels[index_bpp + 2] = 255;
+            normal_pixels[index_bpp + 3] = 255;
+        }
+    }
+
+    string_ncopy(state->default_normal_texture.name, DEFAULT_NORMAL_TEXTURE_NAME, TEXTURE_NAME_MAX_LENGTH);
+    state->default_normal_texture.width = 16;
+    state->default_normal_texture.height = 16;
+    state->default_normal_texture.channel_count = 4;
+    state->default_normal_texture.generation = INVALID_ID;
+    state->default_normal_texture.has_transparency = false;
+    renderer_create_texture(normal_pixels, &state->default_normal_texture);
+    // Manually set the texture generation to invalid since this is a default texture.
+    state->default_normal_texture.generation = INVALID_ID;
+
     return true;
 }
 
@@ -274,6 +312,7 @@ void destroy_default_textures(TEXTURE_SYSTEM_STATE* state) {
     if (state) {
         destroy_texture(&state->default_texture);
         destroy_texture(&state->default_specular_texture);
+        destroy_texture(&state->default_normal_texture);
     }
 }
 

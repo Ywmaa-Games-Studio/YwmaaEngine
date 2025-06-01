@@ -84,24 +84,38 @@ b8 event_on_debug_event(u16 code, void* sender, void* listener_inst, EVENT_CONTE
         "cobblestone",
         "paving",
         "paving2"};
+    const char* spec_names[3] = {
+        "cobblestone_SPEC",
+        "paving_SPEC",
+        "paving2_SPEC"};
     static i8 choice = 2;
 
     // Save off the old name.
     const char* old_name = names[choice];
-
+    const char* old_spec_name = names[choice];
     choice++;
     choice %= 3;
 
-    // Acquire the new texture.
+    // Acquire the new diffuse texture.
     if (app_state->test_geometry) {
         app_state->test_geometry->material->diffuse_map.texture = texture_system_acquire(names[choice], true);
         if (!app_state->test_geometry->material->diffuse_map.texture) {
-            PRINT_WARNING("event_on_debug_event no texture! using default");
+            PRINT_WARNING("event_on_debug_event no diffuse texture! using default");
             app_state->test_geometry->material->diffuse_map.texture = texture_system_get_default_texture();
         }
 
-        // Release the old texture.
+        // Release the old diffuse texture.
         texture_system_release(old_name);
+
+        // Acquire the new spec texture.Add commentMore actions
+        app_state->test_geometry->material->specular_map.texture = texture_system_acquire(spec_names[choice], true);
+        if (!app_state->test_geometry->material->specular_map.texture) {
+            PRINT_WARNING("event_on_debug_event no spec texture! using default");
+            app_state->test_geometry->material->specular_map.texture = texture_system_get_default_specular_texture();
+        }
+
+        // Release the old spec texture.
+        texture_system_release(old_spec_name);
     }
 
     return true;
@@ -330,7 +344,7 @@ b8 application_run(void) {
 
     char* mem_usage = get_memory_usage_str();
     PRINT_INFO(mem_usage);
-    
+
     while (app_state->is_running) { // Game Loop
         if(!platform_pump_messages()) {
             app_state->is_running = false;
@@ -363,11 +377,12 @@ b8 application_run(void) {
             // TODO: temp
             GEOMETRY_RENDER_DATA test_render;
             test_render.geometry = app_state->test_geometry;
-            test_render.model = Matrice4_identity();
+            //test_render.model = Matrice4_identity();
             static f32 angle = 0;
-            angle += (1.0f * delta);
+            //angle = deg_to_rad(45.0f);
+            angle += (0.5f * delta);
             Quaternion rotation = Quaternion_from_axis_angle((Vector3){0, 1, 0}, angle, true);
-            test_render.model = Quaternion_to_Matrice4(rotation);  //  quat_to_rotation_matrix(rotation, vec3_zero());
+            test_render.model = Quaternion_to_Matrice4(rotation);
             
             packet.geometry_count = 1;
             packet.geometries = &test_render;

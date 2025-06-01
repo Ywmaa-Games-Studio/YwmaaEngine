@@ -126,7 +126,17 @@ b8 game_update(GAME* game_instance, f32 delta_time) {
     recalculate_view_matrix(state);
 
     // HACK: This should not be available outside the engine.
-    renderer_set_view(state->view);
+    renderer_set_view(state->view, state->camera_position);
+
+    // TODO: temp
+    if (input_is_key_released('P') && input_was_key_pressed('P')) {
+        PRINT_DEBUG(
+            "Pos:[%.2f, %.2f, %.2f",
+            state->camera_position.x,
+            state->camera_position.y,
+            state->camera_position.z);
+    }
+    // TODO: end temp
 
     return true;
 }

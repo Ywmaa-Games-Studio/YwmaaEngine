@@ -664,31 +664,34 @@ b8 webgpu_renderer_shader_init(struct SHADER *shader)
 
     // Process uniforms.
     u32 uniform_count = darray_length(shader->uniforms);
+    u32 sampler_position = ENTRY_BINDING_INDEX_UBO+1; // first position after UBO
     for (u32 i = 0; i < uniform_count; ++i) {
         // For samplers, the descriptor bindings need to be updated. Other types of uniforms don't need anything to be done here.
         if (shader->uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER) {
             const u32 set_index = (shader->uniforms[i].scope == SHADER_SCOPE_GLOBAL ? BIND_GROUP_SET_INDEX_GLOBAL : BIND_GROUP_SET_INDEX_INSTANCE);
             WGPUBindGroupLayoutDescriptor* bind_config = &shader_internal_data->config.bind_group_layout_desc[set_index];
-            if (bind_config->entryCount < 3) {
-                // There isn't a binding yet, meaning this is the first sampler to be added.
-                // Create the binding with a single descriptor for this sampler.
-                bind_config->entryCount += 2;
-            }
+
+            bind_config->entryCount += 2;
+            
             // Define texture binding layout
             // Setup texture binding
-            webgpu_bind_layout_set_default(&shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE]);
-            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE].nextInChain = NULL;
-            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE].binding = ENTRY_BINDING_INDEX_TEXTURE;
-            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE].texture.sampleType = WGPUTextureSampleType_Float;
-            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_TEXTURE].texture.viewDimension = WGPUTextureViewDimension_2D;
             
-            webgpu_bind_layout_set_default(&shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_SAMPLER]);
-            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_SAMPLER].nextInChain = NULL;
-            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_SAMPLER].binding = ENTRY_BINDING_INDEX_SAMPLER;
-            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_SAMPLER].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-            shader_internal_data->config.instance_bind_group_entries[ENTRY_BINDING_INDEX_SAMPLER].sampler.type = WGPUSamplerBindingType_Filtering;
+            webgpu_bind_layout_set_default(&shader_internal_data->config.instance_bind_group_entries[sampler_position]);
+            shader_internal_data->config.instance_bind_group_entries[sampler_position].nextInChain = NULL;
+            shader_internal_data->config.instance_bind_group_entries[sampler_position].binding = sampler_position;
+            shader_internal_data->config.instance_bind_group_entries[sampler_position].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+            shader_internal_data->config.instance_bind_group_entries[sampler_position].sampler.type = WGPUSamplerBindingType_Filtering;
 
+            sampler_position++;
+
+            webgpu_bind_layout_set_default(&shader_internal_data->config.instance_bind_group_entries[sampler_position]);
+            shader_internal_data->config.instance_bind_group_entries[sampler_position].nextInChain = NULL;
+            shader_internal_data->config.instance_bind_group_entries[sampler_position].binding = sampler_position;
+            shader_internal_data->config.instance_bind_group_entries[sampler_position].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+            shader_internal_data->config.instance_bind_group_entries[sampler_position].texture.sampleType = WGPUTextureSampleType_Float;
+            shader_internal_data->config.instance_bind_group_entries[sampler_position].texture.viewDimension = WGPUTextureViewDimension_2D;
+
+            sampler_position++;
         }
     }
 
@@ -997,15 +1000,19 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s)
         u32 sampler_count = 0;
         // Iterate samplers.
         for (u32 i = 0; i < total_bind_count; ++i) {
-            if (i != ENTRY_BINDING_INDEX_SAMPLER) continue;
-            sampler_count++;
+            if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entries[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
+                sampler_count++;
+            }
         }
         
         //u32 update_sampler_count = 0;
         // start from index 1 because 0 is UBO, increment by 2 because each sampler has a texture after it
         for (u32 i = 1; i < (sampler_count*2); i+= 2) {
             // TODO: only update in the list if actually needing an update.
-            TEXTURE* t = internal->instance_states[s->bound_instance_id].instance_textures[i-1];
+
+            // i is sampler position which is usually odd number, increase 1 to get to the next even, divide by 2 (because each 2 are one texture), subtract 1 to start index at 0
+            u32 texture_index = ((i+1)/2)-1;
+            TEXTURE* t = internal->instance_states[s->bound_instance_id].instance_textures[texture_index];
             WEBGPU_TEXTURE_DATA* internal_data = (WEBGPU_TEXTURE_DATA*)t->internal_data;
             // Assign view and sampler.
             // Create a binding

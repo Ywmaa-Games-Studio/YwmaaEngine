@@ -425,10 +425,10 @@ GEOMETRY_CONFIG geometry_system_generate_cube_config(f32 width, f32 height, f32 
     verts[(0 * 4) + 1].texcoord = (Vector2){max_uvx, max_uvy};
     verts[(0 * 4) + 2].texcoord = (Vector2){min_uvx, max_uvy};
     verts[(0 * 4) + 3].texcoord = (Vector2){max_uvx, min_uvy};
-    verts[(0 * 4) + 0].normal = (Vector3){0, 0, -1};
-    verts[(0 * 4) + 1].normal = (Vector3){0, 0, -1};
-    verts[(0 * 4) + 2].normal = (Vector3){0, 0, -1};
-    verts[(0 * 4) + 3].normal = (Vector3){0, 0, -1};
+    verts[(0 * 4) + 0].normal = (Vector3){0, 0, 1.0f};
+    verts[(0 * 4) + 1].normal = (Vector3){0, 0, 1.0f};
+    verts[(0 * 4) + 2].normal = (Vector3){0, 0, 1.0f};
+    verts[(0 * 4) + 3].normal = (Vector3){0, 0, 1.0f};
 
     // Back face
     verts[(1 * 4) + 0].position = (Vector3){max_x, min_y, min_z};
@@ -439,10 +439,10 @@ GEOMETRY_CONFIG geometry_system_generate_cube_config(f32 width, f32 height, f32 
     verts[(1 * 4) + 1].texcoord = (Vector2){max_uvx, max_uvy};
     verts[(1 * 4) + 2].texcoord = (Vector2){min_uvx, max_uvy};
     verts[(1 * 4) + 3].texcoord = (Vector2){max_uvx, min_uvy};
-    verts[(1 * 4) + 0].normal = (Vector3){0, 0, 1};
-    verts[(1 * 4) + 1].normal = (Vector3){0, 0, 1};
-    verts[(1 * 4) + 2].normal = (Vector3){0, 0, 1};
-    verts[(1 * 4) + 3].normal = (Vector3){0, 0, 1};
+    verts[(1 * 4) + 0].normal = (Vector3){0, 0, -1.0f};
+    verts[(1 * 4) + 1].normal = (Vector3){0, 0, -1.0f};
+    verts[(1 * 4) + 2].normal = (Vector3){0, 0, -1.0f};
+    verts[(1 * 4) + 3].normal = (Vector3){0, 0, -1.0f};
 
     // Left
     verts[(2 * 4) + 0].position = (Vector3){min_x, min_y, min_z};

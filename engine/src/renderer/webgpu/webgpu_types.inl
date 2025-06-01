@@ -77,7 +77,7 @@ typedef struct WEBGPU_GEOMETRY_DATA {
 #define WEBGPU_SHADER_MAX_GLOBAL_TEXTURES 31
 /** @brief The maximum number of textures allowed at the instance level. */
 #define WEBGPU_SHADER_MAX_INSTANCE_TEXTURES 31
-#define INSTANCE_BINDINGS_ENTRY_COUNT 3
+#define INSTANCE_BINDINGS_ENTRY_COUNT 1
 /** @brief The maximum number of vertex input attributes allowed. */
 #define WEBGPU_SHADER_MAX_ATTRIBUTES 16
 /**
@@ -154,7 +154,7 @@ typedef struct WEBGPU_SHADER_CONFIG {
      */
     u8 bind_group_count;
     /** @brief bind sets, max of 3. Index 0=global, 1=instance, 2=local */
-    WGPUBindGroupLayoutEntry instance_bind_group_entries[INSTANCE_BINDINGS_ENTRY_COUNT];
+    WGPUBindGroupLayoutEntry instance_bind_group_entries[INSTANCE_BINDINGS_ENTRY_COUNT + WEBGPU_SHADER_MAX_INSTANCE_TEXTURES];
     WGPUBindGroupLayoutDescriptor bind_group_layout_desc[WEBGPU_SHADER_BIND_GROUPS];
 
     /** @brief An array of attribute descriptions for this shader. */

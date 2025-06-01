@@ -11,23 +11,29 @@ struct VertexOutput {
     @location(1) ambient: vec4f,
     @location(2) tex_coord: vec2f,
     @location(3) normal: vec3f,
+    @location(4) view_position: vec3f,
+    @location(5) frag_position: vec3f,
 };
 
 struct global_uniform_object {
     projection: mat4x4<f32>,
     view: mat4x4<f32>,
     ambient_color: vec4f,
+    view_position: vec3f,
 };
 struct model_uniform_object {
     model: mat4x4<f32>,
 };
 struct object_uniform_object {
     diffuse_color: vec4f,
+    shiness: f32,
 };
 @group(0) @binding(0) var<uniform> global_ubo: global_uniform_object;
 @group(1) @binding(0) var<uniform> object_ubo: object_uniform_object;
 @group(1) @binding(1) var diffuse_sampler: sampler;
 @group(1) @binding(2) var diffuse_texture: texture_2d<f32>;
+@group(1) @binding(3) var specular_sampler: sampler;
+@group(1) @binding(4) var specular_texture: texture_2d<f32>;
 var<push_constant> push_constants: model_uniform_object;
 
 struct directional_light {
@@ -35,17 +41,23 @@ struct directional_light {
     color: vec4f,
 };
 
-fn calculate_directional_light(light: directional_light, normal: vec3f, ambient_color: vec4f, tex_coord: vec2f) -> vec4f {
+fn calculate_directional_light(light: directional_light, normal: vec3f, ambient_color: vec4f, tex_coord: vec2f, view_direction: vec3f) -> vec4f {
     var diffuse_factor: f32 = max(dot(normal, -light.direction), 0.0);
+
+    var half_direction: vec3f = normalize(view_direction - light.direction);
+    var specular_factor: f32 = pow(max(dot(half_direction, normal), 0.0), object_ubo.shiness);
 
     var diff_samp: vec4f = textureSample(diffuse_texture, diffuse_sampler, tex_coord);
     var ambient: vec4f = vec4f(vec3f(ambient_color.rgb * object_ubo.diffuse_color.rgb), diff_samp.a);
     var diffuse: vec4f = vec4f(vec3f(light.color.rgb * diffuse_factor), diff_samp.a);
-    
+    var specular: vec4f = vec4f(vec3(light.color.rgb * specular_factor), diff_samp.a);
+
+    var spec_samp: vec4f = textureSample(specular_texture, specular_sampler, tex_coord);
     diffuse *= diff_samp;
     ambient *= diff_samp;
+    specular *= vec4f(spec_samp.rgb, diffuse.a);
 
-    return (ambient + diffuse);
+    return (ambient + diffuse + specular);
 }
 
 @vertex
@@ -57,14 +69,17 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 	out.color = vec3f(1.0); // forward the color attribute to the fragment shader
     out.tex_coord = in.texcoord;
-    //out.normal = in.normal;
+	// Fragment position in world space.
+	out.frag_position = (push_constants.model * vec4f(in.position, 1.0)).rgb;
+	// Copy the normal over.
     let model_normal_matrix = mat3x3<f32>(
         push_constants.model[0].xyz,
         push_constants.model[1].xyz,
         push_constants.model[2].xyz,
     );
-    out.normal = normalize(in.normal * model_normal_matrix);
+    out.normal = model_normal_matrix * in.normal;
 	out.ambient = global_ubo.ambient_color;
+    out.view_position = global_ubo.view_position;
 	return out;
 }
 
@@ -75,6 +90,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         vec3f(-0.57735, -0.57735, 0.57735),
         vec4f(0.8, 0.8, 0.8, 1.0)
     );
-    let color = calculate_directional_light(dir_light, in.normal, in.ambient, in.tex_coord);
+    var view_direction: vec3f = normalize(in.view_position - in.frag_position);
+
+    let color = calculate_directional_light(dir_light, in.normal, in.ambient, in.tex_coord, view_direction);
     return color;
 }

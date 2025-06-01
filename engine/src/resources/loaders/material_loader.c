@@ -33,8 +33,9 @@ b8 material_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_r
     // Set some defaults.
     resource_data->shader_name = "builtin.material"; // default material
     resource_data->auto_release = true;
-    resource_data->diffuse_colour = Vector4_one();  // white.
+    resource_data->diffuse_color = Vector4_one();  // white.
     resource_data->diffuse_map_name[0] = 0;
+    resource_data->specular_map_name[0] = 0;
     string_ncopy(resource_data->name, name, MATERIAL_NAME_MAX_LENGTH);
 
     // Read each line of the file.
@@ -82,15 +83,22 @@ b8 material_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_r
             string_ncopy(resource_data->name, trimmed_value, MATERIAL_NAME_MAX_LENGTH);
         } else if (strings_equali(trimmed_var_name, "diffuse_map_name")) {
             string_ncopy(resource_data->diffuse_map_name, trimmed_value, TEXTURE_NAME_MAX_LENGTH);
-        } else if (strings_equali(trimmed_var_name, "diffuse_colour")) {
+        } else if (strings_equali(trimmed_var_name, "specular_map_name")) {
+            string_ncopy(resource_data->specular_map_name, trimmed_value, TEXTURE_NAME_MAX_LENGTH);
+        } else if (strings_equali(trimmed_var_name, "diffuse_color")) {
             // Parse the colour
-            if (!string_to_vector4(trimmed_value, &resource_data->diffuse_colour)) {
-                PRINT_WARNING("Error parsing diffuse_colour in file '%s'. Using default of white instead.", full_file_path);
+            if (!string_to_vector4(trimmed_value, &resource_data->diffuse_color)) {
+                PRINT_WARNING("Error parsing diffuse_color in file '%s'. Using default of white instead.", full_file_path);
                 // NOTE: already assigned above, no need to have it here.
             }
         } else if (strings_equali(trimmed_var_name, "shader")) {
             // Take a copy of the material name.
             resource_data->shader_name = string_duplicate(trimmed_value);
+        } else if (strings_equali(trimmed_var_name, "shiness")) {
+            if(!string_to_f32(trimmed_value, &resource_data->shiness)) {
+                PRINT_WARNING("Error parsing shiness in file '%s'. Using default of 32.0 instead.", full_file_path);
+                resource_data->shiness = 32.0f;
+            }
         }
 
         // TODO: more fields.

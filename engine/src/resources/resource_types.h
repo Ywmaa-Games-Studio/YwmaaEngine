@@ -44,7 +44,8 @@ typedef struct TEXTURE {
 
 typedef enum E_TEXTURE_USE {
     TEXTURE_USE_UNKNOWN = 0x00,
-    TEXTURE_USE_MAP_DIFFUSE = 0x01
+    TEXTURE_USE_MAP_DIFFUSE = 0x01,
+    TEXTURE_USE_MAP_SPECULAR = 0x02
 } E_TEXTURE_USE;
 
 typedef struct TEXTURE_MAP {
@@ -57,8 +58,11 @@ typedef struct MATERIAL_CONFIG {
     char name[MATERIAL_NAME_MAX_LENGTH];
     char* shader_name;
     b8 auto_release;
-    Vector4 diffuse_colour;
+    Vector4 diffuse_color;
+    /** @brief The shininess of the material. */
+    f32 shiness;
     char diffuse_map_name[TEXTURE_NAME_MAX_LENGTH];
+    char specular_map_name[TEXTURE_NAME_MAX_LENGTH];
 } MATERIAL_CONFIG;
 
 typedef struct MATERIAL {
@@ -66,8 +70,12 @@ typedef struct MATERIAL {
     u32 generation;
     u32 internal_id;
     char name[MATERIAL_NAME_MAX_LENGTH];
-    Vector4 diffuse_colour;
+    Vector4 diffuse_color;
     TEXTURE_MAP diffuse_map;
+    TEXTURE_MAP specular_map;
+
+    /** @brief The material shininess, determines how concentrated the specular lighting is. */
+    f32 shiness;
 
     u32 shader_id;
 } MATERIAL;

@@ -136,6 +136,25 @@ b8 game_update(GAME* game_instance, f32 delta_time) {
             state->camera_position.y,
             state->camera_position.z);
     }
+
+    // RENDERER DEBUG FUNCTIONSAdd commentMore actions
+    if (input_is_key_released('1') && input_was_key_pressed('1')) {
+        EVENT_CONTEXT data = {0};
+        data.data.i32[0] = RENDERER_VIEW_MODE_LIGHTING;
+        event_fire(EVENT_CODE_SET_RENDER_MODE, game_instance, data);
+    }
+
+    if (input_is_key_released('2') && input_was_key_pressed('2')) {
+        EVENT_CONTEXT data = {0};
+        data.data.i32[0] = RENDERER_VIEW_MODE_NORMALS;
+        event_fire(EVENT_CODE_SET_RENDER_MODE, game_instance, data);
+    }
+
+    if (input_is_key_released('0') && input_was_key_pressed('0')) {
+        EVENT_CONTEXT data = {0};
+        data.data.i32[0] = RENDERER_VIEW_MODE_DEFAULT;
+        event_fire(EVENT_CODE_SET_RENDER_MODE, game_instance, data);
+    }
     // TODO: end temp
 
     return true;

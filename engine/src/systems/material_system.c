@@ -21,6 +21,7 @@ typedef struct MATERIAL_SHADER_UNIFORM_LOCATIONS {
     u16 specular_texture;
     u16 normal_texture;
     u16 model;
+    u32 render_mode;
 } MATERIAL_SHADER_UNIFORM_LOCATIONS;
 
 typedef struct UI_SHADER_UNIFORM_LOCATIONS {
@@ -92,6 +93,7 @@ b8 material_system_init(u64* memory_requirement, void* state, MATERIAL_SYSTEM_CO
     state_ptr->material_locations.ambient_colour = INVALID_ID_U16;
     state_ptr->material_locations.shiness = INVALID_ID_U16;
     state_ptr->material_locations.model = INVALID_ID_U16;
+    state_ptr->material_locations.render_mode = INVALID_ID_U16;
 
     state_ptr->ui_shader_id = INVALID_ID;
     state_ptr->ui_locations.diffuse_color = INVALID_ID_U16;
@@ -230,6 +232,7 @@ MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config) {
                 state_ptr->material_locations.normal_texture = shader_system_uniform_index(s, "normal_texture");
                 state_ptr->material_locations.shiness = shader_system_uniform_index(s, "shiness");
                 state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
+                state_ptr->material_locations.render_mode = shader_system_uniform_index(s, "mode");
             } else if (state_ptr->ui_shader_id == INVALID_ID && strings_equal(config.shader_name, BUILTIN_SHADER_NAME_UI)) {
                 state_ptr->ui_shader_id = s->id;
                 PRINT_DEBUG("UI shader id set to %d for material '%s'.", state_ptr->ui_shader_id, config.name);
@@ -312,12 +315,19 @@ MATERIAL* material_system_get_default(void) {
         return false;                                 \
     }
 
-b8 material_system_apply_global(u32 shader_id, const Matrice4* projection, const Matrice4* view, const Vector4* ambient_colour, const Vector3* view_position) {
+b8 material_system_apply_global(u32 shader_id,\
+                    const Matrice4* projection,\
+                    const Matrice4* view,\
+                    const Vector4* ambient_colour,\
+                    const Vector3* view_position,\
+                    u32 render_mode) {
+
     if (shader_id == state_ptr->material_shader_id) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.projection, projection));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.view, view));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.ambient_colour, ambient_colour));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.view_position, view_position));
+        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.render_mode, &render_mode));
     } else if (shader_id == state_ptr->ui_shader_id) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.projection, projection));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.view, view));

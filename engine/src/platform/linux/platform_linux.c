@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   2025.04.27 -06:11
+ *   <l1693PMle>
  * Auto updated?
  *   Yes
  *
@@ -748,6 +748,27 @@ E_KEYS translate_keycode(u32 x_keycode) {
         case XK_grave:
             return KEY_GRAVE;
 
+        case XK_0:
+            return KEY_0;
+        case XK_1:
+            return KEY_1;
+        case XK_2:
+            return KEY_2;
+        case XK_3:
+            return KEY_3;
+        case XK_4:
+            return KEY_4;
+        case XK_5:
+            return KEY_5;
+        case XK_6:
+            return KEY_6;
+        case XK_7:
+            return KEY_7;
+        case XK_8:
+            return KEY_8;
+        case XK_9:
+            return KEY_9;
+
         case XK_a:
         case XK_A:
             return KEY_A;
@@ -953,16 +974,27 @@ E_KEYS translate_keysym(uint32_t key) {
         case 110: return KEY_INSERT;
         case 111: return KEY_DELETE;
         
-        case 2: return KEY_NUMPAD1;
-        case 3: return KEY_NUMPAD2;
-        case 4: return KEY_NUMPAD3;
-        case 5: return KEY_NUMPAD4;
-        case 6: return KEY_NUMPAD5;
-        case 7: return KEY_NUMPAD6;
-        case 8: return KEY_NUMPAD7;
-        case 9: return KEY_NUMPAD8;
-        case 10: return KEY_NUMPAD9;
-        case 11: return KEY_NUMPAD0;
+        case 79: return KEY_NUMPAD1;
+        case 80: return KEY_NUMPAD2;
+        case 81: return KEY_NUMPAD3;
+        case 75: return KEY_NUMPAD4;
+        case 76: return KEY_NUMPAD5;
+        case 77: return KEY_NUMPAD6;
+        case 71: return KEY_NUMPAD7;
+        case 72: return KEY_NUMPAD8;
+        case 73: return KEY_NUMPAD9;
+        case 82: return KEY_NUMPAD0;
+
+        case 2: return KEY_1;
+        case 3: return KEY_2;
+        case 4: return KEY_3;
+        case 5: return KEY_4;
+        case 6: return KEY_5;
+        case 7: return KEY_6;
+        case 8: return KEY_7;
+        case 9: return KEY_8;
+        case 10: return KEY_9;
+        case 11: return KEY_0;
         
         case 30: return KEY_A;
         case 48: return KEY_B;
@@ -1046,7 +1078,7 @@ static void keyboard_handle_leave(void* data, struct wl_keyboard* keyboard, uint
 
 static void keyboard_handle_key(void* data, struct wl_keyboard* keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
     // Convert keycode to our key format and forward to input system
-    // PRINT_INFO("%i\n", key);
+    //PRINT_INFO("%i\n", key);
     E_KEYS translated_key = translate_keysym(key);
     input_process_key(translated_key, state == WL_KEYBOARD_KEY_STATE_PRESSED);
 }

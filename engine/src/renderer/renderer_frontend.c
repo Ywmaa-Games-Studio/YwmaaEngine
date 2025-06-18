@@ -27,9 +27,37 @@ typedef struct RENDERER_SYSTEM_STATE {
     f32 far_clip;
     u32 material_shader_id;
     u32 ui_shader_id;
+    u32 render_mode;
 } RENDERER_SYSTEM_STATE;
 
 static RENDERER_SYSTEM_STATE* state_ptr;
+
+b8 renderer_on_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
+    switch (code) {
+        case EVENT_CODE_SET_RENDER_MODE: {
+            RENDERER_SYSTEM_STATE* state = (RENDERER_SYSTEM_STATE*)listener_inst;
+            i32 mode = context.data.i32[0];
+            switch (mode) {
+                default:
+                case RENDERER_VIEW_MODE_DEFAULT:
+                    PRINT_DEBUG("Renderer mode set to default.");
+                    state->render_mode = RENDERER_VIEW_MODE_DEFAULT;
+                    break;
+                case RENDERER_VIEW_MODE_LIGHTING:
+                    PRINT_DEBUG("Renderer mode set to lighting.");
+                    state->render_mode = RENDERER_VIEW_MODE_LIGHTING;
+                    break;
+                case RENDERER_VIEW_MODE_NORMALS:
+                    PRINT_DEBUG("Renderer mode set to normals.");
+                    state->render_mode = RENDERER_VIEW_MODE_NORMALS;
+                    break;
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
 
 #define CRITICAL_INIT(op, msg) \
     if (!op) {                 \
@@ -50,6 +78,9 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
     }
 
     state_ptr->backend.frame_number = 0;
+    state_ptr->render_mode = RENDERER_VIEW_MODE_DEFAULT;
+
+    event_register(EVENT_CODE_SET_RENDER_MODE, state, renderer_on_event);
 
     // Initialize the backend.
     CRITICAL_INIT(state_ptr->backend.init(&state_ptr->backend, application_name), "Renderer backend failed to initialize. Shutting down.");
@@ -127,7 +158,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
         }
 
         // Apply globals
-        if(!material_system_apply_global(state_ptr->material_shader_id, &state_ptr->projection, &state_ptr->view, &state_ptr->ambient_colour, &state_ptr->view_position)) {
+        if(!material_system_apply_global(state_ptr->material_shader_id, &state_ptr->projection, &state_ptr->view, &state_ptr->ambient_colour, &state_ptr->view_position, state_ptr->render_mode)) {
             PRINT_ERROR("Failed to use apply globals for material shader. Render frame failed.");
             return false;
         }
@@ -179,7 +210,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
         }
 
         // Apply globals
-        if(!material_system_apply_global(state_ptr->ui_shader_id, &state_ptr->ui_projection, &state_ptr->ui_view, 0, 0)) {
+        if(!material_system_apply_global(state_ptr->ui_shader_id, &state_ptr->ui_projection, &state_ptr->ui_view, 0, 0, 0)) {
             PRINT_ERROR("Failed to use apply globals for UI shader. Render frame failed.");
             return false;
         }

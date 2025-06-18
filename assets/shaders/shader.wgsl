@@ -23,6 +23,7 @@ struct global_uniform_object {
     view: mat4x4<f32>,
     ambient_color: vec4f,
     view_position: vec3f,
+    mode: u32,
 };
 struct model_uniform_object {
     model: mat4x4<f32>,
@@ -47,6 +48,17 @@ struct directional_light {
     color: vec4f,
 };
 
+struct point_light {
+    position: vec3f,
+    color: vec4f,
+    // Usually 1, make sure denominator never gets smaller than 1
+    constant: f32,
+    // Reduces light intensity linearly
+    linear: f32,
+    // Makes the light fall off slower at longer distances.
+    quadratic: f32,
+};
+
 fn calculate_directional_light(light: directional_light, normal: vec3f, ambient_color: vec4f, tex_coord: vec2f, view_direction: vec3f) -> vec4f {
     var diffuse_factor: f32 = max(dot(normal, -light.direction), 0.0);
 
@@ -57,12 +69,43 @@ fn calculate_directional_light(light: directional_light, normal: vec3f, ambient_
     var ambient: vec4f = vec4f(vec3f(ambient_color.rgb * object_ubo.diffuse_color.rgb), diff_samp.a);
     var diffuse: vec4f = vec4f(vec3f(light.color.rgb * diffuse_factor), diff_samp.a);
     var specular: vec4f = vec4f(vec3(light.color.rgb * specular_factor), diff_samp.a);
+    
+    if(global_ubo.mode == 0) {
+        var spec_samp: vec4f = textureSample(specular_texture, specular_sampler, tex_coord);
+        diffuse *= diff_samp;
+        ambient *= diff_samp;
+        specular *= vec4f(spec_samp.rgb, diffuse.a);
+    }
 
-    var spec_samp: vec4f = textureSample(specular_texture, specular_sampler, tex_coord);
-    diffuse *= diff_samp;
-    ambient *= diff_samp;
-    specular *= vec4f(spec_samp.rgb, diffuse.a);
 
+    return (ambient + diffuse + specular);
+}
+
+fn calculate_point_light(light: point_light, normal: vec3f, ambient_color: vec4f, tex_coord: vec2f, frag_position: vec3f, view_direction: vec3f) -> vec4f {
+    var light_direction : vec3f =  normalize(light.position - frag_position);
+    var diff : f32 = max(dot(normal, light_direction), 0.0);
+
+    var reflect_direction : vec3f = reflect(-light_direction, normal);
+    var spec : f32 = pow(max(dot(view_direction, reflect_direction), 0.0), object_ubo.shiness);
+
+    // Calculate attenuation, or light falloff over distance.
+    var distance : f32 = length(light.position - frag_position);
+    var attenuation : f32 = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+
+    var ambient : vec4f = ambient_color;
+    var diffuse : vec4f = light.color * diff;
+    var specular: vec4f = light.color * spec;
+    
+    if(global_ubo.mode == 0) {
+        var diff_samp : vec4f = textureSample(diffuse_texture, diffuse_sampler, tex_coord);
+        diffuse *= diff_samp;
+        ambient *= diff_samp;
+        specular *= vec4f(textureSample(specular_texture, specular_sampler, tex_coord).rgb, diffuse.a);
+    }
+
+    ambient *= attenuation;
+    diffuse *= attenuation;
+    specular *= attenuation;
     return (ambient + diffuse + specular);
 }
 
@@ -97,7 +140,25 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     // TODO: feed in from cpu
     var dir_light: directional_light = directional_light(
         vec3f(-0.57735, -0.57735, 0.57735),
-        vec4f(0.8, 0.8, 0.8, 1.0)
+        vec4f(0.6, 0.6, 0.6, 1.0)
+    );
+
+    // TODO: feed in from cpu
+    var p_light_0: point_light = point_light(
+        vec3f(-5.5, 0.0, -5.5),
+        vec4f(0.0, 1.0, 0.0, 1.0),
+        1.0, // Constant
+        0.35, // Linear
+        0.44  // Quadratic
+    );
+
+    // TODO: feed in from cpu
+    var p_light_1: point_light = point_light(
+        vec3f(5.5, 0.0, -5.5),
+        vec4f(1.0, 0.0, 0.0, 1.0),
+        1.0, // Constant
+        0.35, // Linear
+        0.44  // Quadratic
     );
 
     var normal : vec3f = in.normal;
@@ -111,8 +172,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     var local_normal : vec3f = 2.0 * textureSample(normal_texture, normal_sampler, in.tex_coord).rgb - 1.0;
     normal = normalize(TBN * local_normal);
 
-    var view_direction: vec3f = normalize(in.view_position - in.frag_position);
+    var color = vec4f(1.0);
+    if(global_ubo.mode == 0 || global_ubo.mode == 1) {
+        var view_direction: vec3f = normalize(in.view_position - in.frag_position);
+        color = calculate_directional_light(dir_light, normal, in.ambient, in.tex_coord, view_direction);
 
-    let color = calculate_directional_light(dir_light, normal, in.ambient, in.tex_coord, view_direction);
+        color += calculate_point_light(p_light_0, normal, in.ambient, in.tex_coord, in.frag_position, view_direction);
+        color += calculate_point_light(p_light_1, normal, in.ambient, in.tex_coord, in.frag_position, view_direction);
+    } else if(global_ubo.mode == 2) {
+        color = vec4f(abs(normal), 1.0);
+    }
+    
     return color;
 }

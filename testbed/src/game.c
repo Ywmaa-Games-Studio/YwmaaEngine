@@ -137,7 +137,7 @@ b8 game_update(GAME* game_instance, f32 delta_time) {
             state->camera_position.z);
     }
 
-    // RENDERER DEBUG FUNCTIONSAdd commentMore actions
+    // RENDERER DEBUG FUNCTIONS
     if (input_is_key_released('1') && input_was_key_pressed('1')) {
         EVENT_CONTEXT data = {0};
         data.data.i32[0] = RENDERER_VIEW_MODE_LIGHTING;

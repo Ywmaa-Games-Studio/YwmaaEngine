@@ -44,6 +44,13 @@ GEOMETRY* geometry_system_acquire_by_id(u32 id);
 GEOMETRY* geometry_system_acquire_from_config(GEOMETRY_CONFIG config, b8 auto_release);
 
 /**
+ * @brief Frees resources held by the provided configuration.
+ *Add commentMore actions
+ * @param config A pointer to the configuration to be disposed.
+ */
+void geometry_system_config_dispose(GEOMETRY_CONFIG* config);
+
+/**
  * @brief Releases a reference to the provided geometry.
  * 
  * @param geometry The geometry to be released.
@@ -82,7 +89,7 @@ GEOMETRY* geometry_system_get_default_2d(void);
  */
 GEOMETRY_CONFIG geometry_system_generate_plane_config(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, const char* name, const char* material_name);
 
-/**Add commentMore actions
+/**
  * @brief 
  * 
  * @param width 

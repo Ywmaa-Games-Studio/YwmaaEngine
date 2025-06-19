@@ -107,6 +107,18 @@ GEOMETRY* geometry_system_acquire_from_config(GEOMETRY_CONFIG config, b8 auto_re
     return g;
 }
 
+void geometry_system_config_dispose(GEOMETRY_CONFIG* config) {
+    if (config) {
+        if (config->vertices) {
+            yfree(config->vertices, MEMORY_TAG_ARRAY);
+        }
+        if (config->vertices) {
+            yfree(config->indices, MEMORY_TAG_ARRAY);
+        }
+        yzero_memory(config, sizeof(GEOMETRY_CONFIG));
+    }
+}
+
 void geometry_system_release(GEOMETRY* geometry) {
     if (geometry && geometry->id != INVALID_ID) {
         GEOMETRY_REFERENCE* ref = &state_ptr->registered_geometries[geometry->id];

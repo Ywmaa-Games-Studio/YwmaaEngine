@@ -80,6 +80,9 @@ typedef struct MATERIAL {
     f32 shiness;
 
     u32 shader_id;
+
+    /** @brief Synced to the renderer's current frame number when the material has been applied that frame. */
+    u32 render_frame_number;
 } MATERIAL;
 
 
@@ -96,6 +99,12 @@ typedef struct GEOMETRY {
     char name[GEOMETRY_NAME_MAX_LENGTH];
     MATERIAL* material;
 } GEOMETRY;
+
+typedef struct Mesh {
+    u16 geometry_count;
+    GEOMETRY** geometries;
+    Transform transform;
+} Mesh;
 
 
 /** @brief Shader stages available in the system. */

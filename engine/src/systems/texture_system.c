@@ -277,7 +277,7 @@ b8 create_default_textures(TEXTURE_SYSTEM_STATE* state) {
     // Manually set the texture generation to invalid since this is a default texture.
     state->default_specular_texture.generation = INVALID_ID;
 
-    // Normal texture.Add commentMore actions
+    // Normal texture.
     PRINT_TRACE("Creating default normal texture...");
     u8 normal_pixels[16 * 16 * 4];  // w * h * channels
     yset_memory(normal_pixels, 0, sizeof(u8) * 16 * 16 * 4);

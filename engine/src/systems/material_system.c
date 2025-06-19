@@ -125,6 +125,7 @@ b8 material_system_init(u64* memory_requirement, void* state, MATERIAL_SYSTEM_CO
         state_ptr->registered_materials[i].id = INVALID_ID;
         state_ptr->registered_materials[i].generation = INVALID_ID;
         state_ptr->registered_materials[i].internal_id = INVALID_ID;
+        state_ptr->registered_materials[i].render_frame_number = INVALID_ID;
     }
 
     if (!create_default_material(state_ptr)) {
@@ -399,7 +400,7 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
         m->diffuse_map.texture = 0;
     }
 
-    // Specular mapAdd commentMore actions
+    // Specular map
     if (string_length(config.specular_map_name) > 0) {
         m->specular_map.use = TEXTURE_USE_MAP_SPECULAR;
         m->specular_map.texture = texture_system_acquire(config.specular_map_name, true);
@@ -413,7 +414,7 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
         m->specular_map.texture = 0;
     }
 
-    // Normal mapAdd commentMore actions
+    // Normal map
     if (string_length(config.normal_map_name) > 0) {
         m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
         m->normal_map.texture = texture_system_acquire(config.normal_map_name, true);
@@ -470,6 +471,7 @@ void destroy_material(MATERIAL* m) {
     m->id = INVALID_ID;
     m->generation = INVALID_ID;
     m->internal_id = INVALID_ID;
+    m->render_frame_number = INVALID_ID;
 }
 
 b8 create_default_material(MATERIAL_SYSTEM_STATE* state) {
@@ -494,7 +496,7 @@ b8 create_default_material(MATERIAL_SYSTEM_STATE* state) {
         return false;
     }
 
-    // Make sure to assign the shader id.Add commentMore actions
+    // Make sure to assign the shader id.
     state->default_material.shader_id = s->id;
 
     return true;

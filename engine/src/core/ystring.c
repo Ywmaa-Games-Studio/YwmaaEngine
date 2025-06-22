@@ -302,8 +302,7 @@ b8 string_to_bool(char* str, b8* b) {
     *b = strings_equal(str, "1") || strings_equali(str, "true");
     return *b;
 }
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic"
+
 u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_entries, b8 include_empty) {
     if (!str || !str_darray) {
         return 0;
@@ -379,7 +378,6 @@ u32 string_split(const char* str, char delimiter, char*** str_darray, b8 trim_en
 
     return entry_count;
 }
-#pragma clang diagnostic pop
 
 void string_cleanup_split_array(char** str_darray) {
     if (str_darray) {

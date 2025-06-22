@@ -1,5 +1,3 @@
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic"
 #include "mesh_loader.h"
 
 #include "core/logger.h"
@@ -890,4 +888,3 @@ RESOURCE_LOADER mesh_resource_loader_create(void) {
 
     return loader;
 }
-#pragma clang diagnostic pop

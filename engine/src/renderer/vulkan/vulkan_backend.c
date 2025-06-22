@@ -843,9 +843,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
     return VK_FALSE;
 }
 
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic"
 void vulkan_setup_extensions(VkInstanceCreateInfo* create_info){
     //START Obtain a list of required extensions
     const char** required_extensions = darray_create(const char*);
@@ -865,7 +862,6 @@ void vulkan_setup_extensions(VkInstanceCreateInfo* create_info){
     create_info->ppEnabledExtensionNames = required_extensions;
     //END Obtain a list of required extensions
 }
-#pragma clang diagnostic pop
 
 b8 vulkan_setup_validation_layers(VkInstanceCreateInfo* create_info){
     //START Validation layers.
@@ -879,10 +875,8 @@ b8 vulkan_setup_validation_layers(VkInstanceCreateInfo* create_info){
 
     // The list of validation layers required.
     required_validation_layer_names = darray_create(const char*);
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic"
+
     darray_push(required_validation_layer_names, &"VK_LAYER_KHRONOS_validation");
-#pragma clang diagnostic pop
     required_validation_layer_count = darray_length(required_validation_layer_names);
 
     // Obtain a list of available validation layers

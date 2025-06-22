@@ -69,10 +69,7 @@ b8 event_register(u16 code, void* listener, PFN_on_event on_event) {
     REGISTERED_EVENT event;
     event.listener = listener;
     event.callback = on_event;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic"
     darray_push(state_ptr->registered[code].events, event);
-#pragma clang diagnostic pop
 
     return true;
 }

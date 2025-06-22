@@ -197,12 +197,10 @@ f64 platform_get_absolute_time(void) {
 void platform_sleep(u64 ms) {
     Sleep(ms);
 }
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic"
+
 void platform_get_required_extension_names(const char ***names_darray) {
     darray_push(*names_darray, &"VK_KHR_win32_surface");
 }
-#pragma clang diagnostic pop
 
 // Surface creation for Vulkan
 b8 platform_create_vulkan_surface(VULKAN_CONTEXT *context) {

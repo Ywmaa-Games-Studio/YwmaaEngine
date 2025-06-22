@@ -1,5 +1,3 @@
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic"
 #include "shader_loader.h"
 
 #include "core/logger.h"
@@ -338,4 +336,3 @@ RESOURCE_LOADER shader_resource_loader_create(void) {
 
     return loader;
 }
-#pragma clang diagnostic pop

@@ -353,8 +353,7 @@ b8 shader_system_bind_instance(u32 instance_id) {
     s->bound_instance_id = instance_id;
     return renderer_shader_bind_instance(s, instance_id);
 }
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic"
+
 b8 add_attribute(SHADER* shader, const SHADER_ATTRIBUTE_CONFIG* config) {
     u32 size = 0;
     switch (config->type) {
@@ -531,7 +530,6 @@ b8 uniform_add(SHADER* shader, const char* uniform_name, u32 size, E_SHADER_UNIF
 
     return true;
 }
-#pragma clang diagnostic pop
 
 b8 uniform_name_valid(SHADER* shader, const char* uniform_name) {
     if (!uniform_name || !string_length(uniform_name)) {

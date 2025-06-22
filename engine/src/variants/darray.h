@@ -44,12 +44,9 @@ YAPI void* _darray_insert_at(void* array, u64 index, void* value_ptr);
 
 #define darray_push(array, value)           \
     {                                       \
-        typeof(value) temp = value;         \
+        __auto_type temp = (value);         \
         array = _darray_push(array, &temp); \
     }
-// NOTE: could use __auto_type for temp above, but intellisense
-// for VSCode flags it as an unknown type. typeof() seems to
-// work just fine, though. Both are GNU extensions.
 
 #define darray_pop(array, value_ptr) \
     _darray_pop(array, value_ptr)

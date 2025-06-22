@@ -464,10 +464,7 @@ b8 application_run(void) {
                         GEOMETRY_RENDER_DATA data;
                         data.geometry = m->geometries[j];
                         data.model = transform_get_world(&m->transform);
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic"
                         darray_push(packet.geometries, data);
-#pragma clang diagnostic pop
                         packet.geometry_count++;
                     }
                 }

@@ -169,10 +169,7 @@ b8 select_physical_device(VULKAN_CONTEXT* context) {
         requirements.discrete_gpu = true;
 #endif
         requirements.device_extension_names = darray_create(const char*);
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wpedantic"
         darray_push(requirements.device_extension_names, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-#pragma clang diagnostic pop
         VULKAN_PHYSICAL_DEVICE_QUEUE_FAMILY_INFO queue_info = {0};
         b8 result = physical_device_meets_requirements(
             physical_devices[i],

@@ -58,7 +58,7 @@ typedef struct Vertex2D {
 
 /**
  * @brief Represents the transform of an object in the world.
- * Transforms can have a parent whose own transform is thenAdd commentMore actions
+ * Transforms can have a parent whose own transform is then
  * taken into account. NOTE: The properties of this should not
  * be edited directly, but done via the functions in transform.h
  * to ensure proper matrix generation.

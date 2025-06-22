@@ -707,6 +707,35 @@ YINLINE f32 Vector4_dot_f32(
     return p;
 }
 
+/**
+ * @brief Compares all elements of vector_0 and vector_1 and ensures the difference
+ * is less than tolerance.
+ * 
+ * @param vector_0 The first vector.
+ * @param vector_1 The second vector.
+ * @param tolerance The difference tolerance. Typically K_FLOAT_EPSILON or similar.
+ * @return True if within tolerance; otherwise false. 
+ */
+YINLINE const b8 Vector4_compare(Vector4 vector_0, Vector4 vector_1, f32 tolerance) {
+    if (yabs(vector_0.x - vector_1.x) > tolerance) {
+        return false;
+    }
+
+    if (yabs(vector_0.y - vector_1.y) > tolerance) {
+        return false;
+    }
+
+    if (yabs(vector_0.z - vector_1.z) > tolerance) {
+        return false;
+    }
+
+    if (yabs(vector_0.w - vector_1.w) > tolerance) {
+        return false;
+    }
+
+    return true;
+}
+
 
 /**
  * @brief Creates and returns an identity matrix:

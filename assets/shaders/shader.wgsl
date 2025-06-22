@@ -126,7 +126,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
         push_constants.model[1].xyz,
         push_constants.model[2].xyz,
     );
-    out.normal = m3_model * in.normal;
+    out.normal = normalize(m3_model * in.normal);
 	out.tangent = vec4f(normalize(m3_model * in.tangent.xyz), in.tangent.w);
 
 	out.ambient = global_ubo.ambient_color;

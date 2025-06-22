@@ -175,16 +175,15 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
                 m = material_system_get_default();
             }
 
-            // Apply the material if it hasn't already been this frame. This keeps theAdd commentMore actions
+            // Apply the material if it hasn't already been this frame. This keeps the
             // same material from being updated multiple times.
-            if (m->render_frame_number != state_ptr->backend.frame_number) {
-                if (!material_system_apply_instance(m)) {
-                    PRINT_WARNING("Failed to apply material '%s'. Skipping draw.", m->name);
-                    continue;
-                } else {
-                    // Sync the frame number.
-                    m->render_frame_number = state_ptr->backend.frame_number;
-                }
+            b8 needs_update = m->render_frame_number != state_ptr->backend.frame_number;
+            if (!material_system_apply_instance(m, needs_update)) {
+                PRINT_WARNING("Failed to apply material '%s'. Skipping draw.", m->name);
+                continue;
+            } else {
+                // Sync the frame number.
+                m->render_frame_number = state_ptr->backend.frame_number;
             }
 
             // Apply the locals
@@ -233,9 +232,13 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
                 m = material_system_get_default();
             }
             // Apply the material
-            if (!material_system_apply_instance(m)) {
+            b8 needs_update = m->render_frame_number != state_ptr->backend.frame_number;
+            if (!material_system_apply_instance(m, needs_update)) {
                 PRINT_WARNING("Failed to apply UI material '%s'. Skipping draw.", m->name);
                 continue;
+            } else {
+                // Sync the frame number.
+                m->render_frame_number = state_ptr->backend.frame_number;
             }
 
             // Apply the locals
@@ -336,8 +339,8 @@ b8 renderer_shader_apply_globals(SHADER* s) {
     return state_ptr->backend.shader_apply_globals(s);
 }
 
-b8 renderer_shader_apply_instance(SHADER* s) {
-    return state_ptr->backend.shader_apply_instance(s);
+b8 renderer_shader_apply_instance(SHADER* s, b8 needs_update) {
+    return state_ptr->backend.shader_apply_instance(s, needs_update);
 }
 
 b8 renderer_shader_acquire_instance_resources(SHADER* s, u32* out_instance_id) {

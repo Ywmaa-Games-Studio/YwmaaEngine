@@ -17,6 +17,9 @@ typedef struct GEOMETRY_CONFIG {
     u32 index_size;
     u32 index_count;
     void* indices;
+    Vector3 center;
+    Vector3 min_extents;
+    Vector3 max_extents;
     char name[GEOMETRY_NAME_MAX_LENGTH];
     char material_name[MATERIAL_NAME_MAX_LENGTH];
 } GEOMETRY_CONFIG;
@@ -45,7 +48,7 @@ GEOMETRY* geometry_system_acquire_from_config(GEOMETRY_CONFIG config, b8 auto_re
 
 /**
  * @brief Frees resources held by the provided configuration.
- *Add commentMore actions
+ *
  * @param config A pointer to the configuration to be disposed.
  */
 void geometry_system_config_dispose(GEOMETRY_CONFIG* config);

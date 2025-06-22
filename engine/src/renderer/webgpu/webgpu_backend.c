@@ -959,7 +959,7 @@ b8 webgpu_renderer_shader_apply_globals(struct SHADER *s)
     return true;
 }
 
-b8 webgpu_renderer_shader_apply_instance(struct SHADER *s)
+b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
 {
     if (!s->use_instances) {
         PRINT_ERROR("This shader does not use instances.");
@@ -971,104 +971,105 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s)
     WEBGPU_SHADER_INSTANCE_STATE* object_state = &internal->instance_states[s->bound_instance_id];
 
     u32 total_bind_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entryCount;
-    // TODO: if needs update
-    //u32 descriptor_count = 0;
-    u32 bind_index = 0;
-    WGPUBindGroupEntry binding[total_bind_count];
-    // Binding 0 - Uniform buffer
-    binding[ENTRY_BINDING_INDEX_UBO].binding = ENTRY_BINDING_INDEX_UBO;
-    binding[ENTRY_BINDING_INDEX_UBO].buffer = internal->uniform_buffer.handle;
-    // We can specify an offset within the buffer, so that a single buffer can hold
-    // multiple uniform blocks.
-    binding[ENTRY_BINDING_INDEX_UBO].offset = object_state->offset;
-    // And we specify again the size of the buffer.
-    binding[ENTRY_BINDING_INDEX_UBO].size = s->ubo_stride;
-    binding[ENTRY_BINDING_INDEX_UBO].sampler = NULL;
-    binding[ENTRY_BINDING_INDEX_UBO].textureView = NULL;
-    binding[ENTRY_BINDING_INDEX_UBO].nextInChain = NULL;
-    
-    // Only do this if the descriptor has not yet been updated.
-    u8* instance_ubo_generation = &object_state->instance_bind_state.bind_group_states[bind_index].generations;
-    // TODO: determine if update is required.
-    if (*instance_ubo_generation == INVALID_ID_U8 /*|| *global_ubo_generation != material->generation*/) {
-        *instance_ubo_generation = 1;  // material->generation; TODO: some generation from... somewhere
-    }
-    bind_index++;
-
-    // Samplers will always be in the binding. If the binding count is less than 2, there are no samplers.
-    if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entryCount > 1) {
-        u32 sampler_count = 0;
-        // Iterate samplers.
-        for (u32 i = 0; i < total_bind_count; ++i) {
-            if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entries[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
-                sampler_count++;
-            }
-        }
+    if (needs_update) {
+        //u32 descriptor_count = 0;
+        u32 bind_index = 0;
+        WGPUBindGroupEntry binding[total_bind_count];
+        // Binding 0 - Uniform buffer
+        binding[ENTRY_BINDING_INDEX_UBO].binding = ENTRY_BINDING_INDEX_UBO;
+        binding[ENTRY_BINDING_INDEX_UBO].buffer = internal->uniform_buffer.handle;
+        // We can specify an offset within the buffer, so that a single buffer can hold
+        // multiple uniform blocks.
+        binding[ENTRY_BINDING_INDEX_UBO].offset = object_state->offset;
+        // And we specify again the size of the buffer.
+        binding[ENTRY_BINDING_INDEX_UBO].size = s->ubo_stride;
+        binding[ENTRY_BINDING_INDEX_UBO].sampler = NULL;
+        binding[ENTRY_BINDING_INDEX_UBO].textureView = NULL;
+        binding[ENTRY_BINDING_INDEX_UBO].nextInChain = NULL;
         
-        //u32 update_sampler_count = 0;
-        // start from index 1 because 0 is UBO, increment by 2 because each sampler has a texture after it
-        for (u32 i = 1; i < (sampler_count*2); i+= 2) {
-            // TODO: only update in the list if actually needing an update.
+        // Only do this if the descriptor has not yet been updated.
+        u8* instance_ubo_generation = &object_state->instance_bind_state.bind_group_states[bind_index].generations;
+        // TODO: determine if update is required.
+        if (*instance_ubo_generation == INVALID_ID_U8 /*|| *global_ubo_generation != material->generation*/) {
+            *instance_ubo_generation = 1;  // material->generation; TODO: some generation from... somewhere
+        }
+        bind_index++;
 
-            // i is sampler position which is usually odd number, increase 1 to get to the next even, divide by 2 (because each 2 are one texture), subtract 1 to start index at 0
-            u32 texture_index = ((i+1)/2)-1;
-            TEXTURE* t = internal->instance_states[s->bound_instance_id].instance_textures[texture_index];
-            WEBGPU_TEXTURE_DATA* internal_data = (WEBGPU_TEXTURE_DATA*)t->internal_data;
-            // Assign view and sampler.
-            // Create a binding
-
-            binding[i].binding = i;
-            binding[i].sampler = internal_data->sampler;
-            binding[i].textureView = NULL;
-            binding[i].buffer = NULL;
-            binding[i].nextInChain = NULL;
-            // The texture is always after the sampler
-            binding[i+1].binding = i+1;
-            binding[i+1].textureView = internal_data->image.view;
-            binding[i+1].sampler = NULL;
-            binding[i+1].buffer = NULL;
-            binding[i+1].nextInChain = NULL;
+        // Samplers will always be in the binding. If the binding count is less than 2, there are no samplers.
+        if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entryCount > 1) {
+            u32 sampler_count = 0;
+            // Iterate samplers.
+            for (u32 i = 0; i < total_bind_count; ++i) {
+                if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entries[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
+                    sampler_count++;
+                }
+            }
             
+            //u32 update_sampler_count = 0;
+            // start from index 1 because 0 is UBO, increment by 2 because each sampler has a texture after it
+            for (u32 i = 1; i < (sampler_count*2); i+= 2) {
+                // TODO: only update in the list if actually needing an update.
+
+                // i is sampler position which is usually odd number, increase 1 to get to the next even, divide by 2 (because each 2 are one texture), subtract 1 to start index at 0
+                u32 texture_index = ((i+1)/2)-1;
+                TEXTURE* t = internal->instance_states[s->bound_instance_id].instance_textures[texture_index];
+                WEBGPU_TEXTURE_DATA* internal_data = (WEBGPU_TEXTURE_DATA*)t->internal_data;
+                // Assign view and sampler.
+                // Create a binding
+
+                binding[i].binding = i;
+                binding[i].sampler = internal_data->sampler;
+                binding[i].textureView = NULL;
+                binding[i].buffer = NULL;
+                binding[i].nextInChain = NULL;
+                // The texture is always after the sampler
+                binding[i+1].binding = i+1;
+                binding[i+1].textureView = internal_data->image.view;
+                binding[i+1].sampler = NULL;
+                binding[i+1].buffer = NULL;
+                binding[i+1].nextInChain = NULL;
+                
+            }
+
         }
 
-    }
-
-    // A bind group contains one or multiple bindings
-    WGPUBindGroupDescriptor instance_bind_group_desc = {0};
-    instance_bind_group_desc.nextInChain = NULL;
-    instance_bind_group_desc.label = (WGPUStringView){"instance bind group", sizeof("instance bind group")-1};
-    instance_bind_group_desc.layout = internal->bind_group_layouts[BIND_GROUP_SET_INDEX_INSTANCE];
-    // There must be as many bindings as declared in the layout!
-    instance_bind_group_desc.entryCount = total_bind_count;
-    instance_bind_group_desc.entries = binding;
-    
-    object_state->instance_bind_state.bind_group = wgpuDeviceCreateBindGroup(context.device, &instance_bind_group_desc);
-
-    //if (descriptor_count > 0) {
-        // Load the data into the buffer.
-        //PRINT_INFO("ubo wriitng");
-        //wgpuQueueWriteBuffer(context.queue, internal->uniform_buffer.handle, object_state->offset, internal->mapped_uniform_buffer_block, s->ubo_size);
-    //}
-    wgpuDevicePoll(context.device, true, NULL);
-    switch (internal->shader_renderpass)
-    {
-        case BUILTIN_RENDERPASS_WORLD:
-            if (context.world_render_pass){
-                wgpuRenderPassEncoderSetBindGroup(context.world_render_pass, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
-            } else {
-                PRINT_WARNING("webgpu_renderer_shader_apply_instance: world_render_pass is not valid");
-            }
-            break;
-        case BUILTIN_RENDERPASS_UI:
-            if (context.ui_render_pass){
-                wgpuRenderPassEncoderSetBindGroup(context.ui_render_pass, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
-            } else {
-                PRINT_WARNING("webgpu_renderer_shader_apply_instance: ui_render_pass is not valid");
-            }
-            break;
+        // A bind group contains one or multiple bindings
+        WGPUBindGroupDescriptor instance_bind_group_desc = {0};
+        instance_bind_group_desc.nextInChain = NULL;
+        instance_bind_group_desc.label = (WGPUStringView){"instance bind group", sizeof("instance bind group")-1};
+        instance_bind_group_desc.layout = internal->bind_group_layouts[BIND_GROUP_SET_INDEX_INSTANCE];
+        // There must be as many bindings as declared in the layout!
+        instance_bind_group_desc.entryCount = total_bind_count;
+        instance_bind_group_desc.entries = binding;
         
-        default:
-            break;
+        object_state->instance_bind_state.bind_group = wgpuDeviceCreateBindGroup(context.device, &instance_bind_group_desc);
+
+        //if (descriptor_count > 0) {
+            // Load the data into the buffer.
+            //PRINT_INFO("ubo wriitng");
+            //wgpuQueueWriteBuffer(context.queue, internal->uniform_buffer.handle, object_state->offset, internal->mapped_uniform_buffer_block, s->ubo_size);
+        //}
+        wgpuDevicePoll(context.device, true, NULL);
+        switch (internal->shader_renderpass)
+        {
+            case BUILTIN_RENDERPASS_WORLD:
+                if (context.world_render_pass){
+                    wgpuRenderPassEncoderSetBindGroup(context.world_render_pass, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
+                } else {
+                    PRINT_WARNING("webgpu_renderer_shader_apply_instance: world_render_pass is not valid");
+                }
+                break;
+            case BUILTIN_RENDERPASS_UI:
+                if (context.ui_render_pass){
+                    wgpuRenderPassEncoderSetBindGroup(context.ui_render_pass, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
+                } else {
+                    PRINT_WARNING("webgpu_renderer_shader_apply_instance: ui_render_pass is not valid");
+                }
+                break;
+            
+            default:
+                break;
+        }
     }
     
     

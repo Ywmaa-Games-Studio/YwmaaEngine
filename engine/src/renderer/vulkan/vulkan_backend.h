@@ -33,7 +33,7 @@ b8 vulkan_renderer_shader_use(struct SHADER* shader);
 b8 vulkan_renderer_shader_bind_globals(struct SHADER* s);
 b8 vulkan_renderer_shader_bind_instance(struct SHADER* s, u32 instance_id);
 b8 vulkan_renderer_shader_apply_globals(struct SHADER* s);
-b8 vulkan_renderer_shader_apply_instance(struct SHADER* s);
+b8 vulkan_renderer_shader_apply_instance(struct SHADER* s, b8 needs_update);
 b8 vulkan_renderer_shader_acquire_instance_resources(struct SHADER* s, u32* out_instance_id);
 b8 vulkan_renderer_shader_release_instance_resources(struct SHADER* s, u32 instance_id);
 b8 vulkan_renderer_set_uniform(struct SHADER* frontend_shader, struct SHADER_UNIFORM* uniform, const void* value);

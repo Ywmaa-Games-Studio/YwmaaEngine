@@ -8,8 +8,8 @@ typedef enum E_RESOURCE_TYPE {
     RESOURCE_TYPE_BINARY,
     RESOURCE_TYPE_IMAGE,
     RESOURCE_TYPE_MATERIAL,
-    RESOURCE_TYPE_STATIC_MESH,
     RESOURCE_TYPE_SHADER,
+    RESOURCE_TYPE_MESH,
     RESOURCE_TYPE_CUSTOM
 } E_RESOURCE_TYPE;
 
@@ -60,7 +60,7 @@ typedef struct MATERIAL_CONFIG {
     char* shader_name;
     b8 auto_release;
     Vector4 diffuse_color;
-    /** @brief The shininess of the material. */
+    /** @brief The shiness of the material. */
     f32 shiness;
     char diffuse_map_name[TEXTURE_NAME_MAX_LENGTH];
     char specular_map_name[TEXTURE_NAME_MAX_LENGTH];
@@ -76,7 +76,7 @@ typedef struct MATERIAL {
     TEXTURE_MAP diffuse_map;
     TEXTURE_MAP specular_map;
     TEXTURE_MAP normal_map;
-    /** @brief The material shininess, determines how concentrated the specular lighting is. */
+    /** @brief The material shiness, determines how concentrated the specular lighting is. */
     f32 shiness;
 
     u32 shader_id;

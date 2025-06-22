@@ -123,7 +123,7 @@ b8 application_create(GAME* game_instance) {
     // Memory system must be the first thing to be stood up.
     MEMORY_SYSTEM_CONFIG memory_system_config = {0};
     
-    memory_system_config.total_alloc_size = MEBIBYTES(512);
+    memory_system_config.total_alloc_size = MEBIBYTES(1024);
     if (!memory_system_init(memory_system_config)) {
         PRINT_ERROR("Failed to initialize memory system; shutting down.");
         return false;
@@ -261,9 +261,8 @@ b8 application_create(GAME* game_instance) {
     // Load up a cube configuration, and load geometry from it.
     Mesh* cube_mesh = &app_state->meshes[app_state->mesh_count];
     cube_mesh->geometry_count = 1;
-    cube_mesh->geometries = yallocate(sizeof(Mesh*) * cube_mesh->geometry_count, MEMORY_TAG_ARRAY);
+    cube_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * cube_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
     GEOMETRY_CONFIG g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube", "test_material");
-    geometry_generate_tangents(g_config.vertex_count, g_config.vertices, g_config.index_count, g_config.indices);
     cube_mesh->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh->transform = transform_create();
     app_state->mesh_count++;
@@ -274,9 +273,8 @@ b8 application_create(GAME* game_instance) {
     // A second cube
     Mesh* cube_mesh_2 = &app_state->meshes[app_state->mesh_count];
     cube_mesh_2->geometry_count = 1;
-    cube_mesh_2->geometries = yallocate(sizeof(Mesh*) * cube_mesh_2->geometry_count, MEMORY_TAG_ARRAY);
+    cube_mesh_2->geometries = yallocate_aligned(sizeof(Mesh*) * cube_mesh_2->geometry_count, 8, MEMORY_TAG_ARRAY);
     g_config = geometry_system_generate_cube_config(5.0f, 5.0f, 5.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
-    geometry_generate_tangents(g_config.vertex_count, g_config.vertices, g_config.index_count, g_config.indices);
     cube_mesh_2->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh_2->transform = transform_from_position((Vector3){10.0f, 0.0f, 1.0f});
     // Set the first cube as the parent to the second.
@@ -288,9 +286,8 @@ b8 application_create(GAME* game_instance) {
     // A third cube!
     Mesh* cube_mesh_3 = &app_state->meshes[app_state->mesh_count];
     cube_mesh_3->geometry_count = 1;
-    cube_mesh_3->geometries = yallocate(sizeof(Mesh*) * cube_mesh_3->geometry_count, MEMORY_TAG_ARRAY);
+    cube_mesh_3->geometries = yallocate_aligned(sizeof(Mesh*) * cube_mesh_3->geometry_count, 8, MEMORY_TAG_ARRAY);
     g_config = geometry_system_generate_cube_config(2.0f, 2.0f, 2.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
-    geometry_generate_tangents(g_config.vertex_count, g_config.vertices, g_config.index_count, g_config.indices);
     cube_mesh_3->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh_3->transform = transform_from_position((Vector3){5.0f, 0.0f, 1.0f});
     // Set the second cube as the parent to the third.
@@ -298,6 +295,45 @@ b8 application_create(GAME* game_instance) {
     app_state->mesh_count++;
     // Clean up the allocations for the geometry config.
     geometry_system_config_dispose(&g_config);
+
+    // test loading mesh from file
+    Mesh* car_mesh = &app_state->meshes[app_state->mesh_count];
+    RESOURCE car_mesh_resource = {0};
+    if (!resource_system_load("falcon", RESOURCE_TYPE_MESH, &car_mesh_resource)) {
+        PRINT_ERROR("Failed to load car mesh resource.");
+    } else {
+        GEOMETRY_CONFIG* configs = (GEOMETRY_CONFIG*)car_mesh_resource.data;
+        car_mesh->geometry_count = car_mesh_resource.data_size;
+        car_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * car_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < car_mesh->geometry_count; ++i) {
+            // Acquire the geometry from the config.
+            car_mesh->geometries[i] = geometry_system_acquire_from_config(configs[i], true);
+        }
+        car_mesh->transform = transform_from_position((Vector3){15.0f, 0.0f, 1.0f});
+        resource_system_unload(&car_mesh_resource);
+        app_state->mesh_count++;
+    }
+
+    // A bigger test mesh
+    Mesh* sponza_mesh = &app_state->meshes[app_state->mesh_count];
+    RESOURCE sponza_mesh_resource = {0};
+    if (!resource_system_load("sponza", RESOURCE_TYPE_MESH, &sponza_mesh_resource)) {
+        PRINT_ERROR("Failed to load sponza mesh!");
+    } else{
+        GEOMETRY_CONFIG* sponza_configs = (GEOMETRY_CONFIG*)sponza_mesh_resource.data;
+        sponza_mesh->geometry_count = sponza_mesh_resource.data_size;
+        if (sponza_mesh->geometry_count == 0) {
+            PRINT_ERROR("Sponza mesh has no geometries!");
+            return false;
+        }
+        sponza_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * sponza_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < sponza_mesh->geometry_count; ++i) {
+            sponza_mesh->geometries[i] = geometry_system_acquire_from_config(sponza_configs[i], true);
+        }
+        sponza_mesh->transform = transform_from_position_rotation_scale((Vector3){15.0f, 0.0f, 1.0f}, Quaternion_identity(), (Vector3){0.05f, 0.05f, 0.05f});
+        resource_system_unload(&sponza_mesh_resource);
+        app_state->mesh_count++;
+    }
     
     // TODO: end temp 
 

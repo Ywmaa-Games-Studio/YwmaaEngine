@@ -9,6 +9,7 @@
 #include "resources/loaders/image_loader.h"
 #include "resources/loaders/material_loader.h"
 #include "resources/loaders/shader_loader.h"
+#include "resources/loaders/mesh_loader.h"
 
 typedef struct RESOURCE_SYSTEM_STATE {
     RESOURCE_SYSTEM_CONFIG config;
@@ -49,6 +50,7 @@ b8 resource_system_init(u64* memory_requirement, void* state, RESOURCE_SYSTEM_CO
     resource_system_register_loader(image_resource_loader_create());
     resource_system_register_loader(material_resource_loader_create());
     resource_system_register_loader(shader_resource_loader_create());
+    resource_system_register_loader(mesh_resource_loader_create());
 
     PRINT_INFO("Resource system initialized with base path '%s'.", config.asset_base_path);
 

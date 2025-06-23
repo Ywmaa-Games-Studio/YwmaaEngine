@@ -334,7 +334,46 @@ b8 application_create(GAME* game_instance) {
         resource_system_unload(&sponza_mesh_resource);
         app_state->mesh_count++;
     }
+
+    Mesh* helmet_mesh = &app_state->meshes[app_state->mesh_count];
+    RESOURCE helmet_mesh_resource = {0};
+    if (!resource_system_load("FlightHelmet", RESOURCE_TYPE_MESH, &helmet_mesh_resource)) {
+        PRINT_ERROR("Failed to load helmet mesh!");
+    } else {
+        GEOMETRY_CONFIG* helmet_configs = (GEOMETRY_CONFIG*)helmet_mesh_resource.data;
+        helmet_mesh->geometry_count = helmet_mesh_resource.data_size;
+        if (helmet_mesh->geometry_count == 0) {
+            PRINT_ERROR("helmet mesh has no geometries!");
+            return false;
+        }
+        helmet_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * helmet_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < helmet_mesh->geometry_count; ++i) {
+            helmet_mesh->geometries[i] = geometry_system_acquire_from_config(helmet_configs[i], true);
+        }
+        helmet_mesh->transform = transform_from_position_rotation_scale((Vector3){0.0f, 5.0f, 0.0f}, Quaternion_identity(), (Vector3){10.0f, 10.0f, 10.0f});
+        resource_system_unload(&helmet_mesh_resource);
+        app_state->mesh_count++;
+    }
     
+    Mesh* duck_mesh = &app_state->meshes[app_state->mesh_count];
+    RESOURCE duck_mesh_resource = {0};
+    if (!resource_system_load("Duck", RESOURCE_TYPE_MESH, &duck_mesh_resource)) {
+        PRINT_ERROR("Failed to load duck mesh!");
+    } else {
+        GEOMETRY_CONFIG* duck_configs = (GEOMETRY_CONFIG*)duck_mesh_resource.data;
+        duck_mesh->geometry_count = duck_mesh_resource.data_size;
+        if (duck_mesh->geometry_count == 0) {
+            PRINT_ERROR("duck mesh has no geometries!");
+            return false;
+        }
+        duck_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * duck_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
+        for (u32 i = 0; i < duck_mesh->geometry_count; ++i) {
+            duck_mesh->geometries[i] = geometry_system_acquire_from_config(duck_configs[i], true);
+        }
+        duck_mesh->transform = transform_from_position_rotation_scale((Vector3){0.0f, 15.0f, 0.0f}, Quaternion_identity(), (Vector3){0.025f, 0.025f, 0.025f});
+        resource_system_unload(&duck_mesh_resource);
+        app_state->mesh_count++;
+    }
     // TODO: end temp 
 
     // Load up some test UI geometry.

@@ -790,7 +790,7 @@ b8 create_buffers(VULKAN_CONTEXT* context) {
     VkMemoryPropertyFlagBits memory_property_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     // Geometry vertex buffer
-    const u64 vertex_buffer_size = sizeof(Vertex3D) * 1024 * 1024;
+    const u64 vertex_buffer_size = sizeof(Vertex3D) * 16 * 1024 * 1024;
     if (!vulkan_buffer_create(
             context,
             vertex_buffer_size,
@@ -804,7 +804,7 @@ b8 create_buffers(VULKAN_CONTEXT* context) {
     }
 
     // Geometry index buffer
-    const u64 index_buffer_size = sizeof(u32) * 1024 * 1024;
+    const u64 index_buffer_size = sizeof(u32) * 16 * 1024 * 1024;
     if (!vulkan_buffer_create(
             context,
             index_buffer_size,

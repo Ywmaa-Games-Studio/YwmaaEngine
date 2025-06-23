@@ -14,11 +14,15 @@
 #include "io/filesystem.h"
 
 #include <stdio.h>  //sscanf
+#define CGLTF_IMPLEMENTATION
+#include "vendor/cgltf.h"
 
 typedef enum E_MESH_FILE_TYPE {
     MESH_FILE_TYPE_NOT_FOUND,
-    MESH_FILE_TYPE_KSM,
-    MESH_FILE_TYPE_OBJ
+    MESH_FILE_TYPE_YMESH,
+    MESH_FILE_TYPE_OBJ,
+    MESH_FILE_TYPE_GLB,
+    MESH_FILE_TYPE_GLTF,
 } E_MESH_FILE_TYPE;
 
 typedef struct SUPPORTED_MESH_FILETYPE {
@@ -42,9 +46,24 @@ typedef struct MESH_GROUP_DATA {
     MESH_FACE_DATA* faces;
 } MESH_GROUP_DATA;
 
+//gltf error messages
+const char* cgltf_error_messages[] = {
+    "No error",
+    "Invalid JSON",
+    "Invalid file format",
+    "Invalid file version",
+    "Invalid file structure",
+    "Invalid data type",
+    "Invalid data value",
+    "Out of memory",
+    "Unknown error"
+};
+
+b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray, b8 is_binary);
 b8 import_obj_file(FILE_HANDLE* obj_file, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray);
 void process_subobject(Vector3* positions, Vector3* normals, Vector2* tex_coords, MESH_FACE_DATA* faces, GEOMETRY_CONFIG* out_data);
 b8 import_obj_material_library_file(const char* mtl_file_path);
+b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* out_filename);
 
 b8 load_y_mesh_file(FILE_HANDLE* y_mesh_file, GEOMETRY_CONFIG** out_geometries_darray);
 b8 write_y_mesh_file(const char* path, const char* name, u32 geometry_count, GEOMETRY_CONFIG* geometries);
@@ -63,10 +82,12 @@ b8 mesh_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* ou
     // next run.
     // TODO: Might be good to be able to specify an override to always import (i.e. skip
     // binary versions) for debug purposes.
-#define SUPPORTED_FILETYPE_COUNT 2
+#define SUPPORTED_FILETYPE_COUNT 4
     SUPPORTED_MESH_FILETYPE supported_filetypes[SUPPORTED_FILETYPE_COUNT];
-    supported_filetypes[0] = (SUPPORTED_MESH_FILETYPE){".y_mesh", MESH_FILE_TYPE_KSM, true};
+    supported_filetypes[0] = (SUPPORTED_MESH_FILETYPE){".y_mesh", MESH_FILE_TYPE_YMESH, true};
     supported_filetypes[1] = (SUPPORTED_MESH_FILETYPE){".obj", MESH_FILE_TYPE_OBJ, false};
+    supported_filetypes[2] = (SUPPORTED_MESH_FILETYPE){".glb", MESH_FILE_TYPE_GLB, true};
+    supported_filetypes[3] = (SUPPORTED_MESH_FILETYPE){".gltf", MESH_FILE_TYPE_GLTF, false};
 
     char full_file_path[512];
     E_MESH_FILE_TYPE type = MESH_FILE_TYPE_NOT_FOUND;
@@ -101,7 +122,28 @@ b8 mesh_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* ou
             result = import_obj_file(&f, y_mesh_file_name, &resource_data);
             break;
         }
-        case MESH_FILE_TYPE_KSM:
+        case MESH_FILE_TYPE_GLB: {
+            // Generate the y_mesh filename.
+            char y_glb_file_name[512];
+            string_format(y_glb_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".y_mesh");
+            // gltf path
+            char gltf_file_path[512];
+            string_format(gltf_file_path, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".glb");
+            // If the gltf file
+            result = import_gltf_file(&f, gltf_file_path, y_glb_file_name, &resource_data, true);
+            break;
+        }
+        case MESH_FILE_TYPE_GLTF: {
+            // Generate the y_mesh filename.
+            char y_gltf_file_name[512];
+            string_format(y_gltf_file_name, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".y_mesh");
+            // gltf path
+            char glb_file_path[512];
+            string_format(glb_file_path, "%s/%s/%s%s", resource_system_base_path(), self->type_path, name, ".gltf");
+            result = import_gltf_file(&f, glb_file_path, y_gltf_file_name, &resource_data, false);
+            break;
+        }
+        case MESH_FILE_TYPE_YMESH:
             result = load_y_mesh_file(&f, &resource_data);
             break;
         case MESH_FILE_TYPE_NOT_FOUND:
@@ -548,6 +590,345 @@ b8 import_obj_file(FILE_HANDLE* obj_file, const char* out_y_mesh_filename, GEOME
     return write_y_mesh_file(out_y_mesh_filename, name, count, *out_geometries_darray);
 }
 
+b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray, b8 is_binary) {
+    // read the file and parse it.
+    if (!gltf_file || !out_y_mesh_filename || !out_geometries_darray) {
+        PRINT_ERROR("Invalid parameters passed to import_gltf_file.");
+        return false;
+    }
+    u8 *file_data = 0;
+    u64 file_size = 0;
+    if (is_binary) {
+        if (!filesystem_size(gltf_file, &file_size)) {
+            PRINT_ERROR("Failed to read binary glTF file '%s'.", path);
+            filesystem_close(gltf_file);
+            return false;
+        }
+
+        file_data = yallocate(sizeof(u8) * file_size, MEMORY_TAG_ARRAY);
+        u64 read_size = 0;
+        if (!filesystem_read_all_bytes(gltf_file, file_data, &read_size)) {
+            PRINT_ERROR("Failed to read binary glTF file '%s'.", path);
+            filesystem_close(gltf_file);
+            return false;
+        }
+    } else {
+        // If it's a glTF, we need to read it in a way that cgltf
+        // can parse it correctly.
+        filesystem_size(gltf_file, &file_size);
+        if (file_size == 0) {
+            PRINT_ERROR("File '%s' is empty.", path);
+            return false;
+        }
+        file_data = yallocate(file_size, MEMORY_TAG_STRING);
+        u64 bytes_read = 0;
+        if (!filesystem_read(gltf_file, file_size, file_data, &bytes_read) || bytes_read != file_size) {
+            PRINT_ERROR("Failed to read glTF file '%s'.", path);
+            filesystem_close(gltf_file);
+            yfree(file_data, MEMORY_TAG_STRING);
+            return false;
+        }
+    }
+    
+    // Use cgltf to parse the file.
+    cgltf_options options = {0};
+    cgltf_data* data = 0;
+    cgltf_result result = cgltf_parse(
+        &options,
+        file_data,
+        file_size,
+        &data);
+    if (result != cgltf_result_success) {
+        PRINT_ERROR("Failed to parse glTF file '%s'.", path);
+        yfree(file_data, MEMORY_TAG_STRING);
+        return false;
+    }
+
+    // Load the data.
+    result = cgltf_load_buffers(
+        &options,
+        data,
+        path);
+    if (result != cgltf_result_success) {
+        PRINT_ERROR("Failed to load buffers for glTF file '%s'. error: '%s'", path, cgltf_error_messages[result]);
+        cgltf_free(data);
+        yfree(file_data, MEMORY_TAG_STRING);
+        return false;
+    }
+
+    // Process the data and create geometry configs.
+    for (u32 i = 0; i < data->meshes_count; ++i) {
+        const cgltf_mesh* mesh = &data->meshes[i];
+        GEOMETRY_CONFIG new_data = {0};
+        string_ncopy(new_data.name, mesh->name ? mesh->name : "Unnamed Mesh", 255);
+
+        // Process each primitive in the mesh.
+        for (u32 j = 0; j < mesh->primitives_count; ++j) {
+            const cgltf_primitive* primitive = &mesh->primitives[j];
+
+            // Positions
+            Vector3* positions = darray_reserve(Vector3, 16384);
+
+            // Normals
+            Vector3* normals = darray_reserve(Vector3, 16384);
+
+            // Texture coordinates
+            Vector2* tex_coords = darray_reserve(Vector2, 16384);
+
+            // Faces
+            MESH_FACE_DATA* faces = darray_reserve(MESH_FACE_DATA, primitive->indices ? primitive->indices->count / 3 : 16384);
+
+            // Read attributes
+            for (u32 k = 0; k < primitive->attributes_count; ++k) {
+                const cgltf_attribute* attribute = &primitive->attributes[k];
+                const cgltf_accessor* accessor = attribute->data;
+
+                if (attribute->type == cgltf_attribute_type_position) {
+                    for (u32 l = 0; l < accessor->count; ++l) {
+                        cgltf_float pos_f[3];
+                        cgltf_accessor_read_float(accessor, l, pos_f, 3);
+                        Vector3 pos = Vector3_create(pos_f[0], pos_f[1], pos_f[2]);
+                        darray_push(positions, pos);
+                    }
+                } else if (attribute->type == cgltf_attribute_type_normal) {
+                    for (u32 l = 0; l < accessor->count; ++l) {
+                        cgltf_float norm_f[3];
+                        cgltf_accessor_read_float(accessor, l, norm_f, 3);
+                        Vector3 norm = Vector3_create(norm_f[0], norm_f[1], norm_f[2]);
+                        darray_push(normals, norm);
+                    }
+                } else if (attribute->type == cgltf_attribute_type_texcoord) {
+                    for (u32 l = 0; l < accessor->count; ++l) {
+                        cgltf_float tex_f[2];
+                        cgltf_accessor_read_float(accessor, l, tex_f, 2);
+                        Vector2 tex = Vector2_create(tex_f[0], tex_f[1]);
+                        darray_push(tex_coords, tex);
+                    }
+                }
+            }
+            // Read indices
+            if (primitive->indices) {
+                const cgltf_accessor* accessor = primitive->indices;
+                for (u32 l = 0; l < accessor->count; l += 3) {
+                    MESH_FACE_DATA face;
+                    cgltf_uint i0, i1, i2;
+                    cgltf_accessor_read_uint(accessor, l, &i0, 1);
+                    cgltf_accessor_read_uint(accessor, l + 1, &i1, 1);
+                    cgltf_accessor_read_uint(accessor, l + 2, &i2, 1);
+
+                    face.vertices[0].position_index = i0 + 1;
+                    face.vertices[1].position_index = i1 + 1;
+                    face.vertices[2].position_index = i2 + 1;
+
+                    // NOTE: Assumes that if normals/texcoords exist, they are indexed the same as positions.
+                    face.vertices[0].normal_index = darray_length(normals) > 0 ? i0 + 1 : 0;
+                    face.vertices[1].normal_index = darray_length(normals) > 0 ? i1 + 1 : 0;
+                    face.vertices[2].normal_index = darray_length(normals) > 0 ? i2 + 1 : 0;
+
+                    face.vertices[0].texcoord_index = darray_length(tex_coords) > 0 ? i0 + 1 : 0;
+                    face.vertices[1].texcoord_index = darray_length(tex_coords) > 0 ? i1 + 1 : 0;
+                    face.vertices[2].texcoord_index = darray_length(tex_coords) > 0 ? i2 + 1 : 0;
+
+                    darray_push(faces, face);
+                }
+            } else {
+                // Not indexed. Create faces from the vertex data.
+                u32 vertex_count = darray_length(positions);
+                for (u32 l = 0; l < vertex_count; l += 3) {
+                    MESH_FACE_DATA face;
+
+                    // Position indices
+                    face.vertices[0].position_index = l + 1;
+                    face.vertices[1].position_index = l + 2;
+                    face.vertices[2].position_index = l + 3;
+
+                    // Normal indices
+                    if (darray_length(normals) > 0) {
+                        face.vertices[0].normal_index = l + 1;
+                        face.vertices[1].normal_index = l + 2;
+                        face.vertices[2].normal_index = l + 3;
+                    } else {
+                        face.vertices[0].normal_index = 0;
+                        face.vertices[1].normal_index = 0;
+                        face.vertices[2].normal_index = 0;
+                    }
+
+                    // Texcoord indices
+                    if (darray_length(tex_coords) > 0) {
+                        face.vertices[0].texcoord_index = l + 1;
+                        face.vertices[1].texcoord_index = l + 2;
+                        face.vertices[2].texcoord_index = l + 3;
+                    } else {
+                        face.vertices[0].texcoord_index = 0;
+                        face.vertices[1].texcoord_index = 0;
+                        face.vertices[2].texcoord_index = 0;
+                    }
+
+                    darray_push(faces, face);
+                }
+            }
+            // Process the subobject
+            process_subobject(positions, normals, tex_coords, faces, &new_data);
+            new_data.vertex_count = darray_length(new_data.vertices);
+            new_data.vertex_size = sizeof(Vertex3D);
+            new_data.index_count = darray_length(new_data.indices);
+            new_data.index_size = sizeof(u32);
+            // Set the material name if available
+            if (primitive->material && primitive->material->name) {
+                string_ncopy(new_data.material_name, primitive->material->name, 255);
+            } else {
+                string_ncopy(new_data.material_name, "DefaultMaterial", 255);
+            }
+            // Add the geometry config to the output array.
+            darray_push(*out_geometries_darray, new_data);
+            // Clean up
+            darray_destroy(positions);
+            darray_destroy(normals);
+            darray_destroy(tex_coords);
+            darray_destroy(faces);
+        }
+    }
+    // If there are no geometries, return false.
+    if (darray_length(*out_geometries_darray) == 0) {
+        PRINT_ERROR("No geometries found in glTF file '%s'.", path);
+        cgltf_free(data);
+        yfree(file_data, MEMORY_TAG_STRING);
+        return false;
+    }
+
+    // De-duplicate geometry and generate tangents
+    u32 count = darray_length(*out_geometries_darray);
+    for (u64 i = 0; i < count; ++i) {
+        GEOMETRY_CONFIG* g = &((*out_geometries_darray)[i]);
+        PRINT_DEBUG("Geometry de-duplication process starting on geometry object named '%s'...", g->name);
+
+        u32 new_vert_count = 0;
+        Vertex3D* unique_verts = 0;
+        geometry_deduplicate_vertices(g->vertex_count, g->vertices, g->index_count, g->indices, &new_vert_count, &unique_verts);
+
+        // Destroy the old, large array...
+        darray_destroy(g->vertices);
+
+        // And replace with the de-duplicated one.
+        g->vertices = unique_verts;
+        g->vertex_count = new_vert_count;
+
+        // Take a copy of the indices as a normal, non-darray
+        if (g->index_count > 0) {
+            u32* indices = yallocate(sizeof(u32) * g->index_count, MEMORY_TAG_ARRAY);
+            ycopy_memory(indices, g->indices, sizeof(u32) * g->index_count);
+            // Destroy the darray
+            darray_destroy(g->indices);
+            // Replace with the non-darray version.
+            g->indices = indices;
+
+            // Also generate tangents here, this way tangents are also stored in the output file.
+            geometry_generate_tangents(g->vertex_count, g->vertices, g->index_count, g->indices);
+        }
+    }
+
+    // Process materials
+    PRINT_DEBUG("Processing glTF materials...");
+    for (u32 i = 0; i < data->materials_count; ++i) {
+        const cgltf_material* material = &data->materials[i];
+
+        MATERIAL_CONFIG m;
+        yzero_memory(&m, sizeof(MATERIAL_CONFIG));
+
+        // name
+        if (material->name) {
+            string_ncopy(m.name, material->name, MATERIAL_NAME_MAX_LENGTH);
+        } else {
+            string_format(m.name, "material_%u", i);
+        }
+
+        // shader
+        m.shader_name = "shader.builtin.material";
+
+        // diffuse color
+        if (material->has_pbr_metallic_roughness) {
+            const cgltf_pbr_metallic_roughness* pbr = &material->pbr_metallic_roughness;
+            m.diffuse_color.r = pbr->base_color_factor[0];
+            m.diffuse_color.g = pbr->base_color_factor[1];
+            m.diffuse_color.b = pbr->base_color_factor[2];
+            // NOTE: This is only used by the colour shader, and will set to max_norm by default.
+            // Transparency could be added as a material property all its own at a later time.
+            //m.diffuse_color.a = pbr->base_color_factor[3];
+            m.diffuse_color.a = 1.0f;
+
+            // NOTE: Using metallic-roughness factor as a base for shininess.
+            // This will likely need to be adjusted.
+            f32 roughness = pbr->roughness_factor;
+            // Inversely related.
+            m.shiness = 1.0f - roughness;
+
+            if (m.shiness <= 0.0f) {
+                m.shiness = 8.0f;
+            }
+
+            // Diffuse map
+            if (pbr->base_color_texture.texture) {
+                const cgltf_image* image = pbr->base_color_texture.texture->image;
+                char texture_filename[512];
+                if (extract_gltf_texture(image, path, texture_filename)) {
+                    string_filename_no_extension_from_path(m.diffuse_map_name, texture_filename);
+                } else if (image->uri) {
+                    // Fallback to original URI-based approach
+                    string_filename_no_extension_from_path(m.diffuse_map_name, image->uri);
+                }
+            }
+
+            // Specular map (metallic roughness)
+            if (pbr->metallic_roughness_texture.texture) {
+                const cgltf_image* image = pbr->metallic_roughness_texture.texture->image;
+                char texture_filename[512];
+                if (extract_gltf_texture(image, path, texture_filename)) {
+                    string_filename_no_extension_from_path(m.specular_map_name, texture_filename);
+                } else if (image->uri) {
+                    // Fallback to original URI-based approach
+                    string_filename_no_extension_from_path(m.specular_map_name, image->uri);
+                }
+            }
+        }
+        
+        // Normal map
+        if (material->normal_texture.texture) {
+            const cgltf_image* image = material->normal_texture.texture->image;
+            char texture_filename[512];
+            if (extract_gltf_texture(image, path, texture_filename)) {
+                string_filename_no_extension_from_path(m.normal_map_name, texture_filename);
+            } else if (image->uri) {
+                // Fallback to original URI-based approach
+                string_filename_no_extension_from_path(m.normal_map_name, image->uri);
+            }
+        }
+
+        // Write the material file.
+        if (!write_y_material_file(out_y_mesh_filename, &m)) {
+            PRINT_WARNING("Failed to write material file for glTF material: '%s'.", m.name);
+        }
+    }
+
+    // set name
+    char name[512];
+    string_filename_from_path(name, out_y_mesh_filename);
+    // Write the y_mesh file.
+    if (!write_y_mesh_file(out_y_mesh_filename, name, darray_length(*out_geometries_darray), *out_geometries_darray)) {
+        PRINT_ERROR("Failed to write y_mesh file '%s'.", out_y_mesh_filename);
+        cgltf_free(data);
+        yfree(file_data, MEMORY_TAG_STRING);
+        return false;
+    }
+    // Free the cgltf data.
+    cgltf_free(data);
+    // Now we can free the file data since we're done with everything
+    yfree(file_data, MEMORY_TAG_STRING);
+    PRINT_DEBUG("Successfully imported glTF file '%s' and wrote to '%s'.", path, out_y_mesh_filename);
+    filesystem_close(gltf_file);
+    
+    return true;
+}
+
 void process_subobject(Vector3* positions, Vector3* normals, Vector2* tex_coords, MESH_FACE_DATA* faces, GEOMETRY_CONFIG* out_data) {
     out_data->indices = darray_create(u32);
     out_data->vertices = darray_create(Vertex3D);
@@ -876,6 +1257,143 @@ b8 write_y_material_file(const char* mtl_file_path, MATERIAL_CONFIG* config) {
     filesystem_close(&f);
 
     return true;
+}
+
+b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* out_filename) {
+    if (!image || !base_path || !out_filename) {
+        return false;
+    }
+
+    // Generate a filename for the texture
+    char texture_name[256];
+    if (image->name) {
+        string_ncopy(texture_name, image->name, 255);
+    } else {
+        string_format(texture_name, "texture_%p", (void*)image);
+    }
+
+    // Determine file extension from mime type
+    const char* extension = "png"; // default
+    if (image->mime_type) {
+        if (strings_equal(image->mime_type, "image/jpeg")) {
+            extension = "jpg";
+        } else if (strings_equal(image->mime_type, "image/png")) {
+            extension = "png";
+        } else if (strings_equal(image->mime_type, "image/webp")) {
+            extension = "webp";
+        }
+    }
+
+    // Create the output filename
+    string_format(out_filename, "assets/textures/%s.%s", texture_name, extension);
+
+    // If the image has a buffer view (embedded in glb), extract it
+    if (image->buffer_view) {
+        // Check if the buffer has data loaded
+        if (!image->buffer_view->buffer || !image->buffer_view->buffer->data) {
+            PRINT_ERROR("Buffer data not loaded for texture: %s", texture_name);
+            return false;
+        }
+        
+        // Use cgltf_buffer_view_data to get the correct data pointer
+        const u8* data = cgltf_buffer_view_data(image->buffer_view);
+        if (!data) {
+            PRINT_ERROR("Failed to get buffer view data for texture: %s", texture_name);
+            return false;
+        }
+        
+        u64 size = image->buffer_view->size;
+
+        // Create the file
+        FILE_HANDLE texture_file;
+        if (!filesystem_open(out_filename, FILE_MODE_WRITE, false, &texture_file)) {
+            PRINT_ERROR("Failed to create texture file: %s", out_filename);
+            return false;
+        }
+
+        // Write the raw binary data
+        u64 bytes_written = 0;
+        if (!filesystem_write(&texture_file, size, data, &bytes_written) || bytes_written != size) {
+            PRINT_ERROR("Failed to write texture data to: %s", out_filename);
+            filesystem_close(&texture_file);
+            return false;
+        }
+
+        filesystem_close(&texture_file);
+        PRINT_DEBUG("Extracted embedded texture: %s (%llu bytes)", out_filename, size);
+        return true;
+    }
+
+    // If the image has a URI (external file), copy it
+    if (image->uri) {
+        char source_path[512];
+        string_format(source_path, "%s", image->uri);
+        
+        // If it's a relative path, make it relative to the gltf file
+        // Check if it's not an absolute path or URL
+        b8 is_relative = true;
+        if (image->uri[0] == '/' || (image->uri[0] && image->uri[1] == ':')) {
+            is_relative = false; // Absolute path
+        } else {
+            // Check for URL schemes
+            const char* colon = strchr(image->uri, ':');
+            if (colon && (colon - image->uri) < 10) {
+                const char* slash = strchr(colon, '/');
+                if (slash && slash == colon + 1 && slash[1] == '/') {
+                    is_relative = false; // URL
+                }
+            }
+        }
+        
+        if (is_relative) {
+            char gltf_dir[512];
+            string_directory_from_path(gltf_dir, base_path);
+            string_format(source_path, "%s/%s", gltf_dir, image->uri);
+        }
+
+        // Copy the file
+        FILE_HANDLE source_file, dest_file;
+        if (!filesystem_open(source_path, FILE_MODE_READ, false, &source_file)) {
+            PRINT_ERROR("Failed to open source texture: %s", source_path);
+            return false;
+        }
+
+        if (!filesystem_open(out_filename, FILE_MODE_WRITE, false, &dest_file)) {
+            PRINT_ERROR("Failed to create texture file: %s", out_filename);
+            filesystem_close(&source_file);
+            return false;
+        }
+
+        u64 file_size;
+        filesystem_size(&source_file, &file_size);
+        
+        u8* buffer = yallocate(file_size, MEMORY_TAG_ARRAY);
+        u64 bytes_read = 0;
+        if (!filesystem_read_all_bytes(&source_file, buffer, &bytes_read) || bytes_read != file_size) {
+            PRINT_ERROR("Failed to read source texture: %s", source_path);
+            yfree(buffer, MEMORY_TAG_ARRAY);
+            filesystem_close(&source_file);
+            filesystem_close(&dest_file);
+            return false;
+        }
+
+        u64 bytes_written = 0;
+        if (!filesystem_write(&dest_file, file_size, buffer, &bytes_written) || bytes_written != file_size) {
+            PRINT_ERROR("Failed to write texture data to: %s", out_filename);
+            yfree(buffer, MEMORY_TAG_ARRAY);
+            filesystem_close(&source_file);
+            filesystem_close(&dest_file);
+            return false;
+        }
+
+        yfree(buffer, MEMORY_TAG_ARRAY);
+        filesystem_close(&source_file);
+        filesystem_close(&dest_file);
+        PRINT_DEBUG("Copied external texture: %s -> %s", source_path, out_filename);
+        return true;
+    }
+
+    return false;
 }
 
 RESOURCE_LOADER mesh_resource_loader_create(void) {

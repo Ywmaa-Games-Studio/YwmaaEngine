@@ -1372,13 +1372,13 @@ WGPUTextureView get_next_surface_texture_view(void) {
 
 
 b8 webgpu_create_buffers(WEBGPU_CONTEXT* context) {
-    const u64 vertex_buffer_size = sizeof(Vertex3D) * 1024 * 1024;
+    const u64 vertex_buffer_size = sizeof(Vertex3D) * 16 * 1024 * 1024;
     if (!webgpu_buffer_create(context, vertex_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex, false, true, &context->object_vertex_buffer)) {
         PRINT_ERROR("Error creating vertex buffer.");
         return false;
     }
 
-    const u64 index_buffer_size = sizeof(u32) * 1024 * 1024;
+    const u64 index_buffer_size = sizeof(u32) * 16 * 1024 * 1024;
     if (!webgpu_buffer_create(context, index_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index, false, true, &context->object_index_buffer)) {
         PRINT_ERROR("Error creating index buffer.");
         return false;

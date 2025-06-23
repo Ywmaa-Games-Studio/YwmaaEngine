@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.23 -04:59
  * Last edited:
- *   2025.04.27 -08:54
+ *   <l1741PMle>
  * Auto updated?
  *   Yes
  *
@@ -75,7 +75,7 @@ void hpha_allocator_destroy(HPHA_ALLOCATOR* allocator) {
     dynamic_allocator_destroy(&allocator->large_allocator);
 }
 
-void* hpha_allocate(HPHA_ALLOCATOR* allocator, u64 size, u16 alignment) {
+void* hpha_allocate(HPHA_ALLOCATOR* allocator, u64 size, u16 alignment, u64* allocated_size) {
     if (!allocator) return 0;
 
     DYNAMIC_ALLOCATOR* target = 0;
@@ -93,6 +93,7 @@ void* hpha_allocate(HPHA_ALLOCATOR* allocator, u64 size, u16 alignment) {
         PRINT_WARNING("HPHA allocation failed for size %llu. Falling back to platform allocator.", size);
         block = platform_allocate(size, alignment);
     }
+    dynamic_allocator_get_size(target, block, allocated_size);
     return block;
 }
 

@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.23 -04:59
  * Last edited:
- *   2025.04.27 -08:54
+ *   <l1741PMle>
  * Auto updated?
  *   Yes
  *
@@ -55,7 +55,7 @@ typedef struct HPHA_ALLOCATOR {
 
 YAPI b8 hpha_allocator_create(u64 total_size, HPHA_CONFIG config, u64* memory_requirement, void* memory, HPHA_ALLOCATOR* out_allocator);
 YAPI void hpha_allocator_destroy(HPHA_ALLOCATOR* allocator);
-YAPI void* hpha_allocate(HPHA_ALLOCATOR* allocator, u64 size, u16 alignment);
+YAPI void* hpha_allocate(HPHA_ALLOCATOR* allocator, u64 size, u16 alignment, u64* allocated_size);
 YAPI b8 hpha_free(HPHA_ALLOCATOR* allocator, void* block, u64* freed_size);
 
 YAPI void hpha_allocator_free_space(HPHA_ALLOCATOR* allocator, u64* out_small_free, u64* out_medium_free, u64* out_large_free);

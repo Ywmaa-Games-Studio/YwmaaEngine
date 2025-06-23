@@ -1,7 +1,7 @@
 #include "core/event.h"
 
 #include "core/ymemory.h"
-#include "variants/darray.h"
+#include "data_structures/darray.h"
 
 typedef struct REGISTERED_EVENT {
     void* listener;

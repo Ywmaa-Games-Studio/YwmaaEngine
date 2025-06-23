@@ -28,7 +28,7 @@ This contains the main engine code, such as:
 
 -- Engine Input System (input.c & input.h)
 
-### 3- src/variants
+### 3- src/data_structures
 
 This contains special data types for variables that are created in this project and used by the engine, such as darray (dynamic array), etc.
 

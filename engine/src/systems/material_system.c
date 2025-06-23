@@ -2,7 +2,7 @@
 
 #include "core/logger.h"
 #include "core/ystring.h"
-#include "variants/hashtable.h"
+#include "data_structures/hashtable.h"
 #include "math/ymath.h"
 #include "renderer/renderer_frontend.h"
 

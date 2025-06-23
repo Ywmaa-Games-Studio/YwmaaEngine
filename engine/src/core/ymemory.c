@@ -145,11 +145,12 @@ void* yallocate_aligned(u64 size, u16 alignment, E_MEMORY_TAG tag) {
         return block;
     }
 
-    // Track stats
-    yallocate_report(size, tag);
     
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
-    void* block = hpha_allocate(&state_ptr->allocator, size, alignment);
+    u64 allocated_size = 0; 
+    void* block = hpha_allocate(&state_ptr->allocator, size, alignment, &allocated_size);
+    // Track stats
+    yallocate_report(allocated_size, tag);
 #else
     void* block = yaligned_alloc(size, alignment);
 #endif

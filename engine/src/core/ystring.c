@@ -1,7 +1,7 @@
 #include "core/ystring.h"
 #include "core/ymemory.h"
 #include "core/logger.h"
-#include "variants/darray.h"
+#include "data_structures/darray.h"
 
 #include <ctype.h>   // isspace
 

@@ -281,7 +281,7 @@ pub fn build(b: *std.Build) !void {
     //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/core/ystring.c"), .flags = &flags });
     //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/core/ymemory.c"), .flags = &flags });
     //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/math/ymath.c"), .flags = &flags });
-    //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/variants/darray.c"), .flags = &flags });
+    //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/data_structures/darray.c"), .flags = &flags });
     //unit_tests.addCSourceFile(.{ .file = b.path("engine/src/memory/linear_allocator.c"), .flags = &flags });
 
     //const run_unit_tests = b.addRunArtifact(unit_tests)//;

@@ -3,7 +3,7 @@
 #include "../expect.h"
 
 #include <defines.h>
-#include <variants/hashtable.h>
+#include <data_structures/hashtable.h>
 
 u8 hashtable_should_create_and_destroy() {
     HASHTABLE table;

@@ -7,7 +7,7 @@
 #include "input/input.h"
 #include "core/event.h"
 
-#include "variants/darray.h"
+#include "data_structures/darray.h"
 
 #include <windows.h>
 #include <windowsx.h>

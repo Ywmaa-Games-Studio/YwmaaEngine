@@ -7,7 +7,7 @@
 #include "systems/resource_system.h"
 #include "math/ymath.h"
 #include "loader_utils.h"
-#include "variants/darray.h"
+#include "data_structures/darray.h"
 
 #include "io/filesystem.h"
 

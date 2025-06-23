@@ -4,7 +4,7 @@
 #include "core/asserts.h"
 #include "renderer/renderer_types.inl"
 #include "memory/freelist.h"
-#include "variants/hashtable.h"
+#include "data_structures/hashtable.h"
 
 #include "../thirdparty/volk/volk.h"
 

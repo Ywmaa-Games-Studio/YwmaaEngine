@@ -4,7 +4,7 @@
 #include "core/ymemory.h"
 #include "core/ystring.h"
 
-#include "variants/darray.h"
+#include "data_structures/darray.h"
 #include "renderer/renderer_frontend.h"
 
 #include "systems/texture_system.h"

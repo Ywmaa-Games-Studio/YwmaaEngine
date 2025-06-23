@@ -1,4 +1,4 @@
-#include "variants/darray.h"
+#include "data_structures/darray.h"
 
 #include "core/ymemory.h"
 #include "core/logger.h"
@@ -15,7 +15,7 @@ void* _darray_create(u64 length, u64 stride) {
 }
 
 void _darray_destroy(void* array) {
-    u64* header = (u64*)array - DARRAY_FIELD_LENGTH;
+    u64* header = ((u64*)array) - DARRAY_FIELD_LENGTH;
     //u64 header_size = DARRAY_FIELD_LENGTH * sizeof(u64);
     //u64 total_size = header_size + header[DARRAY_CAPACITY] * header[DARRAY_STRIDE];
     yfree(header, MEMORY_TAG_DARRAY);

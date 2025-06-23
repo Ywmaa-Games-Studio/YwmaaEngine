@@ -16,7 +16,7 @@
 #include "core/ystring.h"
 #include "core/application.h"
 
-#include "variants/darray.h"
+#include "data_structures/darray.h"
 
 #include "systems/shader_system.h"
 #include "systems/material_system.h"
@@ -507,7 +507,7 @@ b8 webgpu_renderer_shader_create(struct SHADER *shader, u8 renderpass_id, u8 sta
     global_bind_group_layout_desc.label = (WGPUStringView){"Global object shader bind group descriptor", sizeof("Global object shader bind group descriptor")};
 
     // Define binding layout
-    WGPUBindGroupLayoutEntry* binding_layout = yallocate(sizeof(WGPUBindGroupLayoutEntry), MEMORY_TAG_RENDERER);
+    WGPUBindGroupLayoutEntry* binding_layout = yallocate_aligned(sizeof(WGPUBindGroupLayoutEntry), 8, MEMORY_TAG_RENDERER);
     // The binding index as used in the @binding attribute in the shader
     webgpu_bind_layout_set_default(binding_layout);
     binding_layout->nextInChain = NULL;
@@ -1372,13 +1372,13 @@ WGPUTextureView get_next_surface_texture_view(void) {
 
 
 b8 webgpu_create_buffers(WEBGPU_CONTEXT* context) {
-    const u64 vertex_buffer_size = sizeof(Vertex3D) * 16 * 1024 * 1024;
+    const u64 vertex_buffer_size = sizeof(Vertex3D) * 2 * 1024 * 1024;
     if (!webgpu_buffer_create(context, vertex_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex, false, true, &context->object_vertex_buffer)) {
         PRINT_ERROR("Error creating vertex buffer.");
         return false;
     }
 
-    const u64 index_buffer_size = sizeof(u32) * 16 * 1024 * 1024;
+    const u64 index_buffer_size = sizeof(u32) * 2 * 1024 * 1024;
     if (!webgpu_buffer_create(context, index_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index, false, true, &context->object_index_buffer)) {
         PRINT_ERROR("Error creating index buffer.");
         return false;

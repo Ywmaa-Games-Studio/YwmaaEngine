@@ -7,7 +7,7 @@
 #include "core/logger.h"
 #include "core/event.h"
 #include "input/input.h"
-#include "variants/darray.h"
+#include "data_structures/darray.h"
 
 #include <string.h>
 #include <stdio.h>

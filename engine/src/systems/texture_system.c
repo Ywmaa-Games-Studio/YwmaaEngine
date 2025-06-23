@@ -3,7 +3,7 @@
 #include "core/logger.h"
 #include "core/ystring.h"
 #include "core/ymemory.h"
-#include "variants/hashtable.h"
+#include "data_structures/hashtable.h"
 
 #include "renderer/renderer_frontend.h"
 

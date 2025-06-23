@@ -36,7 +36,7 @@ b8 text_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* ou
     }
 
     // TODO: Should be using an allocator here.
-    char* resource_data = yallocate(sizeof(char) * file_size, MEMORY_TAG_ARRAY);
+    char* resource_data = yallocate(sizeof(char) * file_size, MEMORY_TAG_STRING);
     u64 read_size = 0;
     if (!filesystem_read_all_text(&f, resource_data, &read_size)) {
         PRINT_ERROR("Unable to text read file: %s.", full_file_path);
@@ -54,7 +54,7 @@ b8 text_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* ou
 }
 
 void text_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
-    if (!resource_unload(self, resource, MEMORY_TAG_TEXTURE)) {
+    if (!resource_unload(self, resource, MEMORY_TAG_STRING)) {
         PRINT_WARNING("text_loader_unload called with nullptr for self or resource.");
         return;
     }

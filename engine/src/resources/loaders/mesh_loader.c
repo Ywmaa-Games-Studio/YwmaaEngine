@@ -3,7 +3,7 @@
 #include "core/logger.h"
 #include "core/ymemory.h"
 #include "core/ystring.h"
-#include "variants/darray.h"
+#include "data_structures/darray.h"
 #include "resources/resource_types.h"
 #include "systems/resource_system.h"
 #include "systems/geometry_system.h"

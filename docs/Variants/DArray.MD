@@ -7,7 +7,7 @@ A Dynamic Resizable Array that accepts any data type.
 ## File
 
 ```
-#include <variants/darray.h>
+#include <data_structures/darray.h>
 ```
 
 ## Functions

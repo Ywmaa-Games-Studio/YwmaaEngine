@@ -25,7 +25,7 @@
 #include "math/ymath.h"
 #include "math/transform.h"
 #include "math/geometry_utils.h"
-#include "variants/darray.h"
+#include "data_structures/darray.h"
 // TODO: end temp
 
 typedef struct APPLICATION_STATE {
@@ -123,7 +123,7 @@ b8 application_create(GAME* game_instance) {
     // Memory system must be the first thing to be stood up.
     MEMORY_SYSTEM_CONFIG memory_system_config = {0};
     
-    memory_system_config.total_alloc_size = MEBIBYTES(1024);
+    memory_system_config.total_alloc_size = MEBIBYTES(512);
     if (!memory_system_init(memory_system_config)) {
         PRINT_ERROR("Failed to initialize memory system; shutting down.");
         return false;
@@ -519,9 +519,9 @@ b8 application_run(void) {
 
             // TODO: temp
             // Cleanup the packet.
-            if (packet.geometries) {
+            if (packet.geometries != NULL) {
                 darray_destroy(packet.geometries);
-                packet.geometries = 0;
+                packet.geometries = NULL;
             }
             // TODO: end temp
 

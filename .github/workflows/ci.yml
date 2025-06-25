@@ -27,12 +27,12 @@ jobs:
       - name: Setup Zig
         run: |
           sudo apt install xz-utils
-          sudo sh -c 'wget -c https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
+          sudo sh -c 'wget -c https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
       - name: x86_64-linux
         run: zig build -Doptimize=ReleaseFast
       - name: x86_64-linux -> x86_64-linux-musl
         run: zig build -Dtarget=x86_64-linux-musl -Doptimize=ReleaseFast
-  x86_64-windows:
+  x86_64-linux-musl:
     runs-on: ubuntu-latest
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
     # to the branch.
@@ -43,9 +43,9 @@ jobs:
       - name: Setup Zig
         run: |
           sudo apt install xz-utils
-          sudo sh -c 'wget -c https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
-      - name: x86_64-linux -> x86_64-windows
-        run: zig build -Dtarget=x86_64-windows -Doptimize=ReleaseFast
+          sudo sh -c 'wget -c https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
+      - name: x86_64-linux -> x86_64-linux-musl
+        run: zig build -Dtarget=x86_64-linux-musl -Doptimize=ReleaseFast
   aarch64-linux:
     runs-on: ubuntu-latest
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
@@ -57,9 +57,23 @@ jobs:
       - name: Setup Zig
         run: |
           sudo apt install xz-utils
-          sudo sh -c 'wget -c https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
+          sudo sh -c 'wget -c https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
       - name: x86_64-linux -> aarch64-linux
         run: zig build -Dtarget=aarch64-linux -Doptimize=ReleaseFast
+  x86_64-windows:
+    runs-on: ubuntu-latest
+    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
+    # to the branch.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Zig
+        run: |
+          sudo apt install xz-utils
+          sudo sh -c 'wget -c https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
+      - name: x86_64-linux -> x86_64-windows
+        run: zig build -Dtarget=x86_64-windows -Doptimize=ReleaseFast
 #  x86_64-linux:
 #    runs-on: ubuntu-latest
 #    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
@@ -71,7 +85,7 @@ jobs:
 #      - name: Setup Zig
 #        run: |
 #          sudo apt install xz-utils
-#          sudo sh -c 'wget -c https://ziglang.org/download/0.14.0/zig-linux-x86_64-0.14.0.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
+#          sudo sh -c 'wget -c https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
 #      - name: x86_64-linux
 #        run: zig build -Doptimize=ReleaseFast
 #      - name: x86_64-linux -> x86_64-linux-musl

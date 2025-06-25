@@ -5,6 +5,7 @@
 #include "core/ymemory.h"
 
 #include "systems/resource_system.h"
+#include "shader_compiler.h"
 
 b8 create_shader_module(
     VULKAN_CONTEXT* context,
@@ -15,20 +16,31 @@ b8 create_shader_module(
     VULKAN_SHADER_STAGE* shader_stages) {
     // Build file name, which will also be used as the resource name..
     char file_name[512];
-    string_format(file_name, "shaders/%s.%s.spv", name, type_str);
+    string_format(file_name, "shaders/%s.%s.glsl", name, type_str);
 
     // Read the resource.
-    RESOURCE binary_resource;
-    if (!resource_system_load(file_name, RESOURCE_TYPE_BINARY, &binary_resource)) {
+    RESOURCE text_resource;
+    if (!resource_system_load(file_name, RESOURCE_TYPE_TEXT, &text_resource)) {
         PRINT_ERROR("Unable to read shader module: %s.", file_name);
         return false;
     }
-
+    const u8 stage_flag_to_glslang_stage[] = {
+        [VK_SHADER_STAGE_VERTEX_BIT] = GLSLANG_STAGE_VERTEX,
+        [VK_SHADER_STAGE_FRAGMENT_BIT] = GLSLANG_STAGE_FRAGMENT,
+        [VK_SHADER_STAGE_COMPUTE_BIT] = GLSLANG_STAGE_COMPUTE,
+        [VK_SHADER_STAGE_GEOMETRY_BIT] = GLSLANG_STAGE_GEOMETRY,
+    };
+    // Compile the shader to SPIR-V binary.
+    SpirVBinary binary_resource = compileShaderToSPIRV_Vulkan(
+        stage_flag_to_glslang_stage[shader_stage_flag],
+        (const char*)text_resource.data,
+        file_name);
+    
     yzero_memory(&shader_stages[stage_index].create_info, sizeof(VkShaderModuleCreateInfo));
     shader_stages[stage_index].create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     // Use the resource's size and data directly.
-    shader_stages[stage_index].create_info.codeSize = binary_resource.data_size;
-    shader_stages[stage_index].create_info.pCode = (u32*)binary_resource.data;
+    shader_stages[stage_index].create_info.codeSize = binary_resource.size;
+    shader_stages[stage_index].create_info.pCode = (u32*)binary_resource.words;
 
     VK_CHECK(vkCreateShaderModule(
         context->device.logical_device,
@@ -37,7 +49,7 @@ b8 create_shader_module(
         &shader_stages[stage_index].handle));
 
    // Release the resource.
-   resource_system_unload(&binary_resource);
+   resource_system_unload(&text_resource);
 
     // Shader stage info
     yzero_memory(&shader_stages[stage_index].shader_stage_create_info, sizeof(VkPipelineShaderStageCreateInfo));

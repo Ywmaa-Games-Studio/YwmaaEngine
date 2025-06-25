@@ -22,11 +22,6 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
     const android_targets = android.standardTargets(b, target);
 
-    const shader_compiler = b.dependency("shader_compiler", .{
-        .target = b.graph.host,
-        .optimize = optimize,
-    }).artifact("shader_compiler"); // Inspired by https://github.com/andrewrk/zig-vulkan-triangle/blob/master/build.zig
-
     // If building with Android, initialize the tools / build
     const android_apk: ?*android.APK = blk: {
         if (android_targets.len == 0) {
@@ -73,7 +68,9 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
-
+    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang" });
+    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang/glslang" });
+    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang/SPIRV" });
     libengine.addIncludePath(.{ .cwd_relative = "engine/src" });
     if (target.result.os.tag == .linux) {
         libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers" });
@@ -170,6 +167,82 @@ pub fn build(b: *std.Build) !void {
 
     libengine.linkLibC();
 
+    const glslang_lib = b.addSharedLibrary(.{ //addStaticLibrary/addSharedLibrary
+        .name = "glslang_compiler",
+        .target = target,
+        .optimize = optimize,
+    });
+    glslang_lib.linkLibCpp();
+    glslang_lib.linkLibC();
+    glslang_lib.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang" });
+    glslang_lib.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang/glslang" });
+    glslang_lib.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang/SPIRV" });
+    glslang_lib.addCSourceFiles(.{
+        .files = &[_][]const u8{
+            //"thirdparty/glslang/glslang/Include/glslang_c_interface.h"
+            //cinterface
+            "engine/thirdparty/glslang/glslang/CInterface/glslang_c_interface.cpp",
+
+            //Codegen
+            "engine/thirdparty/glslang/glslang/GenericCodeGen/Link.cpp",
+            "engine/thirdparty/glslang/glslang/GenericCodeGen/CodeGen.cpp",
+
+            //Preprocessor
+            "engine/thirdparty/glslang/glslang/MachineIndependent/preprocessor/Pp.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpAtom.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpContext.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpScanner.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpTokens.cpp",
+
+            "engine/thirdparty/glslang/glslang/MachineIndependent/limits.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/linkValidate.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/parseConst.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/ParseContextBase.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/ParseHelper.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/PoolAlloc.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/reflection.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/RemoveTree.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/Scan.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/ShaderLang.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/SpirvIntrinsics.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/SymbolTable.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/Versions.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/Intermediate.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/Constant.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/attribute.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/glslang_tab.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/InfoSink.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/Initialize.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/intermOut.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/IntermTraverse.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/propagateNoContraction.cpp",
+            "engine/thirdparty/glslang/glslang/MachineIndependent/iomapper.cpp",
+
+            //OsDependent
+            switch (target.result.os.tag) {
+                .linux => "engine/thirdparty/glslang/glslang/OSDependent/Unix/ossource.cpp",
+                .windows => "engine/thirdparty/glslang/glslang/OSDependent/Windows/ossource.cpp",
+                else => return error.UnsupportedOs,
+            },
+
+            "engine/thirdparty/glslang/glslang/ResourceLimits/resource_limits_c.cpp",
+            "engine/thirdparty/glslang/glslang/ResourceLimits/ResourceLimits.cpp",
+
+            //SPIRV backend
+            "engine/thirdparty/glslang/SPIRV/CInterface/spirv_c_interface.cpp",
+            "engine/thirdparty/glslang/SPIRV/GlslangToSpv.cpp",
+            "engine/thirdparty/glslang/SPIRV/SpvPostProcess.cpp",
+            "engine/thirdparty/glslang/SPIRV/SPVRemapper.cpp",
+            "engine/thirdparty/glslang/SPIRV/SpvTools.cpp",
+            "engine/thirdparty/glslang/SPIRV/SpvBuilder.cpp",
+            "engine/thirdparty/glslang/SPIRV/Logger.cpp",
+            "engine/thirdparty/glslang/SPIRV/InReadableOrder.cpp",
+            "engine/thirdparty/glslang/SPIRV/doc.cpp",
+        },
+        .flags = &[_][]const u8{},
+    });
+    libengine.linkLibrary(glslang_lib);
+
     var exe: *std.Build.Step.Compile = if (target.result.abi.isAndroid()) b.addSharedLibrary(.{
         .name = exe_name,
         .root_source_file = b.path("testbed/src/main.zig"),
@@ -211,6 +284,7 @@ pub fn build(b: *std.Build) !void {
     exe.linkLibrary(libengine);
 
     b.installArtifact(libengine); //use this when the engine is compiled as a shared library
+    b.installArtifact(glslang_lib); //use this when the engine is compiled as a shared library
 
     b.installArtifact(exe);
     if (target.result.abi == .android) {
@@ -222,13 +296,6 @@ pub fn build(b: *std.Build) !void {
         apk_file.installApk();
     }
 
-    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_shader.vert"), "builtin.shader.vertex.spv"), "bin/assets/shaders/builtin.shader.vertex.spv").step);
-    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_shader.frag"), "builtin.shader.fragment.spv"), "bin/assets/shaders/builtin.shader.fragment.spv").step);
-    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_UI_shader.vert"), "builtin.UIshader.vertex.spv"), "bin/assets/shaders/builtin.UIshader.vertex.spv").step);
-    b.getInstallStep().dependOn(&b.addInstallFile(compileShader(b, optimize, shader_compiler, b.path("assets/shaders/builtin_UI_shader.frag"), "builtin.UIshader.fragment.spv"), "bin/assets/shaders/builtin.UIshader.fragment.spv").step);
-
-    //try addShader(b, exe, "builtin.shader.vert.glsl", "builtin.shader.vert.spv", "-fshader-stage=vert");
-    //try addShader(b, exe, "builtin.shader.frag.glsl", "builtin.shader.frag.spv", "-fshader-stage=frag");
     b.installDirectory(.{
         .source_dir = b.path("assets"),
         .install_dir = .prefix,
@@ -327,51 +394,4 @@ pub fn build(b: *std.Build) !void {
     //
     //    const android_lib_step = b.addInstallArtifact(android_lib);
     //    b.getInstallStep().dependOn(&android_lib_step.step);
-}
-
-fn addShader(b: *std.Build, exe: anytype, in_file: []const u8, out_file: []const u8, additional_arg: []const u8) !void {
-    // example:
-    // glslc $additional_arg shaders/vert.spv -o shaders/shader.vert
-    const dirname = "assets/shaders";
-    const full_in = b.pathJoin(&.{ dirname, in_file });
-    const full_out = b.pathJoin(&.{ dirname, out_file });
-    const run_cmd = b.addSystemCommand(&[_][]const u8{
-        "glslc",
-        additional_arg,
-        full_in,
-        "-o",
-        full_out,
-    });
-    exe.step.dependOn(&run_cmd.step);
-}
-
-fn compileShader(
-    b: *std.Build,
-    optimize: std.builtin.OptimizeMode,
-    shader_compiler: *std.Build.Step.Compile,
-    src: std.Build.LazyPath,
-    out_basename: []const u8,
-) std.Build.LazyPath {
-    const compile_shader = b.addRunArtifact(shader_compiler);
-    compile_shader.addArgs(&.{
-        "--target", "Vulkan-1.3",
-    });
-    switch (optimize) {
-        .Debug => compile_shader.addArgs(&.{
-            "--robust-access",
-        }),
-        .ReleaseSafe => compile_shader.addArgs(&.{
-            "--optimize-perf",
-            "--robust-access",
-        }),
-        .ReleaseFast => compile_shader.addArgs(&.{
-            "--optimize-perf",
-        }),
-        .ReleaseSmall => compile_shader.addArgs(&.{
-            "--optimize-perf",
-            "--optimize-small",
-        }),
-    }
-    compile_shader.addFileArg(src);
-    return compile_shader.addOutputFileArg(out_basename);
 }

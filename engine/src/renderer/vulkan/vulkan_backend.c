@@ -1708,19 +1708,55 @@ b8 vulkan_shader_after_renderpass(struct SHADER *shader){
     return true;
 }
 
+#include "shader_compiler.h"
 b8 create_module(VULKAN_SHADER* shader, VULKAN_SHADER_STAGE_CONFIG config, VULKAN_SHADER_STAGE* shader_stage) {
     // Read the resource.
-    RESOURCE binary_resource;
-    if (!resource_system_load(config.file_name, RESOURCE_TYPE_BINARY, &binary_resource)) {
+    RESOURCE text_resource;
+    if (!resource_system_load(config.file_name, RESOURCE_TYPE_TEXT, &text_resource)) {
         PRINT_ERROR("Unable to read shader module: %s.", config.file_name);
         return false;
     }
-
+    glslang_stage_t glslang_stage = GLSLANG_STAGE_VERTEX;
+    switch (config.stage) {
+        case VK_SHADER_STAGE_VERTEX_BIT:
+            glslang_stage = GLSLANG_STAGE_VERTEX;
+            break;
+        case VK_SHADER_STAGE_FRAGMENT_BIT:
+            glslang_stage = GLSLANG_STAGE_FRAGMENT;
+            break;
+        case VK_SHADER_STAGE_GEOMETRY_BIT:
+            PRINT_WARNING("vulkan_renderer_shader_create: VK_SHADER_STAGE_GEOMETRY_BIT is set but not yet supported.");
+            glslang_stage = GLSLANG_STAGE_GEOMETRY;
+            break;
+        case VK_SHADER_STAGE_COMPUTE_BIT:
+            PRINT_WARNING("vulkan_renderer_shader_create: SHADER_STAGE_COMPUTE is set but not yet supported.");
+            glslang_stage = GLSLANG_STAGE_COMPUTE;
+            break;
+        default:
+            PRINT_ERROR("Unsupported stage type: %d", config.stage);
+            return false;
+    }
+    // Get the text resource's data. in null terminated form.
+    char* shader_source = yallocate(text_resource.data_size + 1, MEMORY_TAG_STRING);
+    shader_source[text_resource.data_size] = '\0';  // Null terminate the string.
+    ycopy_memory((void*)shader_source, text_resource.data, text_resource.data_size);
+    // Release the resource.
+    resource_system_unload(&text_resource);
+    // Compile the shader to SPIR-V binary.
+    SpirVBinary spirv_resource = compileShaderToSPIRV_Vulkan(
+        glslang_stage,
+        shader_source,
+        config.file_name);
+    yfree(shader_source, MEMORY_TAG_STRING);
+    if (spirv_resource.size == 0 || spirv_resource.words == 0) {
+        PRINT_ERROR("Failed to compile shader: %s", config.file_name);
+        return false;
+    }
     yzero_memory(&shader_stage->create_info, sizeof(VkShaderModuleCreateInfo));
     shader_stage->create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     // Use the resource's size and data directly.
-    shader_stage->create_info.codeSize = binary_resource.data_size;
-    shader_stage->create_info.pCode = (u32*)binary_resource.data;
+    shader_stage->create_info.codeSize = spirv_resource.size;
+    shader_stage->create_info.pCode = (u32*)spirv_resource.words;
 
     VK_CHECK(vkCreateShaderModule(
         context.device.logical_device,
@@ -1728,8 +1764,6 @@ b8 create_module(VULKAN_SHADER* shader, VULKAN_SHADER_STAGE_CONFIG config, VULKA
         context.allocator,
         &shader_stage->handle));
 
-    // Release the resource.
-    resource_system_unload(&binary_resource);
 
     // Shader stage info
     yzero_memory(&shader_stage->shader_stage_create_info, sizeof(VkPipelineShaderStageCreateInfo));

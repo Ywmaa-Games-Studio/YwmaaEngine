@@ -29,9 +29,5 @@
             .url = "https://github.com/silbinarywolf/zig-android-sdk/archive/4508072b55a4b90e412d16476c07460b896a18b1.tar.gz",
             .hash = "android-0.1.0-7iz7QuGTAQDBsVRR04_UIHEFwkL-qr_MHKK1CIib9eV2",
         },
-        .shader_compiler = .{
-            .url = "git+https://github.com/Games-by-Mason/shader_compiler.git#712049c2a96d3be1c221294a3eee908752305bdc",
-            .hash = "12202e1e133faf54f2825bb9bc66527453cf43b31628ccb024c14b4aa55be473f51b",
-        },
     },
 }

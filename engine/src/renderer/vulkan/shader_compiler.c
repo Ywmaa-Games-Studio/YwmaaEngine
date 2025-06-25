@@ -74,3 +74,11 @@ SpirVBinary compileShaderToSPIRV_Vulkan(glslang_stage_t stage, const char* shade
     PRINT_DEBUG("Shader '%s' compiled successfully to SPIR-V with %d words.", fileName, bin.size / sizeof(u32));
     return bin;
 }
+
+void spirv_binary_free(SpirVBinary* bin) {
+    if (bin && bin->words) {
+        yfree(bin->words, MEMORY_TAG_ARRAY);
+        bin->words = NULL;
+        bin->size = 0;
+    }
+}

@@ -9,3 +9,4 @@ typedef struct SpirVBinary {
 } SpirVBinary;
 
 SpirVBinary compileShaderToSPIRV_Vulkan(glslang_stage_t stage, const char* shaderSource, const char* fileName);
+void spirv_binary_free(SpirVBinary* bin);

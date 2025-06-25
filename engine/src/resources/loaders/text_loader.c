@@ -36,18 +36,19 @@ b8 text_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* ou
     }
 
     // TODO: Should be using an allocator here.
-    char* resource_data = yallocate(sizeof(char) * file_size, MEMORY_TAG_STRING);
+    char* resource_data = yallocate(sizeof(char) * file_size+1, MEMORY_TAG_STRING);
     u64 read_size = 0;
     if (!filesystem_read_all_text(&f, resource_data, &read_size)) {
         PRINT_ERROR("Unable to text read file: %s.", full_file_path);
         filesystem_close(&f);
         return false;
     }
+    resource_data[read_size] = 0; // Null terminate the string.
 
     filesystem_close(&f);
 
     out_resource->data = resource_data;
-    out_resource->data_size = read_size;
+    out_resource->data_size = read_size; // do not include the null terminator in the size.
     out_resource->name = name;
 
     return true;

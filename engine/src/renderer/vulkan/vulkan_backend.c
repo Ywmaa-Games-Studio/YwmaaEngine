@@ -1736,18 +1736,13 @@ b8 create_module(VULKAN_SHADER* shader, VULKAN_SHADER_STAGE_CONFIG config, VULKA
             PRINT_ERROR("Unsupported stage type: %d", config.stage);
             return false;
     }
-    // Get the text resource's data. in null terminated form.
-    char* shader_source = yallocate(text_resource.data_size + 1, MEMORY_TAG_STRING);
-    shader_source[text_resource.data_size] = '\0';  // Null terminate the string.
-    ycopy_memory((void*)shader_source, text_resource.data, text_resource.data_size);
-    // Release the resource.
-    resource_system_unload(&text_resource);
     // Compile the shader to SPIR-V binary.
     SpirVBinary spirv_resource = compileShaderToSPIRV_Vulkan(
         glslang_stage,
-        shader_source,
+        text_resource.data,
         config.file_name);
-    yfree(shader_source, MEMORY_TAG_STRING);
+    // Release the resource.
+    resource_system_unload(&text_resource);
     if (spirv_resource.size == 0 || spirv_resource.words == 0) {
         PRINT_ERROR("Failed to compile shader: %s", config.file_name);
         return false;
@@ -1764,7 +1759,7 @@ b8 create_module(VULKAN_SHADER* shader, VULKAN_SHADER_STAGE_CONFIG config, VULKA
         context.allocator,
         &shader_stage->handle));
 
-
+    spirv_binary_free(&spirv_resource);
     // Shader stage info
     yzero_memory(&shader_stage->shader_stage_create_info, sizeof(VkPipelineShaderStageCreateInfo));
     shader_stage->shader_stage_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;

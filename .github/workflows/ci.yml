@@ -15,8 +15,10 @@ on:
       - "README.md"
       - "**.md"
       - "LICENSE**"
+env:
+ ZIG_VERSION: "0.14.1"
 jobs:
-  x86_64-linux:
+  x86_64-linux-to-x86_64-linux:
     runs-on: ubuntu-latest
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
     # to the branch.
@@ -27,15 +29,11 @@ jobs:
       - name: Setup Zig
         run: |
           sudo apt install xz-utils
-          sudo sh -c 'wget -c https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
+          sudo sh -c 'wget -c https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-x86_64-linux-${{ env.ZIG_VERSION }}.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
       - name: x86_64-linux
         run: zig build -Doptimize=ReleaseFast
-      - name: x86_64-linux -> x86_64-linux-musl
-        run: zig build -Dtarget=x86_64-linux-musl -Doptimize=ReleaseFast
-  x86_64-linux-musl:
+  x86_64-linux-to-x86_64-linux-musl:
     runs-on: ubuntu-latest
-    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
-    # to the branch.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout
@@ -43,13 +41,11 @@ jobs:
       - name: Setup Zig
         run: |
           sudo apt install xz-utils
-          sudo sh -c 'wget -c https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
+          sudo sh -c 'wget -c https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-x86_64-linux-${{ env.ZIG_VERSION }}.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
       - name: x86_64-linux -> x86_64-linux-musl
         run: zig build -Dtarget=x86_64-linux-musl -Doptimize=ReleaseFast
-  aarch64-linux:
+  x86_64-linux-to-aarch64-linux:
     runs-on: ubuntu-latest
-    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
-    # to the branch.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout
@@ -57,13 +53,11 @@ jobs:
       - name: Setup Zig
         run: |
           sudo apt install xz-utils
-          sudo sh -c 'wget -c https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
+          sudo sh -c 'wget -c https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-x86_64-linux-${{ env.ZIG_VERSION }}.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
       - name: x86_64-linux -> aarch64-linux
         run: zig build -Dtarget=aarch64-linux -Doptimize=ReleaseFast
-  x86_64-windows:
+  x86_64-linux-to-x86_64-windows:
     runs-on: ubuntu-latest
-    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
-    # to the branch.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout
@@ -71,56 +65,39 @@ jobs:
       - name: Setup Zig
         run: |
           sudo apt install xz-utils
-          sudo sh -c 'wget -c https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
+          sudo sh -c 'wget -c https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-x86_64-linux-${{ env.ZIG_VERSION }}.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
       - name: x86_64-linux -> x86_64-windows
         run: zig build -Dtarget=x86_64-windows -Doptimize=ReleaseFast
-#  x86_64-linux:
-#    runs-on: ubuntu-latest
-#    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
-#    # to the branch.
-#    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v2
-#      - name: Setup Zig
-#        run: |
-#          sudo apt install xz-utils
-#          sudo sh -c 'wget -c https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -O - | tar -xJ --strip-components=1 -C /usr/local/bin'
-#      - name: x86_64-linux
-#        run: zig build -Doptimize=ReleaseFast
-#      - name: x86_64-linux -> x86_64-linux-musl
-#        run: zig build -Dtarget=x86_64-linux-musl -Doptimize=ReleaseFast
-#      - name: x86_64-linux -> aarch64-linux
-#        run: zig build -Dtarget=aarch64-linux -Doptimize=ReleaseFast
-#      #- name: x86_64-linux -> x86_64-macos No mac os backend, yet.
-#      #  run: zig build -Dtarget=x86_64-macos
-#      #- name: x86_64-linux -> aarch64-macos No mac os backend, yet.
-#      #  run: zig build -Dtarget=aarch64-macos
-#      - name: x86_64-linux -> x86_64-windows
-#        run: zig build -Dtarget=x86_64-windows -Doptimize=ReleaseFast
-#  x86_64-windows:
-#    runs-on: windows-latest
-#    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
-#    # to the branch.
-#    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@v2
-#      - name: Setup Zig
-#        run: |
-#          $ProgressPreference = 'SilentlyContinue'
-#          Invoke-WebRequest -Uri 'https://ziglang.org/download/0.13.0/zig-windows-x86_64-0.13.0.zip' -OutFile 'C:\zig.zip'
-#          cd C:\
-#          7z x zig.zip
-#          Add-Content $env:GITHUB_PATH 'C:\zig-windows-x86_64-0.13.0\'
-#      - name: Install Vulkan Dependencies
-#        run: |
-#          $ProgressPreference = 'SilentlyContinue'
-#          Invoke-WebRequest -Uri 'https://sdk.lunarg.com/sdk/download/latest/windows/vulkan-sdk.exe' -OutFile 'C:\vulkan-sdk.exe'
-#          cd C:\
-#          .\vulkan-sdk.exe --accept-licenses --default-answer --confirm-command install
-#      - name: Build
-#        run: zig build -Doptimize=ReleaseFast
+  x86_64-windows-to-x86_64-windows:
+    runs-on: windows-latest
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Zig
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest -Uri 'https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-x86_64-windows-${{ env.ZIG_VERSION }}.zip' -OutFile 'C:\zig.zip'
+          cd C:\
+          7z x zig.zip
+          Add-Content $env:GITHUB_PATH 'C:\zig-x86_64-windows-${{ env.ZIG_VERSION }}\'
+      - name: x86_64-windows -> x86_64-windows
+        run: zig build -Doptimize=ReleaseFast
+  x86_64-windows-to-x86_64-linux:
+    runs-on: windows-latest
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Zig
+        run: |
+          $ProgressPreference = 'SilentlyContinue'
+          Invoke-WebRequest -Uri 'https://ziglang.org/download/${{ env.ZIG_VERSION }}/zig-x86_64-windows-${{ env.ZIG_VERSION }}.zip' -OutFile 'C:\zig.zip'
+          cd C:\
+          7z x zig.zip
+          Add-Content $env:GITHUB_PATH 'C:\zig-x86_64-windows-${{ env.ZIG_VERSION }}\'
+      - name: x86_64-windows -> x86_64-linux
+        run: zig build -Dtarget=x86_64-linux -Doptimize=ReleaseFast
 #  x86_64-macos: #Engine doesn't support mac, yet.
 #    runs-on: macos-12
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push

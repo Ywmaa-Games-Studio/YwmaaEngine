@@ -36,6 +36,9 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->shader_release_instance_resources = vulkan_renderer_shader_release_instance_resources;
         out_renderer_backend->shader_after_renderpass = vulkan_shader_after_renderpass;
 
+        out_renderer_backend->texture_map_acquire_resources = vulkan_renderer_texture_map_acquire_resources;
+        out_renderer_backend->texture_map_release_resources = vulkan_renderer_texture_map_release_resources;
+
         return true;
     }
 
@@ -67,6 +70,9 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->shader_acquire_instance_resources = webgpu_renderer_shader_acquire_instance_resources;
         out_renderer_backend->shader_release_instance_resources = webgpu_renderer_shader_release_instance_resources;
         out_renderer_backend->shader_after_renderpass = webgpu_shader_after_renderpass;
+
+        out_renderer_backend->texture_map_acquire_resources = webgpu_renderer_texture_map_acquire_resources;
+        out_renderer_backend->texture_map_release_resources = webgpu_renderer_texture_map_release_resources;
 
         return true;
     }

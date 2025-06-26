@@ -302,6 +302,8 @@ b8 application_create(GAME* game_instance) {
     if (!resource_system_load("falcon", RESOURCE_TYPE_MESH, &car_mesh_resource)) {
         PRINT_ERROR("Failed to load car mesh resource.");
     } else {
+        // just for release builds, because it optimizes out the resource loading
+        resource_system_load("falcon", RESOURCE_TYPE_MESH, &car_mesh_resource);
         GEOMETRY_CONFIG* configs = (GEOMETRY_CONFIG*)car_mesh_resource.data;
         car_mesh->geometry_count = car_mesh_resource.data_size;
         car_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * car_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
@@ -320,6 +322,8 @@ b8 application_create(GAME* game_instance) {
     if (!resource_system_load("sponza", RESOURCE_TYPE_MESH, &sponza_mesh_resource)) {
         PRINT_ERROR("Failed to load sponza mesh!");
     } else{
+        // just for release builds, because it optimizes out the resource loading
+        resource_system_load("sponza", RESOURCE_TYPE_MESH, (RESOURCE*)&sponza_mesh_resource);
         GEOMETRY_CONFIG* sponza_configs = (GEOMETRY_CONFIG*)sponza_mesh_resource.data;
         sponza_mesh->geometry_count = sponza_mesh_resource.data_size;
         if (sponza_mesh->geometry_count == 0) {

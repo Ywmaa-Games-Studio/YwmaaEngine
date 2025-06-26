@@ -110,8 +110,8 @@ typedef struct SHADER {
     /** @brief The push constant stride, aligned to 4 bytes as required by Vulkan. */
     u64 push_constant_stride;
 
-    /** @brief An array of global texture pointers. Darray */
-    TEXTURE** global_textures;
+    /** @brief An array of global texture map pointers. Darray */
+    TEXTURE_MAP** global_texture_maps;
 
     /** @brief The number of instance textures. */
     u8 instance_texture_count;

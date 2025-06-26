@@ -31,7 +31,6 @@ typedef struct WEBGPU_IMAGE {
 
 typedef struct WEBGPU_TEXTURE_DATA {
     WEBGPU_IMAGE image;
-    WGPUSampler sampler;
 } WEBGPU_TEXTURE_DATA;
 
 
@@ -119,10 +118,10 @@ typedef struct WEBGPU_SHADER_INSTANCE_STATE {
     /** @brief  A state for the bind set. */
     WEBGPU_SHADER_BIND_GROUP_SET_STATE instance_bind_state;
     /**
-     * @brief Instance texture pointers, which are used during rendering. These
+     * @brief Instance texture map pointers, which are used during rendering. These
      * are set by calls to set_sampler.
      */
-    TEXTURE** instance_textures;
+    TEXTURE_MAP** instance_texture_maps;
 } WEBGPU_SHADER_INSTANCE_STATE;
 
 /**

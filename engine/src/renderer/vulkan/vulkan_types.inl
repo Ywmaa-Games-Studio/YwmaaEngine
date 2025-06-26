@@ -264,10 +264,10 @@ typedef struct VULKAN_SHADER_INSTANCE_STATE {
     /** @brief  A state for the descriptor set. */
     VULKAN_SHADER_DESCRIPTOR_SET_STATE descriptor_set_state;
     /**
-     * @brief Instance texture pointers, which are used during rendering. These
+     * @brief Instance texture map pointers, which are used during rendering. These
      * are set by calls to set_sampler.
      */
-    TEXTURE** instance_textures;
+    TEXTURE_MAP** instance_texture_maps;
 } VULKAN_SHADER_INSTANCE_STATE;
 
 /**
@@ -373,5 +373,4 @@ typedef struct VULKAN_CONTEXT {
 
 typedef struct VULKAN_TEXTURE_DATA {
     VULKAN_IMAGE image;
-    VkSampler sampler;
 } VULKAN_TEXTURE_DATA;

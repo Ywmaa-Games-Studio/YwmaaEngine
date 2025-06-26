@@ -1012,13 +1012,14 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
 
                 // i is sampler position which is usually odd number, increase 1 to get to the next even, divide by 2 (because each 2 are one texture), subtract 1 to start index at 0
                 u32 texture_index = ((i+1)/2)-1;
-                TEXTURE* t = internal->instance_states[s->bound_instance_id].instance_textures[texture_index];
+                TEXTURE_MAP* map = internal->instance_states[s->bound_instance_id].instance_texture_maps[texture_index];
+                TEXTURE* t = map->texture;
                 WEBGPU_TEXTURE_DATA* internal_data = (WEBGPU_TEXTURE_DATA*)t->internal_data;
                 // Assign view and sampler.
                 // Create a binding
 
                 binding[i].binding = i;
-                binding[i].sampler = internal_data->sampler;
+                binding[i].sampler = *(WGPUSampler*)map->internal_data;
                 binding[i].textureView = NULL;
                 binding[i].buffer = NULL;
                 binding[i].nextInChain = NULL;
@@ -1076,7 +1077,7 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
     return true;
 }
 
-b8 webgpu_renderer_shader_acquire_instance_resources(struct SHADER *s, u32 *out_instance_id)
+b8 webgpu_renderer_shader_acquire_instance_resources(struct SHADER *s, TEXTURE_MAP** maps, u32 *out_instance_id)
 {
     WEBGPU_SHADER* internal = s->internal_data;
     // TODO: dynamic
@@ -1103,11 +1104,14 @@ b8 webgpu_renderer_shader_acquire_instance_resources(struct SHADER *s, u32 *out_
     }
 
     // Wipe out the memory for the entire array, even if it isn't all used.
-    instance_state->instance_textures = yallocate_aligned(sizeof(TEXTURE*) * s->instance_texture_count, 8, MEMORY_TAG_ARRAY);
+    instance_state->instance_texture_maps = yallocate_aligned(sizeof(TEXTURE_MAP*) * s->instance_texture_count, 8, MEMORY_TAG_ARRAY);
     TEXTURE* default_texture = texture_system_get_default_texture();
     // Set all the TEXTURE pointers to default until assigned.
     for (u32 i = 0; i < instance_texture_count; ++i) {
-        instance_state->instance_textures[i] = default_texture;
+        instance_state->instance_texture_maps[i] = maps[i];
+        if (!maps[i]->texture) {
+            instance_state->instance_texture_maps[i]->texture = default_texture;
+        }
     }
 
     // Allocate some space in the UBO - by the stride, not the size.
@@ -1141,9 +1145,9 @@ b8 webgpu_renderer_shader_release_instance_resources(struct SHADER *s, u32 insta
     WEBGPU_SHADER_INSTANCE_STATE* instance_state = &internal->instance_states[instance_id];
 
 
-    if (instance_state->instance_textures) {
-        yfree(instance_state->instance_textures, MEMORY_TAG_ARRAY);
-        instance_state->instance_textures = 0;
+    if (instance_state->instance_texture_maps) {
+        yfree(instance_state->instance_texture_maps, MEMORY_TAG_ARRAY);
+        instance_state->instance_texture_maps = 0;
     }
 
     webgpu_buffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset);
@@ -1158,9 +1162,9 @@ b8 webgpu_renderer_set_uniform(struct SHADER *frontend_shader, struct SHADER_UNI
     WEBGPU_SHADER* internal = frontend_shader->internal_data;
     if (uniform->type == SHADER_UNIFORM_TYPE_SAMPLER) {
         if (uniform->scope == SHADER_SCOPE_GLOBAL) {
-            frontend_shader->global_textures[uniform->location] = (TEXTURE*)value;
+            frontend_shader->global_texture_maps[uniform->location] = (TEXTURE_MAP*)value;
         } else {
-            internal->instance_states[frontend_shader->bound_instance_id].instance_textures[uniform->location] = (TEXTURE*)value;
+            internal->instance_states[frontend_shader->bound_instance_id].instance_texture_maps[uniform->location] = (TEXTURE_MAP*)value;
         }
     } else {
         if (uniform->scope == SHADER_SCOPE_LOCAL) {
@@ -1218,6 +1222,70 @@ b8 webgpu_shader_after_renderpass(struct SHADER *shader) {
     wgpuCommandEncoderCopyBufferToBuffer(context.encoder, internal->uniform_buffer_staging.handle, 0, internal->uniform_buffer.handle, 0, wgpuBufferGetSize(internal->uniform_buffer.handle));
     wgpuBufferUnmap(internal->uniform_buffer_staging.handle);
     return true;
+}
+
+WGPUAddressMode webgpu_convert_repeat_type(const char* axis, E_TEXTURE_REPEAT repeat) {
+    switch (repeat) {
+        case TEXTURE_REPEAT_REPEAT:
+            return WGPUAddressMode_Repeat;
+        case TEXTURE_REPEAT_MIRRORED_REPEAT:
+            return WGPUAddressMode_MirrorRepeat;
+        case TEXTURE_REPEAT_CLAMP_TO_EDGE:
+            return WGPUAddressMode_ClampToEdge;
+        default:
+            PRINT_WARNING("webgpu_convert_repeat_type(axis='%s') Type '%x' not supported, defaulting to repeat.", axis, repeat);
+            return WGPUAddressMode_Repeat;
+    }
+}
+
+WGPUFilterMode webgpu_convert_filter_type(const char* op, E_TEXTURE_FILTER filter) {
+    switch (filter) {
+        case TEXTURE_FILTER_MODE_NEAREST:
+            return WGPUFilterMode_Nearest;
+        case TEXTURE_FILTER_MODE_LINEAR:
+            return WGPUFilterMode_Linear;
+        default:
+            PRINT_WARNING("webgpu_convert_filter_type(op='%s'): Unsupported filter type '%x', defaulting to linear.", op, filter);
+            return WGPUFilterMode_Linear;
+    }
+}
+
+b8 webgpu_renderer_texture_map_acquire_resources(TEXTURE_MAP* map){
+    // Create a sampler
+    WGPUSamplerDescriptor sampler_desc;
+    // TODO: These filters should be configurable.
+    sampler_desc.nextInChain = NULL;
+    sampler_desc.label = (WGPUStringView){"Texture sampler", sizeof("Texture sampler")};
+    sampler_desc.magFilter = webgpu_convert_filter_type("mag", map->filter_magnify);
+    sampler_desc.minFilter = webgpu_convert_filter_type("min", map->filter_minify);
+    sampler_desc.addressModeU = webgpu_convert_repeat_type("U", map->repeat_u);
+    sampler_desc.addressModeV = webgpu_convert_repeat_type("V", map->repeat_v);
+    sampler_desc.addressModeW = webgpu_convert_repeat_type("W", map->repeat_w);
+    sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    sampler_desc.lodMinClamp = 0.0f;
+    sampler_desc.lodMaxClamp = 1.0f;
+    sampler_desc.compare = WGPUCompareFunction_Undefined;
+    sampler_desc.maxAnisotropy = 16;
+    map->internal_data = (WGPUSampler*)yallocate_aligned(sizeof(WGPUSampler), 8, MEMORY_TAG_TEXTURE);
+    *(WGPUSampler*)map->internal_data = wgpuDeviceCreateSampler(context.device, &sampler_desc);
+
+    if (!map->internal_data) {
+        PRINT_ERROR("Failed to create sampler for texture map.");
+        return false;
+    }
+
+    return true;
+}
+void webgpu_renderer_texture_map_release_resources(TEXTURE_MAP* map){
+    if (map) {
+        if (!map->internal_data){
+            PRINT_WARNING("webgpu_renderer_texture_map_release_resources: map->internal_data is NULL, nothing to release.");
+            return;
+        }
+        wgpuSamplerRelease(*(WGPUSampler*)map->internal_data);
+        yfree(map->internal_data, MEMORY_TAG_TEXTURE);
+        map->internal_data = 0;
+    }
 }
 
 void webgpu_renderer_draw_geometry(GEOMETRY_RENDER_DATA data) {
@@ -1416,23 +1484,6 @@ void webgpu_renderer_create_texture(const u8* pixels, TEXTURE* texture){
     // Copy the data from the buffer.
     webgpu_image_copy_from_buffer(&context, &data->image, pixels, texture->channel_count);
 
-    // Create a sampler
-    WGPUSamplerDescriptor sampler_desc;
-    // TODO: These filters should be configurable.
-    sampler_desc.nextInChain = NULL;
-    sampler_desc.label = (WGPUStringView){"Texture sampler", sizeof("Texture sampler")};
-    sampler_desc.magFilter = WGPUFilterMode_Linear;
-    sampler_desc.minFilter = WGPUFilterMode_Linear;
-    sampler_desc.addressModeU = WGPUAddressMode_Repeat;
-    sampler_desc.addressModeV = WGPUAddressMode_Repeat;
-    sampler_desc.addressModeW = WGPUAddressMode_Repeat;
-    sampler_desc.mipmapFilter = WGPUMipmapFilterMode_Linear;
-    sampler_desc.lodMinClamp = 0.0f;
-    sampler_desc.lodMaxClamp = 1.0f;
-    sampler_desc.compare = WGPUCompareFunction_Undefined;
-    sampler_desc.maxAnisotropy = 16;
-    data->sampler = wgpuDeviceCreateSampler(context.device, &sampler_desc);
-
     texture->generation++;
 }
 
@@ -1444,8 +1495,6 @@ void webgpu_renderer_destroy_texture(TEXTURE* texture){
     if (data) {
         webgpu_image_destroy(&data->image);
         yzero_memory(&data->image, sizeof(WEBGPU_IMAGE));
-        wgpuSamplerRelease(data->sampler);
-        data->sampler = 0;
 
         yfree(texture->internal_data, MEMORY_TAG_TEXTURE);
     }

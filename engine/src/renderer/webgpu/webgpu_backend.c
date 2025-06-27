@@ -1014,7 +1014,7 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
                 u32 texture_index = ((i+1)/2)-1;
                 TEXTURE_MAP* map = internal->instance_states[s->bound_instance_id].instance_texture_maps[texture_index];
                 TEXTURE* t = map->texture;
-                WEBGPU_TEXTURE_DATA* internal_data = (WEBGPU_TEXTURE_DATA*)t->internal_data;
+                WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)t->internal_data;
                 // Assign view and sampler.
                 // Create a binding
 
@@ -1025,7 +1025,7 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
                 binding[i].nextInChain = NULL;
                 // The texture is always after the sampler
                 binding[i+1].binding = i+1;
-                binding[i+1].textureView = internal_data->image.view;
+                binding[i+1].textureView = image->view;
                 binding[i+1].sampler = NULL;
                 binding[i+1].buffer = NULL;
                 binding[i+1].nextInChain = NULL;
@@ -1106,9 +1106,9 @@ b8 webgpu_renderer_shader_acquire_instance_resources(struct SHADER *s, TEXTURE_M
     // Wipe out the memory for the entire array, even if it isn't all used.
     instance_state->instance_texture_maps = yallocate_aligned(sizeof(TEXTURE_MAP*) * s->instance_texture_count, 8, MEMORY_TAG_ARRAY);
     TEXTURE* default_texture = texture_system_get_default_texture();
-    // Set all the TEXTURE pointers to default until assigned.
+    ycopy_memory(instance_state->instance_texture_maps, maps, sizeof(TEXTURE_MAP*) * s->instance_texture_count);
+    // Set unassigned texture pointers to default until assigned.
     for (u32 i = 0; i < instance_texture_count; ++i) {
-        instance_state->instance_texture_maps[i] = maps[i];
         if (!maps[i]->texture) {
             instance_state->instance_texture_maps[i]->texture = default_texture;
         }
@@ -1462,39 +1462,114 @@ void webgpu_destroy_buffers(WEBGPU_CONTEXT* context){
 
 }
 
+WGPUTextureFormat webgpu_channel_count_to_format(u8 channel_count, WGPUTextureFormat default_format) {
+    switch (channel_count) {
+        case 1:
+            return WGPUTextureFormat_R8Unorm;
+        case 2:
+            return WGPUTextureFormat_RG8Unorm;
+        case 3:
+            return WGPUTextureFormat_RGBA8Unorm;
+        case 4:
+            return WGPUTextureFormat_RGBA8Unorm;
+        default:
+            return default_format;
+    }
+}
 
-
-void webgpu_renderer_create_texture(const u8* pixels, TEXTURE* texture){
+void webgpu_renderer_texture_create(const u8* pixels, TEXTURE* texture){
     // Internal data creation.
     // TODO: Use an allocator for this.
-    texture->internal_data = (WEBGPU_TEXTURE_DATA*)yallocate_aligned(sizeof(WEBGPU_TEXTURE_DATA), 8, MEMORY_TAG_TEXTURE);
-    WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)texture->internal_data;
+    texture->internal_data = (WEBGPU_IMAGE*)yallocate_aligned(sizeof(WEBGPU_IMAGE), 8, MEMORY_TAG_TEXTURE);
+    WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)texture->internal_data;
+    u32 size = texture->width * texture->height * texture->channel_count;
 
+    // NOTE: Lots of assumptions here, different texture types will require
+    // different options here.
     webgpu_image_create(
         &context,
         WGPUTextureDimension_2D,
         texture->width,
         texture->height,
         WGPUTextureFormat_RGBA8Unorm,
-        WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst,
+        WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment,
         true,
         WGPUTextureAspect_All,
-        &data->image);
+        image);
 
-    // Copy the data from the buffer.
-    webgpu_image_copy_from_buffer(&context, &data->image, pixels, texture->channel_count);
+    // Load the data.
+    webgpu_renderer_texture_write_data(texture, 0, size, pixels);
 
     texture->generation++;
 }
 
-void webgpu_renderer_destroy_texture(TEXTURE* texture){
+void webgpu_renderer_texture_write_data(TEXTURE* t, u32 offset, u32 size, const u8* pixels) {
+    WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)t->internal_data;
+
+    // Copy the data from the buffer.
+    webgpu_image_copy_from_buffer(&context, image, pixels, t->channel_count);
+
+    t->generation++;
+}
+
+void webgpu_renderer_texture_resize(TEXTURE* t, u32 new_width, u32 new_height) {
+    if (t && t->internal_data) {
+        // Resizing is really just destroying the old image and creating a new one.
+        // Data is not preserved because there's no reliable way to map the old data to the new
+        // since the amount of data differs.
+        WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)t->internal_data;
+        webgpu_image_destroy(image);
+
+        WGPUTextureFormat image_format = webgpu_channel_count_to_format(t->channel_count, WGPUTextureFormat_RGBA8Unorm);
+
+        // NOTE: Lots of assumptions here, different texture types will require
+        // different options here.
+        webgpu_image_create(
+            &context,
+            WGPUTextureDimension_2D,
+            new_width,
+            new_height,
+            image_format,
+            WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment,
+            true,
+            WGPUTextureAspect_All,
+            image);
+
+        t->generation++;
+    }
+}
+
+void webgpu_renderer_texture_create_writeable(TEXTURE* t) {
+    // Internal data creation.
+    t->internal_data = (WEBGPU_IMAGE*)yallocate_aligned(sizeof(WEBGPU_IMAGE), 8, MEMORY_TAG_TEXTURE);
+    WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)t->internal_data;
+
+    WGPUTextureFormat image_format = webgpu_channel_count_to_format(t->channel_count, WGPUTextureFormat_RGBA8Unorm);
+
+    // NOTE: Lots of assumptions here, different texture types will require
+    // different options here.
+    webgpu_image_create(
+        &context,
+        WGPUTextureDimension_2D,
+        t->width,
+        t->height,
+        image_format,
+        WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment,
+        true,
+        WGPUTextureAspect_All,
+        image);
+
+    t->generation++;
+}
+
+void webgpu_renderer_texture_destroy(TEXTURE* texture){
     wgpuDevicePoll(context.device, true, NULL);
 
-    WEBGPU_TEXTURE_DATA* data = (WEBGPU_TEXTURE_DATA*)texture->internal_data;
+    WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)texture->internal_data;
 
-    if (data) {
-        webgpu_image_destroy(&data->image);
-        yzero_memory(&data->image, sizeof(WEBGPU_IMAGE));
+    if (image) {
+        webgpu_image_destroy(image);
+        yzero_memory(image, sizeof(WEBGPU_IMAGE));
 
         yfree(texture->internal_data, MEMORY_TAG_TEXTURE);
     }

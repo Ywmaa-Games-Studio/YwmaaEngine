@@ -429,7 +429,7 @@ b8 add_sampler(SHADER* shader, SHADER_UNIFORM_CONFIG* config) {
             return false;
         }
         location = global_texture_count;
-        // NOTE: creating a default texture map to be used here. Can always be updated later.Add commentMore actions
+        // NOTE: creating a default texture map to be used here. Can always be updated later.
         TEXTURE_MAP default_map = {0};
         default_map.filter_magnify = TEXTURE_FILTER_MODE_LINEAR;
         default_map.filter_minify = TEXTURE_FILTER_MODE_LINEAR;

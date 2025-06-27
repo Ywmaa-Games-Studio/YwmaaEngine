@@ -93,8 +93,39 @@ typedef struct RENDERER_BACKEND {
 
     void (*draw_geometry)(GEOMETRY_RENDER_DATA data);
 
-    void (*create_texture)(const u8* pixels, struct TEXTURE* texture);
-    void (*destroy_texture)(TEXTURE* texture);
+    void (*texture_create)(const u8* pixels, struct TEXTURE* texture);
+    void (*texture_destroy)(TEXTURE* texture);
+
+    /**
+     * @brief Creates a new writeable texture with no data written to it.
+     *
+     * @param t A pointer to the texture to hold the resources.
+     */
+    void (*texture_create_writeable)(TEXTURE* t);
+
+    /**
+     * @brief Resizes a texture. There is no check at this level to see if the
+     * texture is writeable. Internal resources are destroyed and re-created at
+     * the new resolution. Data is lost and would need to be reloaded.
+     *
+     * @param t A pointer to the texture to be resized.
+     * @param new_width The new width in pixels.
+     * @param new_height The new height in pixels.
+     */
+    void (*texture_resize)(TEXTURE* t, u32 new_width, u32 new_height);
+
+    /**
+     * @brief Writes the given data to the provided texture.
+     * NOTE: At this level, this can either be a writeable or non-writeable texture because
+     * this also handles the initial texture load. The texture system itself should be
+     * responsible for blocking write requests to non-writeable textures.
+     *
+     * @param t A pointer to the texture to be written to.
+     * @param offset The offset in bytes from the beginning of the data to be written.
+     * @param size The number of bytes to be written.
+     * @param pixels The raw image data to be written.
+     */
+    void (*texture_write_data)(TEXTURE* t, u32 offset, u32 size, const u8* pixels);
 
     b8 (*create_geometry)(GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
     void (*destroy_geometry)(GEOMETRY* geometry);
@@ -200,7 +231,7 @@ typedef struct RENDERER_BACKEND {
 
     b8 (*shader_after_renderpass)(struct SHADER* s);
 
-    /**Add commentMore actions
+    /**
      * @brief Acquires internal resources for the given texture map.
      * 
      * @param map A pointer to the texture map to obtain resources for.

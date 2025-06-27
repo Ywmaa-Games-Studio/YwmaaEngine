@@ -96,8 +96,8 @@ typedef struct VULKAN_SWAPCHAIN {
     u8 max_frames_in_flight;
     VkSwapchainKHR handle;
     u32 image_count;
-    VkImage* images;
-    VkImageView* views;
+    /** @brief An array of pointers to render targets, which contain swapchain images. */
+    TEXTURE** render_textures;
 
     VULKAN_IMAGE depth_attachment;
 
@@ -370,7 +370,3 @@ typedef struct VULKAN_CONTEXT {
     VkDebugUtilsMessengerEXT debug_messenger;
 #endif
 } VULKAN_CONTEXT;
-
-typedef struct VULKAN_TEXTURE_DATA {
-    VULKAN_IMAGE image;
-} VULKAN_TEXTURE_DATA;

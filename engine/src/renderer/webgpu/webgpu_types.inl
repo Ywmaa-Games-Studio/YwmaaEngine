@@ -29,11 +29,6 @@ typedef struct WEBGPU_IMAGE {
     u32 height;
 } WEBGPU_IMAGE;
 
-typedef struct WEBGPU_TEXTURE_DATA {
-    WEBGPU_IMAGE image;
-} WEBGPU_TEXTURE_DATA;
-
-
 typedef struct WEBGPU_PIPELINE {
     WGPURenderPipeline handle;
     WGPUPipelineLayout layout;

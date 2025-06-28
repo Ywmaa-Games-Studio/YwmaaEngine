@@ -14,11 +14,11 @@ void vulkan_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u1
 b8 vulkan_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time);
 b8 vulkan_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time);
 
-b8 vulkan_renderer_begin_renderpass(struct RENDERER_BACKEND* backend, RENDERPASS* pass, RENDER_TARGET* target);
-b8 vulkan_renderer_end_renderpass(struct RENDERER_BACKEND* backend, RENDERPASS* pass);
+b8 vulkan_renderer_renderpass_begin(RENDERPASS* pass, RENDER_TARGET* target);
+b8 vulkan_renderer_renderpass_end(RENDERPASS* pass);
 RENDERPASS* vulkan_renderer_renderpass_get(const char* name);
 
-void vulkan_renderer_draw_geometry(GEOMETRY_RENDER_DATA data);
+void vulkan_renderer_draw_geometry(GEOMETRY_RENDER_DATA* data);
 
 void vulkan_renderer_texture_create(const u8* pixels, TEXTURE* texture);
 void vulkan_renderer_texture_destroy(TEXTURE* texture);

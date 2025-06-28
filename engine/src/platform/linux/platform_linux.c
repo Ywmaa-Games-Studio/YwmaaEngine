@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l1737PMle>
+ *   <l1796PMle>
  * Auto updated?
  *   Yes
  *
@@ -182,8 +182,8 @@ void* platform_set_memory(void* dest, i32 value, u64 size) {
 
 void platform_console_write(const char* message, u8 colour) {
     // ERROR,WARN,INFO,DEBUG,TRACE
-    const char* colour_strings[] = {"1;31", "1;33", "1;32", "1;34", "1;30"};
-    printf("\033[%sm%s\033[0m", colour_strings[colour], message);
+    const char* color_strings[] = {"1;31", "1;33", "1;32", "1;34", "1;30"};
+    printf("\033[%sm%s\033[0m", color_strings[colour], message);
 }
 
 f64 platform_get_absolute_time(void) {

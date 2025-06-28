@@ -12,8 +12,8 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->shutdown = vulkan_renderer_backend_shutdown;
         out_renderer_backend->begin_frame = vulkan_renderer_backend_begin_frame;
         out_renderer_backend->end_frame = vulkan_renderer_backend_end_frame;
-        out_renderer_backend->begin_renderpass = vulkan_renderer_begin_renderpass;
-        out_renderer_backend->end_renderpass = vulkan_renderer_end_renderpass;
+        out_renderer_backend->renderpass_begin = vulkan_renderer_renderpass_begin;
+        out_renderer_backend->renderpass_end = vulkan_renderer_renderpass_end;
         out_renderer_backend->resized = vulkan_renderer_backend_on_resized;
         out_renderer_backend->draw_geometry = vulkan_renderer_draw_geometry;
 
@@ -61,8 +61,8 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->shutdown = webgpu_renderer_backend_shutdown;
         out_renderer_backend->begin_frame = webgpu_renderer_backend_begin_frame;
         out_renderer_backend->end_frame = webgpu_renderer_backend_end_frame;
-        out_renderer_backend->begin_renderpass = webgpu_renderer_begin_renderpass;
-        out_renderer_backend->end_renderpass = webgpu_renderer_end_renderpass;
+        out_renderer_backend->renderpass_begin = webgpu_renderer_renderpass_begin;
+        out_renderer_backend->renderpass_end = webgpu_renderer_renderpass_end;
         out_renderer_backend->resized = webgpu_renderer_backend_on_resized;
         out_renderer_backend->draw_geometry = webgpu_renderer_draw_geometry;
 

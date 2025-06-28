@@ -9,6 +9,8 @@
 
 #include "systems/resource_system.h"
 
+// enable debug logging for this file
+//#define DEBUG_LOG 1
 typedef struct TEXTURE_SYSTEM_STATE {
     TEXTURE_SYSTEM_CONFIG config;
     TEXTURE default_texture;
@@ -167,7 +169,9 @@ TEXTURE* texture_system_wrap_internal(const char* name, u32 width, u32 height, u
         t = &state_ptr->registered_textures[id];
     } else {
         t = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_TEXTURE);
+#ifdef DEBUG_LOG
         PRINT_TRACE("texture_system_wrap_internal created texture '%s', but not registering, resulting in an allocation. It is up to the caller to free this memory.", name);
+#endif
     }
 
     t->id = id;
@@ -282,7 +286,9 @@ b8 create_default_textures(TEXTURE_SYSTEM_STATE* state) {
     state->default_texture.generation = INVALID_ID;
 
     // Diffuse texture.
+#ifdef DEBUG_LOG
     PRINT_TRACE("Creating default diffuse texture...");
+#endif
     u8 diff_pixels[16 * 16 * 4];
     // Default diffuse map is all white.
     yset_memory(diff_pixels, 255, sizeof(u8) * 16 * 16 * 4);
@@ -295,9 +301,10 @@ b8 create_default_textures(TEXTURE_SYSTEM_STATE* state) {
     renderer_texture_create(diff_pixels, &state->default_diffuse_texture);
     // Manually set the texture generation to invalid since this is a default texture.
     state->default_diffuse_texture.generation = INVALID_ID;
-
     // Specular texture.
+#ifdef DEBUG_LOG
     PRINT_TRACE("Creating default specular texture...");
+#endif
     u8 spec_pixels[16 * 16 * 4];
     // Default spec map is black (no specular)
     yset_memory(spec_pixels, 0, sizeof(u8) * 16 * 16 * 4);
@@ -312,7 +319,9 @@ b8 create_default_textures(TEXTURE_SYSTEM_STATE* state) {
     state->default_specular_texture.generation = INVALID_ID;
 
     // Normal texture.
+#ifdef DEBUG_LOG
     PRINT_TRACE("Creating default normal texture...");
+#endif
     u8 normal_pixels[16 * 16 * 4];  // w * h * channels
     yset_memory(normal_pixels, 0, sizeof(u8) * 16 * 16 * 4);
 
@@ -463,9 +472,13 @@ b8 process_texture_reference(const char* name, i8 reference_diff, b8 auto_releas
                     // Reset the reference.
                     ref.handle = INVALID_ID;
                     ref.auto_release = false;
+#ifdef DEBUG_LOG
                     PRINT_TRACE("Released texture '%s'., Texture unloaded because reference count=0 and auto_release=true.", name_copy);
+#endif
                 } else {
+#ifdef DEBUG_LOG
                     PRINT_TRACE("Released texture '%s', now has a reference count of '%i' (auto_release=%s).", name_copy, ref.reference_count, ref.auto_release ? "true" : "false");
+#endif
                 }
 
             } else {
@@ -491,7 +504,9 @@ b8 process_texture_reference(const char* name, i8 reference_diff, b8 auto_releas
                         TEXTURE* t = &state_ptr->registered_textures[ref.handle];
                         // Create new texture.
                         if (skip_load) {
+#ifdef DEBUG_LOG
                             PRINT_TRACE("Load skipped for texture '%s'. This is expected behaviour.");
+#endif
                         } else {
                             if (!load_texture(name, t)) {
                                 *out_texture_id = INVALID_ID;
@@ -500,11 +515,15 @@ b8 process_texture_reference(const char* name, i8 reference_diff, b8 auto_releas
                             }
                             t->id = ref.handle;
                         }
+#ifdef DEBUG_LOG
                         PRINT_TRACE("Texture '%s' does not yet exist. Created, and ref_count is now %i.", name, ref.reference_count);
+#endif
                     }
                 } else {
                     *out_texture_id = ref.handle;
+#ifdef DEBUG_LOG
                     PRINT_TRACE("Texture '%s' already exists, ref_count increased to %i.", name, ref.reference_count);
+#endif
                 }
             }
 

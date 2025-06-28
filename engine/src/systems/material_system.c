@@ -10,10 +10,12 @@
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 
+// enable debug logging for this file
+//#define DEBUG_LOG 1
 typedef struct MATERIAL_SHADER_UNIFORM_LOCATIONS {
     u16 projection;
     u16 view;
-    u16 ambient_colour;
+    u16 ambient_color;
     u16 view_position;
     u16 shiness;
     u16 diffuse_color;
@@ -90,7 +92,7 @@ b8 material_system_init(u64* memory_requirement, void* state, MATERIAL_SYSTEM_CO
     state_ptr->material_locations.diffuse_texture = INVALID_ID_U16;
     state_ptr->material_locations.specular_texture = INVALID_ID_U16;
     state_ptr->material_locations.normal_texture = INVALID_ID_U16;
-    state_ptr->material_locations.ambient_colour = INVALID_ID_U16;
+    state_ptr->material_locations.ambient_color = INVALID_ID_U16;
     state_ptr->material_locations.shiness = INVALID_ID_U16;
     state_ptr->material_locations.model = INVALID_ID_U16;
     state_ptr->material_locations.render_mode = INVALID_ID_U16;
@@ -219,13 +221,11 @@ MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config) {
             // Get the uniform indices.
             SHADER* s = shader_system_get_by_id(m->shader_id);
             // Save off the locations for known types for quick lookups.
-            PRINT_DEBUG("Material shader id: %d, name: '%s'.", s->id, s->name);
             if (state_ptr->material_shader_id == INVALID_ID && strings_equal(config.shader_name, BUILTIN_SHADER_NAME_MATERIAL)) {
                 state_ptr->material_shader_id = s->id;
-                PRINT_DEBUG("Material shader id set to %d for material '%s'.", state_ptr->material_shader_id, config.name);
                 state_ptr->material_locations.projection = shader_system_uniform_index(s, "projection");
                 state_ptr->material_locations.view = shader_system_uniform_index(s, "view");
-                state_ptr->material_locations.ambient_colour = shader_system_uniform_index(s, "ambient_colour");
+                state_ptr->material_locations.ambient_color = shader_system_uniform_index(s, "ambient_color");
                 state_ptr->material_locations.view_position = shader_system_uniform_index(s, "view_position");
                 state_ptr->material_locations.diffuse_color = shader_system_uniform_index(s, "diffuse_color");
                 state_ptr->material_locations.diffuse_texture = shader_system_uniform_index(s, "diffuse_texture");
@@ -236,7 +236,6 @@ MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config) {
                 state_ptr->material_locations.render_mode = shader_system_uniform_index(s, "mode");
             } else if (state_ptr->ui_shader_id == INVALID_ID && strings_equal(config.shader_name, BUILTIN_SHADER_NAME_UI)) {
                 state_ptr->ui_shader_id = s->id;
-                PRINT_DEBUG("UI shader id set to %d for material '%s'.", state_ptr->ui_shader_id, config.name);
                 state_ptr->ui_locations.projection = shader_system_uniform_index(s, "projection");
                 state_ptr->ui_locations.view = shader_system_uniform_index(s, "view");
                 state_ptr->ui_locations.diffuse_color = shader_system_uniform_index(s, "diffuse_color");
@@ -253,9 +252,13 @@ MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config) {
 
             // Also use the handle as the material id.
             m->id = ref.handle;
-            PRINT_DEBUG("Material '%s' does not yet exist. Created, and ref_count is now %i.", config.name, ref.reference_count);
+#ifdef DEBUG_LOG
+            PRINT_TRACE("Material '%s' does not yet exist. Created, and ref_count is now %i.", config.name, ref.reference_count);
+#endif
         } else {
-            PRINT_DEBUG("Material '%s' already exists, ref_count increased to %i.", config.name, ref.reference_count);
+#ifdef DEBUG_LOG
+            PRINT_TRACE("Material '%s' already exists, ref_count increased to %i.", config.name, ref.reference_count);
+#endif
         }
 
         // Update the entry.
@@ -289,9 +292,13 @@ void material_system_release(const char* name) {
             // Reset the reference.
             ref.handle = INVALID_ID;
             ref.auto_release = false;
-            PRINT_DEBUG("Released material '%s'., Material unloaded because reference count=0 and auto_release=true.", name);
+#ifdef DEBUG_LOG
+            PRINT_TRACE("Released material '%s'., Material unloaded because reference count=0 and auto_release=true.", name);
+#endif
         } else {
-            PRINT_DEBUG("Released material '%s', now has a reference count of '%i' (auto_release=%s).", name, ref.reference_count, ref.auto_release ? "true" : "false");
+#ifdef DEBUG_LOG
+            PRINT_TRACE("Released material '%s', now has a reference count of '%i' (auto_release=%s).", name, ref.reference_count, ref.auto_release ? "true" : "false");
+#endif
         }
 
         // Update the entry.
@@ -319,14 +326,14 @@ MATERIAL* material_system_get_default(void) {
 b8 material_system_apply_global(u32 shader_id,\
                     const Matrice4* projection,\
                     const Matrice4* view,\
-                    const Vector4* ambient_colour,\
+                    const Vector4* ambient_color,\
                     const Vector3* view_position,\
                     u32 render_mode) {
 
     if (shader_id == state_ptr->material_shader_id) {
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.projection, projection));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.view, view));
-        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.ambient_colour, ambient_colour));
+        MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.ambient_color, ambient_color));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.view_position, view_position));
         MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.render_mode, &render_mode));
     } else if (shader_id == state_ptr->ui_shader_id) {
@@ -473,7 +480,9 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
 }
 
 void destroy_material(MATERIAL* m) {
-    PRINT_DEBUG("Destroying material '%s'...", m->name);
+#ifdef DEBUG_LOG
+    PRINT_TRACE("Destroying material '%s'...", m->name);
+#endif
 
     // Release texture references.
     if (m->diffuse_map.texture) {

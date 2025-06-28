@@ -47,6 +47,30 @@ b8 renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vertex_coun
 void renderer_destroy_geometry(GEOMETRY* geometry);
 
 /**
+ * @brief Draws the given geometry. Should only be called inside a renderpass, within a frame.
+ *
+ * @param data The render data of the geometry to be drawn.
+ */
+void renderer_draw_geometry(GEOMETRY_RENDER_DATA* data);
+
+/**
+ * @brief Begins the given renderpass.
+ *
+ * @param pass A pointer to the renderpass to begin.
+ * @param target A pointer to the render target to be used.
+ * @return True on success; otherwise false.
+ */
+b8 renderer_renderpass_begin(RENDERPASS* pass, RENDER_TARGET* target);
+
+/**
+ * @brief Ends the given renderpass.
+ *
+ * @param pass A pointer to the renderpass to end.
+ * @return True on success; otherwise false.
+ */
+b8 renderer_renderpass_end(RENDERPASS* pass);
+
+/**
  * @brief Obtains a pointer to the renderpass with the given name.
  *
  * @param name The name of the renderpass whose identifier to obtain.

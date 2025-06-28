@@ -21,6 +21,7 @@
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
 #include "systems/camera_system.h"
+#include "systems/render_view_system.h"
 
 // TODO: temp
 #include "math/ymath.h"
@@ -60,6 +61,9 @@ typedef struct APPLICATION_STATE {
     u64 renderer_system_memory_requirement;
     void* renderer_system_state;
 
+    u64 renderer_view_system_memory_requirement;
+    void* renderer_view_system_state;
+
     u64 texture_system_memory_requirement;
     void* texture_system_state;
 
@@ -76,7 +80,8 @@ typedef struct APPLICATION_STATE {
     Mesh meshes[10];
     u32 mesh_count;
 
-    GEOMETRY* test_ui_geometry;
+    Mesh ui_meshes[10];
+    u32 ui_mesh_count;
     // TODO: end temp
 } APPLICATION_STATE;
 
@@ -204,16 +209,6 @@ b8 application_create(GAME* game_instance) {
         return false;
     }
     
-    // Camera
-    CAMERA_SYSTEM_CONFIG camera_sys_config;
-    camera_sys_config.max_camera_count = 61;
-    camera_system_init(&app_state->camera_system_memory_requirement, 0, camera_sys_config);
-    app_state->camera_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->camera_system_memory_requirement);
-    if (!camera_system_init(&app_state->camera_system_memory_requirement, app_state->camera_system_state, camera_sys_config)) {
-        PRINT_ERROR("Failed to initialize camera system. Application cannot continue.");
-        return false;
-    }
-    
     // Allocate the texture & material systems memory before the renderer to not overflow the renderer's memory
     TEXTURE_SYSTEM_CONFIG texture_sys_config;
     texture_sys_config.max_texture_count = 65536;
@@ -229,6 +224,16 @@ b8 application_create(GAME* game_instance) {
     geometry_sys_config.max_geometry_count = 4096;
     geometry_system_init(&app_state->geometry_system_memory_requirement, 0, geometry_sys_config);
     app_state->geometry_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->geometry_system_memory_requirement);
+
+    CAMERA_SYSTEM_CONFIG camera_sys_config;
+    camera_sys_config.max_camera_count = 64;
+    camera_system_init(&app_state->camera_system_memory_requirement, 0, camera_sys_config);
+    app_state->camera_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->camera_system_memory_requirement);
+
+    RENDER_VIEW_SYSTEM_CONFIG render_view_sys_config = {0};
+    render_view_sys_config.max_view_count = 64;
+    render_view_system_init(&app_state->renderer_view_system_memory_requirement, 0, render_view_sys_config);
+    app_state->renderer_view_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_view_system_memory_requirement);
     
     // Shader system
     SHADER_SYSTEM_CONFIG shader_sys_config;
@@ -261,10 +266,52 @@ b8 application_create(GAME* game_instance) {
         PRINT_ERROR("Failed to initialize material system. Application cannot continue.");
         return false;
     }
-   
+    
     // Geometry system.
     if (!geometry_system_init(&app_state->geometry_system_memory_requirement, app_state->geometry_system_state, geometry_sys_config)) {
         PRINT_ERROR("Failed to initialize geometry system. Application cannot continue.");
+        return false;
+    }
+
+    // Camera
+    if (!camera_system_init(&app_state->camera_system_memory_requirement, app_state->camera_system_state, camera_sys_config)) {
+        PRINT_ERROR("Failed to initialize camera system. Application cannot continue.");
+        return false;
+    }
+
+    if (!render_view_system_init(&app_state->renderer_view_system_memory_requirement, app_state->renderer_view_system_state, render_view_sys_config)) {
+        PRINT_ERROR("Failed to initialize render view system. Aborting application.");
+        return false;
+    }
+
+    // Load render views
+    RENDER_VIEW_CONFIG opaque_world_config = {0};
+    opaque_world_config.type = RENDERER_VIEW_KNOWN_TYPE_WORLD;
+    opaque_world_config.width = 0;
+    opaque_world_config.height = 0;
+    opaque_world_config.name = "world_opaque";
+    opaque_world_config.pass_count = 1;
+    RENDER_VIEW_PASS_CONFIG passes[1];
+    passes[0].name = "renderpass.builtin.world";
+    opaque_world_config.passes = passes;
+    opaque_world_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
+    if (!render_view_system_create(&opaque_world_config)) {
+        PRINT_ERROR("Failed to create view. Aborting application.");
+        return false;
+    }
+
+    RENDER_VIEW_CONFIG ui_view_config = {0};
+    ui_view_config.type = RENDERER_VIEW_KNOWN_TYPE_UI;
+    ui_view_config.width = 0;
+    ui_view_config.height = 0;
+    ui_view_config.name = "ui";
+    ui_view_config.pass_count = 1;
+    RENDER_VIEW_PASS_CONFIG ui_passes[1];
+    ui_passes[0].name = "renderpass.builtin.ui";
+    ui_view_config.passes = ui_passes;
+    ui_view_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
+    if (!render_view_system_create(&ui_view_config)) {
+        PRINT_ERROR("Failed to create view. Aborting application.");
         return false;
     }
     
@@ -431,7 +478,11 @@ b8 application_create(GAME* game_instance) {
     ui_config.indices = uiindices;
 
     // Get UI geometry from config.
-    app_state->test_ui_geometry = geometry_system_acquire_from_config(ui_config, true);
+    app_state->ui_mesh_count = 1;
+    app_state->ui_meshes[0].geometry_count =1;
+    app_state->ui_meshes[0].geometries = yallocate_aligned(sizeof(GEOMETRY*), 8, MEMORY_TAG_ARRAY);
+    app_state->ui_meshes[0].geometries[0] = geometry_system_acquire_from_config(ui_config, true);
+    app_state->ui_meshes[0].transform = transform_create();
 
 
 
@@ -488,16 +539,6 @@ b8 application_run(void) {
                 break;
             }
 
-            // TODO: refactor packet creation
-            RENDER_PACKET packet = {0};
-            packet.delta_time = delta;
-            packet.geometry_count = 0;
-
-            // NOTE: Yes, I know this allocates/frees every framr. No, it doesn't matter because
-            // this is temporary.
-            packet.geometries = darray_create(GEOMETRY_RENDER_DATA);
-
-
             if (app_state->mesh_count > 0) {
                 // Perform a small rotation on the first mesh.
                 Quaternion rotation = Quaternion_from_axis_angle((Vector3){0, 1, 0}, 0.5f * delta, false);
@@ -512,34 +553,42 @@ b8 application_run(void) {
                 if (app_state->mesh_count > 2) {
                     transform_rotate(&app_state->meshes[2].transform, rotation);
                 }
-
-                // Iterate all meshes and add them to the packet's geometries collection
-                for (u32 i = 0; i < app_state->mesh_count; ++i) {
-                    Mesh* m = &app_state->meshes[i];
-                    for (u32 j = 0; j < m->geometry_count; ++j) {
-                        GEOMETRY_RENDER_DATA data;
-                        data.geometry = m->geometries[j];
-                        data.model = transform_get_world(&m->transform);
-                        darray_push(packet.geometries, data);
-                        packet.geometry_count++;
-                    }
-                }
             }
 
-            GEOMETRY_RENDER_DATA test_ui_render;
-            test_ui_render.geometry = app_state->test_ui_geometry;
-            test_ui_render.model = Matrice4_translation((Vector3){0, 0, 0});
-            packet.ui_geometry_count = 1;
-            packet.ui_geometries = &test_ui_render;
+            // TODO: refactor packet creation
+            RENDER_PACKET packet = {0};
+            packet.delta_time = delta;
+
+            // TODO: Read from frame config.
+            packet.view_count = 2;
+            RENDER_VIEW_PACKET views[2];
+            yzero_memory(views, sizeof(RENDER_VIEW_PACKET) * packet.view_count);
+            packet.views = views;
+
+            // World 
+            MESH_PACKET_DATA world_mesh_data = {0};
+            world_mesh_data.mesh_count = app_state->mesh_count;
+            world_mesh_data.meshes = app_state->meshes;
+            // TODO: performs a lookup on every frame.
+            if (!render_view_system_build_packet(render_view_system_get("world_opaque"), &world_mesh_data, &packet.views[0])) {
+                PRINT_ERROR("Failed to build packet for view 'world_opaque'.");
+                return false;
+            }
+
+            // ui
+            MESH_PACKET_DATA ui_mesh_data = {0};
+            ui_mesh_data.mesh_count = app_state->ui_mesh_count;
+            ui_mesh_data.meshes = app_state->ui_meshes;
+            if (!render_view_system_build_packet(render_view_system_get("ui"), &ui_mesh_data, &packet.views[1])) {
+                PRINT_ERROR("Failed to build packet for view 'ui'.");
+                return false;
+            }
 
             renderer_draw_frame(&packet);
 
             // TODO: temp
             // Cleanup the packet.
-            if (packet.geometries != NULL) {
-                darray_destroy(packet.geometries);
-                packet.geometries = NULL;
-            }
+
             // TODO: end temp
 
             // Figure out how long the frame took and, if below

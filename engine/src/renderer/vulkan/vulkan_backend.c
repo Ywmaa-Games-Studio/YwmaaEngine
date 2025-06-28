@@ -470,7 +470,7 @@ b8 vulkan_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     return true;
 }
 
-b8 vulkan_renderer_begin_renderpass(struct RENDERER_BACKEND* backend, RENDERPASS* pass, RENDER_TARGET* target) {
+b8 vulkan_renderer_renderpass_begin(RENDERPASS* pass, RENDER_TARGET* target) {
     VULKAN_COMMAND_BUFFER* command_buffer = &context.graphics_command_buffers[context.image_index];
 
     // Begin the render pass.
@@ -513,7 +513,7 @@ b8 vulkan_renderer_begin_renderpass(struct RENDERER_BACKEND* backend, RENDERPASS
     return true;
 }
 
-b8 vulkan_renderer_end_renderpass(struct RENDERER_BACKEND* backend, RENDERPASS* pass) {
+b8 vulkan_renderer_renderpass_end(RENDERPASS* pass) {
     VULKAN_COMMAND_BUFFER* command_buffer = &context.graphics_command_buffers[context.image_index];
     // End the renderpass.
     vkCmdEndRenderPass(command_buffer->handle);
@@ -653,13 +653,13 @@ void vulkan_renderer_destroy_geometry(GEOMETRY* geometry) {
     }
 }
 
-void vulkan_renderer_draw_geometry(GEOMETRY_RENDER_DATA data) {
+void vulkan_renderer_draw_geometry(GEOMETRY_RENDER_DATA* data) {
     // Ignore non-uploaded geometries.
-    if (data.geometry && data.geometry->internal_id == INVALID_ID) {
+    if (data->geometry && data->geometry->internal_id == INVALID_ID) {
         return;
     }
     
-    VULKAN_GEOMETRY_DATA* buffer_data = &context.geometries[data.geometry->internal_id];
+    VULKAN_GEOMETRY_DATA* buffer_data = &context.geometries[data->geometry->internal_id];
     VULKAN_COMMAND_BUFFER* command_buffer = &context.graphics_command_buffers[context.image_index];
     
     // Bind vertex buffer at offset.
@@ -1717,7 +1717,6 @@ b8 vulkan_renderer_shader_acquire_instance_resources(SHADER* s, TEXTURE_MAP** ma
             instance_state->instance_texture_maps[i]->texture = default_texture;
         }
     }
-    PRINT_INFO("instance_texture_count %i",instance_texture_count);
     // Allocate some space in the UBO - by the stride, not the size.
     u64 size = s->ubo_stride;
     if (!vulkan_buffer_allocate(&internal->uniform_buffer, size, &instance_state->offset)) {

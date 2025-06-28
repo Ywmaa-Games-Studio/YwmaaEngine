@@ -267,7 +267,7 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     return true;
 }
 
-b8 webgpu_renderer_begin_renderpass(struct RENDERER_BACKEND* backend, RENDERPASS* pass, RENDER_TARGET* target) {
+b8 webgpu_renderer_renderpass_begin(RENDERPASS* pass, RENDER_TARGET* target) {
     //START Render Pass
 
     WEBGPU_RENDERPASS* internal_data = (WEBGPU_RENDERPASS*)pass->internal_data;
@@ -298,7 +298,7 @@ b8 webgpu_renderer_begin_renderpass(struct RENDERER_BACKEND* backend, RENDERPASS
     return true;
 }
 
-b8 webgpu_renderer_end_renderpass(struct RENDERER_BACKEND* backend, RENDERPASS* pass) {
+b8 webgpu_renderer_renderpass_end(RENDERPASS* pass) {
     WEBGPU_RENDERPASS* internal_data = (WEBGPU_RENDERPASS*)pass->internal_data;
     wgpuRenderPassEncoderEnd(internal_data->handle);
     wgpuRenderPassEncoderRelease(internal_data->handle);
@@ -1356,17 +1356,17 @@ void webgpu_renderer_texture_map_release_resources(TEXTURE_MAP* map){
     }
 }
 
-void webgpu_renderer_draw_geometry(GEOMETRY_RENDER_DATA data) {
+void webgpu_renderer_draw_geometry(GEOMETRY_RENDER_DATA* data) {
     // Ignore non-uploaded geometries.
-    if (data.geometry && data.geometry->internal_id == INVALID_ID) {
+    if (data->geometry && data->geometry->internal_id == INVALID_ID) {
         return;
     }
     
-    SHADER* current_shader = shader_system_get_by_id(data.geometry->material->shader_id);
+    SHADER* current_shader = shader_system_get_by_id(data->geometry->material->shader_id);
     WEBGPU_SHADER* internal = current_shader->internal_data;
 
 
-    WEBGPU_GEOMETRY_DATA* buffer_data = &context.geometries[data.geometry->internal_id];
+    WEBGPU_GEOMETRY_DATA* buffer_data = &context.geometries[data->geometry->internal_id];
     // Set vertex buffer while encoding the render pass
     
     wgpuRenderPassEncoderSetVertexBuffer(internal->renderpass->handle, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));

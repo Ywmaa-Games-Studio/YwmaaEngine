@@ -1,6 +1,7 @@
 #pragma once
 #include "renderer/renderer_types.inl"
 #include "defines.h"
+#include "data_structures/hashtable.h"
 //#include <webgpu.h>
 //#include <wgpu.h>
 #define WGPU_SHARED_LIBRARY
@@ -33,6 +34,18 @@ typedef struct WEBGPU_PIPELINE {
     WGPURenderPipeline handle;
     WGPUPipelineLayout layout;
 } WEBGPU_PIPELINE;
+
+typedef struct WEBGPU_RENDERPASS {
+    WGPURenderPassEncoder handle;
+    WGPURenderPassDescriptor descriptor;
+
+    f32 depth;
+    u32 stencil;
+
+    b8 has_prev_pass;
+    b8 has_next_pass;
+} WEBGPU_RENDERPASS;
+
 #define WEBGPU_MATERIAL_SHADER_SAMPLER_COUNT 1
 // Max number of material instances
 // TODO: make configurable
@@ -168,7 +181,7 @@ typedef struct WEBGPU_SHADER {
     // shader modules for each stage. (vertex, fragment, compute), or even pointing to the same module
     WGPUShaderModule shader_module[WEBGPU_SHADER_MAX_STAGES];
     /** @brief A pointer to the renderpass to be used with this shader. */
-    WGPURenderPassEncoder* renderpass;
+    WEBGPU_RENDERPASS* renderpass;
 
     // Global uniform buffer.
     WEBGPU_BUFFER uniform_buffer;
@@ -182,10 +195,8 @@ typedef struct WEBGPU_SHADER {
     /** @brief The instance states for all instances. @todo TODO: make dynamic */
     u32 instance_count;
     WEBGPU_SHADER_INSTANCE_STATE instance_states[WEBGPU_MAX_MATERIAL_COUNT];
-
-    E_BUILTIN_RENDERPASS shader_renderpass;
 } WEBGPU_SHADER;
-
+#define WEBGPU_MAX_REGISTERED_RENDERPASSES 31
 typedef struct WEBGPU_CONTEXT {
     f32 frame_delta_time;
 
@@ -211,17 +222,28 @@ typedef struct WEBGPU_CONTEXT {
     WGPULimits device_supported_limits;
     WGPUSurface surface;
     WGPUQueue queue;
-    WGPUTextureView target_view;
-    WGPUTextureView depth_view;
     WGPUCommandEncoder encoder;
-    WGPURenderPassEncoder world_render_pass;
-    WGPURenderPassEncoder ui_render_pass;
+
+    TEXTURE* render_texture;
+    TEXTURE* depth_texture;
     WGPUTextureFormat swapchain_format;
+
+    void* renderpass_table_block;
+    HASHTABLE renderpass_table;
+
+    /** @brief Registered renderpasses. */
+    RENDERPASS registered_passes[WEBGPU_MAX_REGISTERED_RENDERPASSES];
 
     WEBGPU_BUFFER object_vertex_buffer;
     WEBGPU_BUFFER object_index_buffer;
 
     // TODO: make dynamic
     WEBGPU_GEOMETRY_DATA geometries[WEBGPU_MAX_GEOMETRY_COUNT];
+
+    /**
+     * @brief A pointer to a function to be called when the backend requires
+     * rendertargets to be refreshed/regenerated.
+     */
+    void (*on_rendertarget_refresh_required)(void);
 
 } WEBGPU_CONTEXT;

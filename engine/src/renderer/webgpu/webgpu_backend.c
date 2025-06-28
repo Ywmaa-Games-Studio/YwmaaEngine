@@ -50,19 +50,19 @@ void webgpu_destroy_buffers(WEBGPU_CONTEXT* context);
 b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend);
 
 WGPUTextureView get_next_surface_texture_view(void);
-WGPUTextureView get_depth_texture_view(u32 width, u32 height);
+void get_depth_texture(WGPUTexture* out_depth_texture, WGPUTextureView* out_depth_texture_view, u32 width, u32 height);
 // static WebGPU context
 static WEBGPU_CONTEXT context;
-static u32 cached_framebuffer_width = 0;
-static u32 cached_framebuffer_height = 0;
 
 
-b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* application_name) {
-    application_get_framebuffer_size(&cached_framebuffer_width, &cached_framebuffer_height);
-    context.framebuffer_width = (cached_framebuffer_width != 0) ? cached_framebuffer_width : 800;
-    context.framebuffer_height = (cached_framebuffer_height != 0) ? cached_framebuffer_height : 600;
-    cached_framebuffer_width = 0;
-    cached_framebuffer_height = 0;
+b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const  RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count) {
+    context.on_rendertarget_refresh_required = config->on_rendertarget_refresh_required;
+
+    // Just set some default values for the framebuffer for now.
+    // It doesn't really matter what these are because they will be
+    // overridden, but are needed for swapchain creation.
+    context.framebuffer_width = 1280;
+    context.framebuffer_height = 720;
 
     // We create a descriptor
     WGPUInstanceDescriptor desc = {0};
@@ -100,10 +100,57 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const char* applicati
         return false;
     }
 
-    context.depth_view = get_depth_texture_view(context.framebuffer_width, context.framebuffer_height);
-    if (!context.depth_view) {
-        PRINT_ERROR("Failed to create depth texture view.");
-        return false;
+    wgpu_recreate_swapchain(backend);
+
+    // Save off the number of images we have as the number of render targets needed.
+    *out_window_render_target_count = 1;
+
+    // Hold registered renderpasses.
+    for (u32 i = 0; i < WEBGPU_MAX_REGISTERED_RENDERPASSES; ++i) {
+        context.registered_passes[i].id = INVALID_ID_U16;
+    }
+
+    // The renderpass table will be a lookup of array indices. Start off every index with an invalid id.
+    context.renderpass_table_block = yallocate(sizeof(u32) * WEBGPU_MAX_REGISTERED_RENDERPASSES, MEMORY_TAG_RENDERER);
+    hashtable_create(sizeof(u32), WEBGPU_MAX_REGISTERED_RENDERPASSES, context.renderpass_table_block, false, &context.renderpass_table);
+    u32 value = INVALID_ID;
+    hashtable_fill(&context.renderpass_table, &value);
+
+    // Renderpasses
+    for (u32 i = 0; i < config->renderpass_count; ++i) {
+        // TODO: move to a function for reusability.
+        // Make sure there are no collisions with the name first.
+        u32 id = INVALID_ID;
+        hashtable_get(&context.renderpass_table, config->pass_configs[i].name, &id);
+        if (id != INVALID_ID) {
+            PRINT_ERROR("Collision with renderpass named '%s'. Initialization failed.", config->pass_configs[i].name);
+            return false;
+        }
+        // Snip up a new id.
+        for (u32 j = 0; j < WEBGPU_MAX_REGISTERED_RENDERPASSES; ++j) {
+            if (context.registered_passes[j].id == INVALID_ID_U16) {
+                // Found one.
+                context.registered_passes[j].id = j;
+                id = j;
+                break;
+            }
+        }
+
+        // Verify we got an id
+        if (id == INVALID_ID) {
+            PRINT_ERROR("No space was found for a new renderpass. Increase WEBGPU_MAX_REGISTERED_RENDERPASSES. Initialization failed.");
+            return false;
+        }
+
+        // Setup the renderpass.
+        context.registered_passes[id].clear_flags = config->pass_configs[i].clear_flags;
+        context.registered_passes[id].clear_color = config->pass_configs[i].clear_color;
+        context.registered_passes[id].render_area = config->pass_configs[i].render_area;
+
+        webgpu_renderpass_create(&context.registered_passes[id], 1.0f, 0, config->pass_configs[i].prev_name != 0, config->pass_configs[i].next_name != 0);
+
+        // Update the table with the new id.
+        hashtable_set(&context.renderpass_table, config->pass_configs[i].name, &id);
     }
 
     webgpu_create_buffers(&context);
@@ -124,7 +171,12 @@ void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
 
     webgpu_destroy_buffers(&context);
 
-    wgpuTextureViewRelease(context.depth_view);
+    // Renderpasses
+    for (u32 i = 0; i < WEBGPU_MAX_REGISTERED_RENDERPASSES; ++i) {
+        if (context.registered_passes[i].id != INVALID_ID_U16) {
+            webgpu_renderpass_destroy(&context.registered_passes[i]);
+        }
+    }
 
     webgpu_swapchain_destroy(&context);
 
@@ -142,8 +194,8 @@ void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
 void webgpu_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u16 height) {
     // Update the "framebuffer size generation", a counter which indicates when the
     // framebuffer size has been updated.
-    cached_framebuffer_width = width;
-    cached_framebuffer_height = height;
+    context.framebuffer_width = width;
+    context.framebuffer_height = height;
     context.framebuffer_size_generation++;
 
     PRINT_INFO("WebGPU renderer backend->resized: w/h/gen: %i/%i/%llu", width, height, context.framebuffer_size_generation);
@@ -175,19 +227,19 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
             return false;
         }
 
-        // Sync the framebuffer size with the cached sizes.
-        context.framebuffer_width = cached_framebuffer_width;
-        context.framebuffer_height = cached_framebuffer_height;
-        cached_framebuffer_width = 0;
-        cached_framebuffer_height = 0;
-
         PRINT_INFO("Resized, booting.");
         return false;
     }
-
-    //Create Texture
-    context.target_view = get_next_surface_texture_view();
-    if (!context.target_view) return false;
+    // Render Texture View
+    WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)context.render_texture->internal_data;
+    image->handle = NULL;
+    image->width = context.framebuffer_width;
+    image->height = context.framebuffer_height;
+    image->view = get_next_surface_texture_view();
+    if (!image->view) {
+        PRINT_ERROR("Failed to create surface/render texture view.");
+        return false;
+    }
 
     WGPUCommandEncoderDescriptor encoder_desc = {0};
     encoder_desc.nextInChain = NULL;
@@ -208,8 +260,6 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     // Finally submit the command queue
     wgpuQueueSubmit(context.queue, 1, &command);
     wgpuCommandBufferRelease(command);
-    
-    wgpuTextureViewRelease(context.target_view);
 
     //Present Texture
     wgpuSurfacePresent(context.surface);
@@ -217,100 +267,59 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) 
     return true;
 }
 
-b8 webgpu_renderer_begin_renderpass(struct RENDERER_BACKEND* backend, u8 renderpass_id) {
+b8 webgpu_renderer_begin_renderpass(struct RENDERER_BACKEND* backend, RENDERPASS* pass, RENDER_TARGET* target) {
     //START Render Pass
 
-    // Describe Render Pass
-    WGPURenderPassColorAttachment render_pass_color_attachment = {0};
-    // [...] Describe the attachment
-    render_pass_color_attachment.nextInChain = NULL;
-    render_pass_color_attachment.view = context.target_view;
-    render_pass_color_attachment.resolveTarget = NULL;
-    render_pass_color_attachment.loadOp = (renderpass_id <= 1 ? WGPULoadOp_Clear : WGPULoadOp_Load);
-    render_pass_color_attachment.storeOp = WGPUStoreOp_Store;
-    WGPUColor color = {0};
-    color.r = 0.0;
-    color.g = 0.2;
-    color.b = 0.2;
-    color.a = 1.0;
-    render_pass_color_attachment.clearValue = color;
+    WEBGPU_RENDERPASS* internal_data = (WEBGPU_RENDERPASS*)pass->internal_data;
 
-    // We now add a depth/stencil attachment:
-    WGPURenderPassDepthStencilAttachment depthStencilAttachment;
-    // Setup depth/stencil attachment
-
-    // The view of the depth texture
-    depthStencilAttachment.view = context.depth_view;
-
-    // The initial value of the depth buffer, meaning "far"
-    depthStencilAttachment.depthClearValue = 1.0f;
-    // Operation settings comparable to the color attachment
-    depthStencilAttachment.depthLoadOp = WGPULoadOp_Clear;
-    depthStencilAttachment.depthStoreOp = WGPUStoreOp_Store;
-    // we could turn off writing to the depth buffer globally here
-    depthStencilAttachment.depthReadOnly = false;
-
-    // Stencil setup, mandatory but unused
-    depthStencilAttachment.stencilClearValue = 0;
-    depthStencilAttachment.stencilLoadOp = WGPULoadOp_Clear;
-    depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Store;
-    depthStencilAttachment.stencilReadOnly = true;
-
-    WGPURenderPassDescriptor world_render_pass_desc = {0};
-    world_render_pass_desc.nextInChain = NULL;
-    //render_pass_desc.label = "";
-    world_render_pass_desc.colorAttachmentCount = 1;
-    world_render_pass_desc.colorAttachments = &render_pass_color_attachment;
-    world_render_pass_desc.depthStencilAttachment = &depthStencilAttachment;
-    world_render_pass_desc.timestampWrites = NULL;
-
-    WGPURenderPassDescriptor ui_render_pass_desc = {0};
-    ui_render_pass_desc.nextInChain = NULL;
-    //render_pass_desc.label = "";
-    ui_render_pass_desc.colorAttachmentCount = 1;
-    ui_render_pass_desc.colorAttachments = &render_pass_color_attachment;
-    ui_render_pass_desc.depthStencilAttachment = &depthStencilAttachment;
-    ui_render_pass_desc.timestampWrites = NULL;
-
-    // Choose a renderpass based on ID.
-    switch (renderpass_id) {
-        case BUILTIN_RENDERPASS_WORLD:
-            //START World Render Pass
-            context.world_render_pass = wgpuCommandEncoderBeginRenderPass(context.encoder, &world_render_pass_desc);
-            break;
-
-        case BUILTIN_RENDERPASS_UI:
-            //START UI Render Pass
-            context.ui_render_pass = wgpuCommandEncoderBeginRenderPass(context.encoder, &ui_render_pass_desc);
-            break;
-
-        default:
-            PRINT_ERROR("webgpu_renderer_begin_renderpass called on unrecognized renderpass id: %#02x", renderpass_id);
-            return false;
+    // Max number of attachments
+    WGPUTextureView attachment_views[32];
+    for (u32 i = 0; i < target->attachment_count; ++i) {
+        attachment_views[i] = ((WEBGPU_IMAGE*)target->attachments[i]->internal_data)->view;
     }
+
+    WGPURenderPassColorAttachment* color_attachment = (WGPURenderPassColorAttachment*)(internal_data->descriptor.colorAttachments);
+    color_attachment->view = attachment_views[0];
+    
+    b8 do_clear_depth = (pass->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
+    if (do_clear_depth) {
+        WGPURenderPassDepthStencilAttachment* depth_stencil_attachment = (WGPURenderPassDepthStencilAttachment*)(internal_data->descriptor.depthStencilAttachment);
+        if (depth_stencil_attachment) {
+            // If the depth stencil attachment is not set, we need to create it.
+            if (!depth_stencil_attachment->view) {
+                depth_stencil_attachment->view = attachment_views[1];
+                //get_depth_texture(&depth_stencil_attachment->view, &depth_stencil_attachment->view, context.framebuffer_width, context.framebuffer_height);
+            }
+        }
+    }
+    
+    internal_data->handle = wgpuCommandEncoderBeginRenderPass(context.encoder, &internal_data->descriptor);
 
     return true;
 }
 
-b8 webgpu_renderer_end_renderpass(struct RENDERER_BACKEND* backend, u8 renderpass_id) {
-    // Choose a renderpass based on ID.
-    switch (renderpass_id) {
-        case BUILTIN_RENDERPASS_WORLD:
-            wgpuRenderPassEncoderEnd(context.world_render_pass);
-            wgpuRenderPassEncoderRelease(context.world_render_pass);
-            //END World Render Pass
-            break;
-        case BUILTIN_RENDERPASS_UI:
-            wgpuRenderPassEncoderEnd(context.ui_render_pass);
-            wgpuRenderPassEncoderRelease(context.ui_render_pass);
-            //END UI Render Pass
-            break;
-        default:
-            PRINT_ERROR("webgpu_renderer_end_renderpass called on unrecognized renderpass id:  %#02x", renderpass_id);
-            return false;
-    }
+b8 webgpu_renderer_end_renderpass(struct RENDERER_BACKEND* backend, RENDERPASS* pass) {
+    WEBGPU_RENDERPASS* internal_data = (WEBGPU_RENDERPASS*)pass->internal_data;
+    wgpuRenderPassEncoderEnd(internal_data->handle);
+    wgpuRenderPassEncoderRelease(internal_data->handle);
 
     return true;
+}
+
+RENDERPASS* webgpu_renderer_renderpass_get(const char* name) {
+    if (!name || name[0] == 0) {
+        PRINT_ERROR("webgpu_renderer_renderpass_get requires a name. Nothing will be returned.");
+        return 0;
+    }
+
+    u32 id = INVALID_ID;
+    hashtable_get(&context.renderpass_table, name, &id);
+    if (id == INVALID_ID) {
+        PRINT_WARNING("There is no registered renderpass named '%s'.", name);
+        return 0;
+    }
+
+    return &context.registered_passes[id];
 }
 
 b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
@@ -429,12 +438,9 @@ const u32 ENTRY_BINDING_INDEX_TEXTURE = 2;
 const u32 BINDING_INDEX_OBJECT_MATRIX = 0;
 //END BINDINGS Of Local
 
-b8 webgpu_renderer_shader_create(struct SHADER *shader, u8 renderpass_id, u8 stage_count, const char **stage_filenames, E_SHADER_STAGE *stages)
+b8 webgpu_renderer_shader_create(struct SHADER *shader, RENDERPASS* pass, u8 stage_count, const char **stage_filenames, E_SHADER_STAGE *stages)
 {
     shader->internal_data = yallocate_aligned(sizeof(WEBGPU_SHADER), 8, MEMORY_TAG_RENDERER);
-
-    // TODO: dynamic renderpasses
-    WGPURenderPassEncoder* renderpass = renderpass_id == 1 ? &context.world_render_pass : &context.ui_render_pass;
 
     PRINT_DEBUG("webgpu_renderer_shader_create: Creating shader with %d stages.", stage_count);
     // Translate stages
@@ -463,8 +469,7 @@ b8 webgpu_renderer_shader_create(struct SHADER *shader, u8 renderpass_id, u8 sta
 
     // Take a copy of the pointer to the context.
     WEBGPU_SHADER* out_shader = (WEBGPU_SHADER*)shader->internal_data;
-    out_shader->shader_renderpass = renderpass_id;
-    out_shader->renderpass = renderpass;
+    out_shader->renderpass = (WEBGPU_RENDERPASS*)pass->internal_data;
 
     // Build out the configuration.
     out_shader->config.max_bind_group_count = max_bind_allocate_count;
@@ -761,7 +766,8 @@ b8 webgpu_renderer_shader_init(struct SHADER *shader)
     fragment_stage_desc.targetCount = 1;
     fragment_stage_desc.targets = &color_target;
     //END Fragment stage setup
-
+    WGPURenderPassDepthStencilAttachment* depth_stencil_attachment = (WGPURenderPassDepthStencilAttachment*)(shader_internal_data->renderpass->descriptor.depthStencilAttachment);
+    b8 enabled_depth = depth_stencil_attachment != NULL;
     b8 pipeline_result = webgpu_pipeline_create(
         &context,
         shader_internal_data->config.bind_group_count,
@@ -770,6 +776,8 @@ b8 webgpu_renderer_shader_init(struct SHADER *shader)
         &fragment_stage_desc,
         shader->push_constant_range_count,
         shader->push_constant_ranges,
+        false,
+        enabled_depth, // Enable depth testing
         &shader_internal_data->pipeline);
 
     if (!pipeline_result) {
@@ -857,26 +865,7 @@ void on_buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, W
 b8 webgpu_renderer_shader_use(struct SHADER *shader)
 {
     WEBGPU_SHADER* s = shader->internal_data;
-    switch (s->shader_renderpass)
-    {
-        case BUILTIN_RENDERPASS_WORLD:
-            if (context.world_render_pass){
-                wgpuRenderPassEncoderSetPipeline(context.world_render_pass, s->pipeline.handle);
-            } else {
-                PRINT_WARNING("webgpu_renderer_shader_use: world_render_pass is not valid");
-            }
-            break;
-        case BUILTIN_RENDERPASS_UI:
-            if (context.ui_render_pass){
-                wgpuRenderPassEncoderSetPipeline(context.ui_render_pass, s->pipeline.handle);
-            } else {
-                PRINT_WARNING("webgpu_renderer_shader_use: ui_render_pass is not valid");
-            }
-            break;
-        
-        default:
-            break;
-    }
+    wgpuRenderPassEncoderSetPipeline(s->renderpass->handle, s->pipeline.handle);
     //map_completed = false;
     WGPUBufferMapCallbackInfo info = {0};
     info.callback = on_buffer_map_callback;
@@ -934,26 +923,7 @@ b8 webgpu_renderer_shader_apply_globals(struct SHADER *s)
     //wgpuQueueWriteBuffer(context.queue, internal->uniform_buffer.handle, s->global_ubo_offset, internal->mapped_uniform_buffer_block, s->global_ubo_size);
     //wgpuCommandEncoderCopyBufferToBuffer(context.encoder, internal->uniform_buffer_staging.handle, 0, internal->uniform_buffer.handle, 0, s->global_ubo_size);
     // Bind the global bind group to be updated.
-    switch (internal->shader_renderpass)
-    {
-        case BUILTIN_RENDERPASS_WORLD:
-            if (context.world_render_pass){
-                wgpuRenderPassEncoderSetBindGroup(context.world_render_pass, BIND_GROUP_SET_INDEX_GLOBAL, internal->global_bind_group, 0, NULL);
-            } else {
-                PRINT_WARNING("webgpu_renderer_shader_apply_globals: world_render_pass is not valid");
-            }
-            break;
-        case BUILTIN_RENDERPASS_UI:
-            if (context.ui_render_pass){
-                wgpuRenderPassEncoderSetBindGroup(context.ui_render_pass, BIND_GROUP_SET_INDEX_GLOBAL, internal->global_bind_group, 0, NULL);
-            } else {
-                PRINT_WARNING("webgpu_renderer_shader_apply_globals: ui_render_pass is not valid");
-            }
-            break;
-        
-        default:
-            break;
-    }
+    wgpuRenderPassEncoderSetBindGroup(internal->renderpass->handle, BIND_GROUP_SET_INDEX_GLOBAL, internal->global_bind_group, 0, NULL);
     
     
     return true;
@@ -1051,26 +1021,7 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
             //wgpuQueueWriteBuffer(context.queue, internal->uniform_buffer.handle, object_state->offset, internal->mapped_uniform_buffer_block, s->ubo_size);
         //}
         wgpuDevicePoll(context.device, true, NULL);
-        switch (internal->shader_renderpass)
-        {
-            case BUILTIN_RENDERPASS_WORLD:
-                if (context.world_render_pass){
-                    wgpuRenderPassEncoderSetBindGroup(context.world_render_pass, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
-                } else {
-                    PRINT_WARNING("webgpu_renderer_shader_apply_instance: world_render_pass is not valid");
-                }
-                break;
-            case BUILTIN_RENDERPASS_UI:
-                if (context.ui_render_pass){
-                    wgpuRenderPassEncoderSetBindGroup(context.ui_render_pass, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
-                } else {
-                    PRINT_WARNING("webgpu_renderer_shader_apply_instance: ui_render_pass is not valid");
-                }
-                break;
-            
-            default:
-                break;
-        }
+        wgpuRenderPassEncoderSetBindGroup(internal->renderpass->handle, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
     }
     
     
@@ -1169,38 +1120,13 @@ b8 webgpu_renderer_set_uniform(struct SHADER *frontend_shader, struct SHADER_UNI
     } else {
         if (uniform->scope == SHADER_SCOPE_LOCAL) {
             // Is local, using push constants. Do this immediately.
-            switch (internal->shader_renderpass)
-            {
-                case BUILTIN_RENDERPASS_WORLD:
-                    if (context.world_render_pass){
-                        wgpuRenderPassEncoderSetPushConstants(
-                            context.world_render_pass,
-                            WGPUShaderStage_Vertex | WGPUShaderStage_Fragment, // Shader stage visibility
-                            uniform->offset,          // Byte offset
-                            uniform->size,            // Byte size
-                            value                     // Pointer to data
-                        );
-                    } else {
-                        PRINT_WARNING("webgpu_renderer_shader_apply_globals: world_render_pass is not valid");
-                    }
-                    break;
-                case BUILTIN_RENDERPASS_UI:
-                    if (context.ui_render_pass){
-                        wgpuRenderPassEncoderSetPushConstants(
-                            context.ui_render_pass,
-                            WGPUShaderStage_Vertex | WGPUShaderStage_Fragment, // Shader stage visibility
-                            uniform->offset,          // Byte offset
-                            uniform->size,            // Byte size
-                            value                     // Pointer to data
-                        );
-                    } else {
-                        PRINT_WARNING("webgpu_renderer_shader_apply_globals: ui_render_pass is not valid");
-                    }
-                    break;
-                
-                default:
-                    break;
-            }
+            wgpuRenderPassEncoderSetPushConstants(
+                internal->renderpass->handle,
+                WGPUShaderStage_Vertex | WGPUShaderStage_Fragment, // Shader stage visibility
+                uniform->offset,          // Byte offset
+                uniform->size,            // Byte size
+                value                     // Pointer to data
+            );
         } else {
             // Map the appropriate memory location and copy the data over.
             u64 addr = (u64)internal->mapped_uniform_buffer_block;
@@ -1222,6 +1148,148 @@ b8 webgpu_shader_after_renderpass(struct SHADER *shader) {
     wgpuCommandEncoderCopyBufferToBuffer(context.encoder, internal->uniform_buffer_staging.handle, 0, internal->uniform_buffer.handle, 0, wgpuBufferGetSize(internal->uniform_buffer.handle));
     wgpuBufferUnmap(internal->uniform_buffer_staging.handle);
     return true;
+}
+
+void webgpu_renderpass_create(RENDERPASS* out_renderpass, f32 depth, u32 stencil, b8 has_prev_pass, b8 has_next_pass) {
+    out_renderpass->internal_data = yallocate_aligned(sizeof(WEBGPU_RENDERPASS), 8, MEMORY_TAG_RENDERER);
+    WEBGPU_RENDERPASS* internal_data = (WEBGPU_RENDERPASS*)out_renderpass->internal_data;
+    internal_data->has_prev_pass = has_prev_pass;
+    internal_data->has_next_pass = has_next_pass;
+
+    internal_data->depth = depth;
+    internal_data->stencil = stencil;
+
+    // Describe Render Pass
+    WGPURenderPassDescriptor render_pass_desc = {0};
+    render_pass_desc.nextInChain = NULL;
+    //render_pass_desc.label = "";
+    render_pass_desc.colorAttachmentCount = 0;
+    render_pass_desc.timestampWrites = NULL;
+
+    // Color attachment
+    b8 do_clear_color = (out_renderpass->clear_flags & RENDERPASS_clear_color_BUFFER_FLAG) != 0;
+    WGPURenderPassColorAttachment* render_pass_color_attachment = yallocate_aligned(sizeof(WGPURenderPassColorAttachment), 8, MEMORY_TAG_RENDERER);
+    render_pass_color_attachment->nextInChain = NULL;
+    //render_pass_color_attachment->view = context.target_view;
+    render_pass_color_attachment->resolveTarget = NULL;
+    render_pass_color_attachment->loadOp = (do_clear_color ? WGPULoadOp_Clear : WGPULoadOp_Load);
+    render_pass_color_attachment->storeOp = WGPUStoreOp_Store;
+    WGPUColor color = {0};
+    color.r = out_renderpass->clear_color.r;
+    color.g = out_renderpass->clear_color.g;
+    color.b = out_renderpass->clear_color.b;
+    color.a = out_renderpass->clear_color.a;
+    render_pass_color_attachment->clearValue = color;
+    // Attachments TODO: make this configurable.
+    render_pass_desc.colorAttachments = render_pass_color_attachment;
+    render_pass_desc.colorAttachmentCount++;
+
+    // Depth attachment, if there is one
+    b8 do_clear_depth = (out_renderpass->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
+    if (do_clear_depth) {
+        // We now add a depth/stencil attachment:
+        WGPURenderPassDepthStencilAttachment* depth_stencil_attachment = yallocate_aligned(sizeof(WGPURenderPassDepthStencilAttachment), 8, MEMORY_TAG_RENDERER);
+        // Setup depth/stencil attachment
+
+        // We do the depth buffer in the beginning of the render pass instead of here.
+        // The view of the depth texture
+        //WEBGPU_IMAGE* depth_image = (WEBGPU_IMAGE*)context.depth_texture->internal_data;
+        //depth_stencil_attachment->view = depth_image->view;
+
+        // The initial value of the depth buffer, meaning "far"
+        depth_stencil_attachment->depthClearValue = 1.0f;
+        // Operation settings comparable to the color attachment
+        depth_stencil_attachment->depthLoadOp = do_clear_depth ? WGPULoadOp_Clear : WGPULoadOp_Load;
+        depth_stencil_attachment->depthStoreOp = WGPUStoreOp_Store;
+        // we could turn off writing to the depth buffer globally here
+        depth_stencil_attachment->depthReadOnly = false;
+
+        // Stencil setup, mandatory but unused
+        depth_stencil_attachment->stencilClearValue = 0;
+        depth_stencil_attachment->stencilLoadOp = WGPULoadOp_Load;
+        depth_stencil_attachment->stencilStoreOp = WGPUStoreOp_Store;
+        depth_stencil_attachment->stencilReadOnly = true;
+
+        // TODO: other attachment types (input, resolve, preserve)
+
+        // Depth stencil data.
+        render_pass_desc.depthStencilAttachment = depth_stencil_attachment;
+    } else {
+        render_pass_desc.depthStencilAttachment = NULL;
+    }
+    
+    internal_data->descriptor = render_pass_desc;
+}
+
+void webgpu_renderpass_destroy(RENDERPASS* pass) {
+    if (pass && pass->internal_data) {
+        WEBGPU_RENDERPASS* internal_data = pass->internal_data;
+        wgpuRenderPassEncoderRelease(internal_data->handle);
+        yfree((void*)internal_data->descriptor.colorAttachments, MEMORY_TAG_RENDERER);
+        yfree((void*)internal_data->descriptor.depthStencilAttachment, MEMORY_TAG_RENDERER);
+        yfree(internal_data, MEMORY_TAG_RENDERER);
+        pass->internal_data = 0;
+    }
+}
+
+void webgpu_renderer_render_target_create(u8 attachment_count, TEXTURE** attachments, RENDERPASS* pass, u32 width, u32 height, RENDER_TARGET* out_target) {
+    // Max number of attachments
+    WGPUTextureView attachment_views[32];
+    for (u32 i = 0; i < attachment_count; ++i) {
+        attachment_views[i] = ((WEBGPU_IMAGE*)attachments[i]->internal_data)->view;
+    }
+
+    // Take a copy of the attachments and count.
+    out_target->attachment_count = attachment_count;
+    if (!out_target->attachments) {
+        out_target->attachments = yallocate_aligned(sizeof(TEXTURE*) * attachment_count, 8, MEMORY_TAG_ARRAY);
+    }
+    ycopy_memory(out_target->attachments, attachments, sizeof(TEXTURE*) * attachment_count);
+
+    // no need for an internal framebuffer as these are handled by webgpu.
+    out_target->internal_framebuffer = 0;
+}
+void webgpu_renderer_render_target_destroy(RENDER_TARGET* target, b8 free_internal_memory) {
+    if (target) {
+        target->internal_framebuffer = 0;
+        if (free_internal_memory) {
+            for (u8 i=0; i < target->attachment_count; ++i) {
+                if (target->attachments[i]) {
+                    // Release the texture view.
+                    WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)target->attachments[i]->internal_data;
+                    if (image && image->view) {
+                        wgpuTextureViewRelease(image->view);
+                        image->view = 0;
+                    }
+                    if (image->handle) {
+                        // Release the texture handle.
+                        wgpuTextureDestroy(image->handle);
+                        wgpuTextureRelease(image->handle);
+                        image->handle = 0;
+                    }
+                }
+            }
+            yfree(target->attachments, MEMORY_TAG_ARRAY);
+            target->attachments = 0;
+            target->attachment_count = 0;
+        }
+    }
+}
+
+TEXTURE* webgpu_renderer_window_attachment_get(u8 index) {
+/*      if (index >= context.swapchain.image_count) {
+        PRINT_ERROR("Attempting to get attachment index out of range: %d. Attachment count: %d", index, context.swapchain.image_count);
+        return 0;
+    } */
+    // we only have one attachment.
+    return context.render_texture;
+}
+TEXTURE* webgpu_renderer_depth_attachment_get(void) {
+    return context.depth_texture;
+}
+u8 webgpu_renderer_window_attachment_index_get(void) {
+    // we only have one attachment.
+    return 0;
 }
 
 WGPUAddressMode webgpu_convert_repeat_type(const char* axis, E_TEXTURE_REPEAT repeat) {
@@ -1301,34 +1369,15 @@ void webgpu_renderer_draw_geometry(GEOMETRY_RENDER_DATA data) {
     WEBGPU_GEOMETRY_DATA* buffer_data = &context.geometries[data.geometry->internal_id];
     // Set vertex buffer while encoding the render pass
     
-    switch (internal->shader_renderpass){
-        case BUILTIN_RENDERPASS_WORLD:
-            wgpuRenderPassEncoderSetVertexBuffer(context.world_render_pass, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
-            // Draw indexed or non-indexed.
-            if (buffer_data->index_count > 0) {
-                // Bind index buffer at offset.
-                wgpuRenderPassEncoderSetIndexBuffer(context.world_render_pass, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
-                // Issue the draw.
-                wgpuRenderPassEncoderDrawIndexed(context.world_render_pass, buffer_data->index_count, 1, 0, 0, 0);
-            } else {
-                wgpuRenderPassEncoderDraw(context.world_render_pass, buffer_data->vertex_count, 1, 0, 0);
-            }
-            break;
-        case BUILTIN_RENDERPASS_UI:
-            wgpuRenderPassEncoderSetVertexBuffer(context.ui_render_pass, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
-            // Draw indexed or non-indexed.
-            if (buffer_data->index_count > 0) {
-                // Bind index buffer at offset.
-                wgpuRenderPassEncoderSetIndexBuffer(context.ui_render_pass, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
-                // Issue the draw.
-                wgpuRenderPassEncoderDrawIndexed(context.ui_render_pass, buffer_data->index_count, 1, 0, 0, 0);
-            } else {
-                wgpuRenderPassEncoderDraw(context.ui_render_pass, buffer_data->vertex_count, 1, 0, 0);
-            }
-            break;
-
-        default:
-            break;
+    wgpuRenderPassEncoderSetVertexBuffer(internal->renderpass->handle, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
+    // Draw indexed or non-indexed.
+    if (buffer_data->index_count > 0) {
+        // Bind index buffer at offset.
+        wgpuRenderPassEncoderSetIndexBuffer(internal->renderpass->handle, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
+        // Issue the draw.
+        wgpuRenderPassEncoderDrawIndexed(internal->renderpass->handle, buffer_data->index_count, 1, 0, 0, 0);
+    } else {
+        wgpuRenderPassEncoderDraw(internal->renderpass->handle, buffer_data->vertex_count, 1, 0, 0);
     }
 
 }
@@ -1351,19 +1400,68 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     context.recreating_swapchain = true;
 
     wgpuDevicePoll(context.device, true, NULL);
+    webgpu_recreate_swapchain(&context, backend, context.framebuffer_width, context.framebuffer_height);
 
-    webgpu_recreate_swapchain(&context, backend, cached_framebuffer_width, cached_framebuffer_height);
-    context.depth_view = get_depth_texture_view(cached_framebuffer_width, cached_framebuffer_height);
-    if (!context.depth_view) {
+    // Image
+    if (!context.render_texture) {
+        context.render_texture = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_RENDERER);
+        void* internal_data = yallocate_aligned(sizeof(WEBGPU_IMAGE), 8, MEMORY_TAG_TEXTURE);
+
+        context.render_texture = texture_system_wrap_internal(
+            "__ywmaaengine_default_render_texture__",
+            context.framebuffer_width,
+            context.framebuffer_height,
+            4,
+            false,
+            true,
+            false,
+            internal_data);
+        if (!context.render_texture) {
+            PRINT_ERROR("Failed to generate new swapchain image texture!");
+            return false;
+        }
+    } else {
+        // Just update the dimensions.
+        texture_system_resize(context.render_texture, context.framebuffer_width, context.framebuffer_height, false);
+    }
+
+    const u64 candidate_count = 3;
+    WGPUTextureFormat candidates[candidate_count] = {
+        WGPUTextureFormat_Depth32Float,
+        WGPUTextureFormat_Depth32FloatStencil8,
+        WGPUTextureFormat_Depth24Plus};
+    u8 sizes[candidate_count] = {
+        4,
+        4,
+        3};
+
+    WEBGPU_IMAGE* depth_image = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_TEXTURE);
+    webgpu_image_create(
+        &context,
+        WGPUTextureDimension_2D,
+        context.framebuffer_width,
+        context.framebuffer_height,
+        candidates[2],
+        WGPUTextureUsage_RenderAttachment,
+        true,
+        WGPUTextureAspect_DepthOnly,
+        depth_image);
+
+    // Wrap it in a texture.
+    context.depth_texture = texture_system_wrap_internal(
+        "__ywmaaengine_default_depth_texture__",
+        context.framebuffer_width,
+        context.framebuffer_height,
+        sizes[2], // 4 channels for depth
+        false,
+        true,
+        false,
+        depth_image);
+    
+    if (!context.depth_texture) {
         PRINT_ERROR("Failed to create depth texture view.");
         return false;
     }
-
-    // Sync the framebuffer size with the cached sizes.
-    context.framebuffer_width = cached_framebuffer_width;
-    context.framebuffer_height = cached_framebuffer_height;
-    cached_framebuffer_width = 0;
-    cached_framebuffer_height = 0;
 
     // Update framebuffer size generation.
     context.framebuffer_size_last_generation = context.framebuffer_size_generation;
@@ -1374,43 +1472,6 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     return true;
 }
 
-WGPUTextureView get_depth_texture_view(u32 width, u32 height) {
-    // Create the depth texture
-    WGPUTextureFormat depthTextureFormat = WGPUTextureFormat_Depth24Plus;
-    WGPUTextureDescriptor depthTextureDesc;
-    depthTextureDesc.label = (WGPUStringView){"Depth Texture", sizeof("Depth Texture")};
-    depthTextureDesc.nextInChain = NULL;
-    depthTextureDesc.dimension = WGPUTextureDimension_2D;
-    depthTextureDesc.format = depthTextureFormat;
-    depthTextureDesc.mipLevelCount = 1;
-    depthTextureDesc.sampleCount = 1;
-    depthTextureDesc.size.width = width;
-    depthTextureDesc.size.height = height;
-    depthTextureDesc.size.depthOrArrayLayers = 1;
-    depthTextureDesc.usage = WGPUTextureUsage_RenderAttachment;
-    depthTextureDesc.viewFormatCount = 1;
-    depthTextureDesc.viewFormats = &depthTextureFormat;
-    WGPUTexture depthTexture = wgpuDeviceCreateTexture(context.device, &depthTextureDesc);
-
-    // Create the view of the depth texture manipulated by the rasterizer
-    WGPUTextureViewDescriptor depthTextureViewDesc;
-    depthTextureViewDesc.nextInChain = NULL;
-    depthTextureViewDesc.label = (WGPUStringView){"Depth Texture View", sizeof("Depth Texture View")};
-    depthTextureViewDesc.aspect = WGPUTextureAspect_DepthOnly;
-    depthTextureViewDesc.baseArrayLayer = 0;
-    depthTextureViewDesc.arrayLayerCount = 1;
-    depthTextureViewDesc.baseMipLevel = 0;
-    depthTextureViewDesc.mipLevelCount = 1;
-    depthTextureViewDesc.dimension = WGPUTextureViewDimension_2D;
-    depthTextureViewDesc.format = depthTextureFormat;
-    depthTextureViewDesc.usage = WGPUTextureUsage_RenderAttachment;
-    WGPUTextureView depthTextureView = wgpuTextureCreateView(depthTexture, &depthTextureViewDesc);
-    return depthTextureView;
-
-    // Destroy the depth texture and its view
-    wgpuTextureDestroy(depthTexture);
-    wgpuTextureRelease(depthTexture);
-}
 
 WGPUTextureView get_next_surface_texture_view(void) {
     //Get the next surface texture

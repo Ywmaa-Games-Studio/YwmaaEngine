@@ -151,8 +151,8 @@ b8 shader_system_create(const SHADER_CONFIG* config, E_RENDERER_BACKEND_API back
     out_shader->push_constant_stride = 128;
     out_shader->push_constant_size = 0;
 
-    u8 renderpass_id = INVALID_ID_U8;
-    if (!renderer_renderpass_id(config->renderpass_name, &renderpass_id)) {
+    RENDERPASS* pass = renderer_renderpass_get(config->renderpass_name);
+    if (!pass) {
         PRINT_ERROR("Unable to find renderpass '%s'", config->renderpass_name);
         return false;
     }
@@ -161,14 +161,14 @@ b8 shader_system_create(const SHADER_CONFIG* config, E_RENDERER_BACKEND_API back
     {
         case RENDERER_BACKEND_API_VULKAN:
             // Create the shader with the renderer.
-            if (!renderer_shader_create(out_shader, renderpass_id, config->stage_count, (const char**)config->vulkan_stage_filenames, config->stages)) {
+            if (!renderer_shader_create(out_shader, pass, config->stage_count, (const char**)config->vulkan_stage_filenames, config->stages)) {
                 PRINT_ERROR("Error creating shader.");
                 return false;
             }
             break;
         case RENDERER_BACKEND_API_WEBGPU:
             // Create the shader with the renderer.
-            if (!renderer_shader_create(out_shader, renderpass_id, config->stage_count, (const char**)config->webgpu_stage_filenames, config->stages)) {
+            if (!renderer_shader_create(out_shader, pass, config->stage_count, (const char**)config->webgpu_stage_filenames, config->stages)) {
                 PRINT_ERROR("Error creating shader.");
                 return false;
             }

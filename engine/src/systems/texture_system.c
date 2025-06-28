@@ -158,7 +158,7 @@ TEXTURE* texture_system_wrap_internal(const char* name, u32 width, u32 height, u
     u32 id = INVALID_ID;
     TEXTURE* t = 0;
     if (register_texture) {
-        // NOTE: Wrapped textures are never auto-released because it means that thier
+        // NOTE: Wrapped textures are never auto-released because it means that their
         // resources are created and managed somewhere within the renderer internals.
         if (!process_texture_reference(name, 1, false, true, &id)) {
             PRINT_ERROR("texture_system_wrap_internal failed to obtain a new texture id.");

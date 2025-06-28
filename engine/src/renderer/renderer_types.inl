@@ -63,23 +63,96 @@ typedef struct GEOMETRY_RENDER_DATA {
     GEOMETRY* geometry;
 } GEOMETRY_RENDER_DATA;
 
-typedef enum E_BUILTIN_RENDERPASS {
-    BUILTIN_RENDERPASS_WORLD = 0x01,
-    BUILTIN_RENDERPASS_UI = 0x02,
-} E_BUILTIN_RENDERPASS;
-
 typedef enum E_RENDERER_DEBUG_VIEW_MODE {
     RENDERER_VIEW_MODE_DEFAULT = 0,
     RENDERER_VIEW_MODE_LIGHTING = 1,
     RENDERER_VIEW_MODE_NORMALS = 2
 } E_RENDERER_DEBUG_VIEW_MODE;
 
+/** @brief Represents a render target, which is used for rendering to a texture or set of textures. */
+typedef struct RENDER_TARGET {
+    /** @brief Indicates if this render target should be updated on window resize. */
+    b8 sync_to_window_size;
+    /** @brief The number of attachments */
+    u8 attachment_count;
+    /** @brief An array of attachments (pointers to textures). */
+    struct TEXTURE** attachments;
+    /** @brief The renderer API internal framebuffer object. */
+    void* internal_framebuffer;
+} RENDER_TARGET;
+
+/**
+ * @brief The types of clearing to be done on a renderpass.
+ * Can be combined together for multiple clearing functions.
+ */
+typedef enum E_RENDERPASS_CLEAR_FLAG {
+    /** @brief No clearing shoudl be done. */
+    RENDERPASS_CLEAR_NONE_FLAG = 0x0,
+    /** @brief Clear the colour buffer. */
+    RENDERPASS_clear_color_BUFFER_FLAG = 0x1,
+    /** @brief Clear the depth buffer. */
+    RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG = 0x2,
+    /** @brief Clear the stencil buffer. */
+    RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG = 0x4
+} E_RENDERPASS_CLEAR_FLAG;
+
+typedef struct RENDERPASS_CONFIG {
+    /** @brief The name of this renderpass. */
+    const char* name;
+    /** @brief The name of the previous renderpass. */
+    const char* prev_name;
+    /** @brief The name of the next renderpass. */
+    const char* next_name;
+    /** @brief The current render area of the renderpass. */
+    Vector4 render_area;
+    /** @brief The clear colour used for this renderpass. */
+    Vector4 clear_color;
+
+    /** @brief The clear flags for this renderpass. */
+    u8 clear_flags;
+} RENDERPASS_CONFIG;
+
+/**
+ * @brief Represents a generic renderpass.
+ */
+typedef struct RENDERPASS {
+    /** @brief The id of the renderpass */
+    u16 id;
+
+    /** @brief The current render area of the renderpass. */
+    Vector4 render_area;
+    /** @brief The clear colour used for this renderpass. */
+    Vector4 clear_color;
+
+    /** @brief The clear flags for this renderpass. */
+    u8 clear_flags;
+    /** @brief The number of render targets for this renderpass. */
+    u8 render_target_count;
+    /** @brief An array of render targets used by this renderpass. */
+    RENDER_TARGET* targets;
+
+    /** @brief Internal renderpass data */
+    void* internal_data;
+} RENDERPASS;
+
+/** @brief The generic configuration for a renderer backend. */
+typedef struct RENDERER_BACKEND_CONFIG {
+    /** @brief The name of the application */
+    const char* application_name;
+    /** @brief The number of pointers to renderpasses. */
+    u16 renderpass_count;
+    /** @brief An array configurations for renderpasses. Will be initialized on the backend automatically. */
+    RENDERPASS_CONFIG* pass_configs;
+    /** @brief A callback that will be made when the backend requires a refresh/regeneration of the render targets. */
+    void (*on_rendertarget_refresh_required)(void);
+} RENDERER_BACKEND_CONFIG;
+
 typedef struct RENDERER_BACKEND {
     struct PLATFORM_STATE* platform_state;
     E_RENDERER_BACKEND_API backend_api;
     u64 frame_number;
 
-    b8 (*init)(struct RENDERER_BACKEND* backend, const char* application_name);
+    b8 (*init)(struct RENDERER_BACKEND* backend, const RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count);
 
     void (*shutdown)(struct RENDERER_BACKEND* backend);
 
@@ -88,8 +161,9 @@ typedef struct RENDERER_BACKEND {
     b8 (*begin_frame)(struct RENDERER_BACKEND* backend, f32 delta_time);
     b8 (*end_frame)(struct RENDERER_BACKEND* backend, f32 delta_time);
 
-    b8 (*begin_renderpass)(struct RENDERER_BACKEND* backend, u8 renderpass_id);
-    b8 (*end_renderpass)(struct RENDERER_BACKEND* backend, u8 renderpass_id);
+    b8 (*begin_renderpass)(struct RENDERER_BACKEND* backend, RENDERPASS* pass, RENDER_TARGET* target);
+    b8 (*end_renderpass)(struct RENDERER_BACKEND* backend, RENDERPASS* pass);
+    RENDERPASS* (*renderpass_get)(const char* name);
 
     void (*draw_geometry)(GEOMETRY_RENDER_DATA data);
 
@@ -134,13 +208,13 @@ typedef struct RENDERER_BACKEND {
      * @brief Creates internal shader resources using the provided parameters.
      * 
      * @param s A pointer to the shader.
-     * @param renderpass_id The identifier of the renderpass to be associated with the shader.
+     * @param pass A pointer to the renderpass to be associated with the shader.
      * @param stage_count The total number of stages.
      * @param stage_filenames An array of shader stage filenames to be loaded. Should align with stages array.
      * @param stages A array of shader_stages indicating what render stages (vertex, fragment, etc.) used in this shader.
      * @return b8 True on success; otherwise false.
      */
-    b8 (*shader_create)(struct SHADER* shader, u8 renderpass_id, u8 stage_count, const char** stage_filenames, E_SHADER_STAGE* stages);
+    b8 (*shader_create)(struct SHADER* shader, RENDERPASS* pass, u8 stage_count, const char** stage_filenames, E_SHADER_STAGE* stages);
 
     /**
      * @brief Destroys the given shader and releases any resources held by it.
@@ -245,6 +319,63 @@ typedef struct RENDERER_BACKEND {
      * @param map A pointer to the texture map to release resources from.
      */
     void (*texture_map_release_resources)(struct TEXTURE_MAP* map);
+
+    /**
+     * @brief Creates a new render target using the provided data.
+     *
+     * @param attachment_count The number of attachments (texture pointers).
+     * @param attachments An array of attachments (texture pointers).
+     * @param renderpass A pointer to the renderpass the render target is associated with.
+     * @param width The width of the render target in pixels.
+     * @param height The height of the render target in pixels.
+     * @param out_target A pointer to hold the newly created render target.
+     */
+    void (*render_target_create)(u8 attachment_count, TEXTURE** attachments, RENDERPASS* pass, u32 width, u32 height, RENDER_TARGET* out_target);
+
+    /**
+     * @brief Destroys the provided render target.
+     *
+     * @param target A pointer to the render target to be destroyed.
+     * @param free_internal_memory Indicates if internal memory should be freed.
+     */
+    void (*render_target_destroy)(RENDER_TARGET* target, b8 free_internal_memory);
+
+    /**
+     * @brief Creates a new renderpass.
+     *
+     * @param out_renderpass A pointer to the generic renderpass.
+     * @param depth The depth clear amount.
+     * @param stencil The stencil clear value.
+     * @param clear_flags The combined clear flags indicating what kind of clear should take place.
+     * @param has_prev_pass Indicates if there is a previous renderpass.
+     * @param has_next_pass Indicates if there is a next renderpass.
+     */
+    void (*renderpass_create)(RENDERPASS* out_renderpass, f32 depth, u32 stencil, b8 has_prev_pass, b8 has_next_pass);
+
+    /**
+     * @brief Destroys the given renderpass.
+     *
+     * @param pass A pointer to the renderpass to be destroyed.
+     */
+    void (*renderpass_destroy)(RENDERPASS* pass);
+
+    /**
+     * @brief Attempts to get the window render target at the given index.
+     *
+     * @param index The index of the attachment to get. Must be within the range of window render target count.
+     * @return A pointer to a texture attachment if successful; otherwise 0.
+     */
+    TEXTURE* (*window_attachment_get)(u8 index);
+
+    /**
+     * @brief Returns a pointer to the main depth texture target.
+     */
+    TEXTURE* (*depth_attachment_get)(void);
+
+    /**
+     * @brief Returns the current window attachment index.
+     */
+    u8 (*window_attachment_index_get)(void);
 } RENDERER_BACKEND;
 
 typedef struct RENDER_PACKET {

@@ -1,3 +1,4 @@
+#pragma clang optimize off // Disable optimizations here because sometimes they cause damage by removing important zeroed variables
 #include "webgpu_pipeline.h"
 #include "core/logger.h"
 #include "io/filesystem.h"
@@ -31,6 +32,8 @@ b8 webgpu_pipeline_create(
     WGPUFragmentState* fragment_stage,
     u32 push_constant_range_count,
     range* push_constant_ranges,
+    b8 is_wireframe,
+    b8 depth_test_enabled,
     WEBGPU_PIPELINE* pipeline
     )
     {
@@ -75,7 +78,7 @@ b8 webgpu_pipeline_create(
     pipeline_desc.fragment = fragment_stage;
     // [...] Describe primitive pipeline state
     // Each sequence of 3 vertices is considered as a triangle
-    pipeline_desc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    pipeline_desc.primitive.topology = is_wireframe ? WGPUPrimitiveTopology_LineList : WGPUPrimitiveTopology_TriangleList;
     
     // We'll see later how to specify the order in which vertices should be
     // connected. When not specified, vertices are considered sequentially.
@@ -91,19 +94,24 @@ b8 webgpu_pipeline_create(
     // used for optimization).
     pipeline_desc.primitive.cullMode = WGPUCullMode_None;
     
-    // [...] Describe stencil/depth pipeline state
-    WGPUDepthStencilState depthStencilState;
-    depth_set_default(&depthStencilState);
-    depthStencilState.nextInChain = NULL;
-    depthStencilState.depthCompare = WGPUCompareFunction_Less;
-    depthStencilState.depthWriteEnabled = true;
-    depthStencilState.format = WGPUTextureFormat_Depth24Plus;
-    // Deactivate the stencil alltogether
-    depthStencilState.stencilReadMask = 0;
-    depthStencilState.stencilWriteMask = 0;
+    if (depth_test_enabled){
+        // [...] Describe stencil/depth pipeline state
+        WGPUDepthStencilState depthStencilState;
+        depth_set_default(&depthStencilState);
+        depthStencilState.nextInChain = NULL;
+        depthStencilState.depthCompare = WGPUCompareFunction_Less;
+        depthStencilState.depthWriteEnabled = true;
+        depthStencilState.format = WGPUTextureFormat_Depth24Plus;
+        // Deactivate the stencil alltogether
+        depthStencilState.stencilReadMask = 0;
+        depthStencilState.stencilWriteMask = 0;
 
-    // Setup depth state
-    pipeline_desc.depthStencil = &depthStencilState;
+        // Setup depth state
+        pipeline_desc.depthStencil = &depthStencilState;
+    } else {
+        pipeline_desc.depthStencil = NULL;
+    }
+
     // [...] Describe multi-sampling state
     // Samples per pixel
     pipeline_desc.multisample.count = 1;
@@ -123,3 +131,4 @@ void webgpu_pipeline_destroy(WEBGPU_CONTEXT* context, WEBGPU_PIPELINE* pipeline)
     wgpuRenderPipelineRelease(pipeline->handle);
     wgpuPipelineLayoutRelease(pipeline->layout);
 }
+#pragma clang optimize on

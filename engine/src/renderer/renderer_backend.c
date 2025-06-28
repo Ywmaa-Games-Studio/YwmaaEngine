@@ -43,6 +43,16 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->texture_map_acquire_resources = vulkan_renderer_texture_map_acquire_resources;
         out_renderer_backend->texture_map_release_resources = vulkan_renderer_texture_map_release_resources;
 
+        out_renderer_backend->render_target_create = vulkan_renderer_render_target_create;
+        out_renderer_backend->render_target_destroy = vulkan_renderer_render_target_destroy;
+
+        out_renderer_backend->renderpass_create = vulkan_renderpass_create;
+        out_renderer_backend->renderpass_destroy = vulkan_renderpass_destroy;
+        out_renderer_backend->renderpass_get = vulkan_renderer_renderpass_get;
+        out_renderer_backend->window_attachment_get = vulkan_renderer_window_attachment_get;
+        out_renderer_backend->depth_attachment_get = vulkan_renderer_depth_attachment_get;
+        out_renderer_backend->window_attachment_index_get = vulkan_renderer_window_attachment_index_get;
+
         return true;
     }
 
@@ -81,6 +91,17 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
 
         out_renderer_backend->texture_map_acquire_resources = webgpu_renderer_texture_map_acquire_resources;
         out_renderer_backend->texture_map_release_resources = webgpu_renderer_texture_map_release_resources;
+
+        out_renderer_backend->renderpass_create = webgpu_renderpass_create;
+        out_renderer_backend->renderpass_destroy = webgpu_renderpass_destroy;
+        out_renderer_backend->renderpass_get = webgpu_renderer_renderpass_get;
+
+        out_renderer_backend->render_target_create = webgpu_renderer_render_target_create;
+        out_renderer_backend->render_target_destroy = webgpu_renderer_render_target_destroy;
+
+        out_renderer_backend->window_attachment_get = webgpu_renderer_window_attachment_get;
+        out_renderer_backend->depth_attachment_get = webgpu_renderer_depth_attachment_get;
+        out_renderer_backend->window_attachment_index_get = webgpu_renderer_window_attachment_index_get;
 
         return true;
     }

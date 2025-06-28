@@ -250,6 +250,7 @@ void create(VULKAN_CONTEXT* context, u32 width, u32 height, VULKAN_SWAPCHAIN* sw
     }
 
     // Create depth image and its view.
+    VULKAN_IMAGE* image = yallocate_aligned(sizeof(VULKAN_IMAGE), 8, MEMORY_TAG_TEXTURE);
     vulkan_image_create(
         context,
         VK_IMAGE_TYPE_2D,
@@ -261,14 +262,27 @@ void create(VULKAN_CONTEXT* context, u32 width, u32 height, VULKAN_SWAPCHAIN* sw
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         true,
         VK_IMAGE_ASPECT_DEPTH_BIT,
-        &swapchain->depth_attachment);
+        image);
+
+    // Wrap it in a texture.
+    context->swapchain.depth_texture = texture_system_wrap_internal(
+        "__ywmaaengine_default_depth_texture__",
+        swapchain_extent.width,
+        swapchain_extent.height,
+        context->device.depth_channel_count,
+        false,
+        true,
+        false,
+        image);
 
     PRINT_INFO("Swapchain created successfully.");
 }
 
 void destroy(VULKAN_CONTEXT* context, VULKAN_SWAPCHAIN* swapchain) {
     vkDeviceWaitIdle(context->device.logical_device);
-    vulkan_image_destroy(context, &swapchain->depth_attachment);
+    vulkan_image_destroy(context, (VULKAN_IMAGE*)swapchain->depth_texture->internal_data);
+    yfree(swapchain->depth_texture->internal_data, MEMORY_TAG_TEXTURE);
+    swapchain->depth_texture->internal_data = 0;
 
     // Only destroy the views, not the images, since those are owned by the swapchain and are thus
     // destroyed when it is.

@@ -57,6 +57,8 @@ typedef struct VULKAN_DEVICE {
     b8 supports_device_local_host_visible;
 
     VkFormat depth_format;
+    /** @brief The chosen depth format's number of channels.*/
+    u8 depth_channel_count;
 } VULKAN_DEVICE;
 
 typedef struct VULKAN_IMAGE {
@@ -78,13 +80,10 @@ typedef enum VULKAN_RENDER_PASS_STATE {
 
 typedef struct VULKAN_RENDERPASS {
     VkRenderPass handle;
-    Vector4 render_area;
-    Vector4 clear_colour;
 
     f32 depth;
     u32 stencil;
 
-    u8 clear_flags;
     b8 has_prev_pass;
     b8 has_next_pass;
 
@@ -99,10 +98,14 @@ typedef struct VULKAN_SWAPCHAIN {
     /** @brief An array of pointers to render targets, which contain swapchain images. */
     TEXTURE** render_textures;
 
-    VULKAN_IMAGE depth_attachment;
+    /** @brief The depth texture. */
+    TEXTURE* depth_texture;
 
-    // Framebuffers used for on-screen rendering, one per frame
-    VkFramebuffer framebuffers[3];
+    /** 
+     * @brief Render targets used for on-screen rendering, one per frame. 
+     * The images contained in these are created and owned by the swapchain.
+     * */
+    RENDER_TARGET render_targets[3];
 } VULKAN_SWAPCHAIN;
 
 typedef enum VULKAN_COMMAND_BUFFER_STATE {
@@ -310,6 +313,8 @@ typedef struct VULKAN_SHADER {
 
 } VULKAN_SHADER;
 
+#define VULKAN_MAX_REGISTERED_RENDERPASSES 31
+
 typedef struct VULKAN_CONTEXT {
     f32 frame_delta_time;
 
@@ -333,8 +338,12 @@ typedef struct VULKAN_CONTEXT {
     VULKAN_DEVICE device;
 
     VULKAN_SWAPCHAIN swapchain;
-    VULKAN_RENDERPASS main_renderpass;
-    VULKAN_RENDERPASS ui_renderpass;
+
+    void* renderpass_table_block;
+    HASHTABLE renderpass_table;
+
+    /** @brief Registered renderpasses. */
+    RENDERPASS registered_passes[VULKAN_MAX_REGISTERED_RENDERPASSES];
 
     VULKAN_BUFFER object_vertex_buffer;
     VULKAN_BUFFER object_index_buffer;
@@ -362,10 +371,16 @@ typedef struct VULKAN_CONTEXT {
     // TODO: make dynamic
     VULKAN_GEOMETRY_DATA geometries[VULKAN_MAX_GEOMETRY_COUNT];
 
-    // Framebuffers used for world rendering, one per frame
-    VkFramebuffer world_framebuffers[3];
+    /** @brief Render targets used for world rendering. @note One per frame. */
+    RENDER_TARGET world_render_targets[3];
 
     i32 (*find_memory_index)(u32 type_filter, u32 property_flags);
+
+    /**
+     * @brief A pointer to a function to be called when the backend requires
+     * rendertargets to be refreshed/regenerated.
+     */
+    void (*on_rendertarget_refresh_required)(void);
 #if defined(_DEBUG)
     VkDebugUtilsMessengerEXT debug_messenger;
 #endif

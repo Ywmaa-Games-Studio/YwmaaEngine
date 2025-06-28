@@ -43,7 +43,7 @@ b8 game_init(GAME* game_instance) {
 
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
-    state->camera_position = (Vector3){0, 0, 30.0f};
+    state->camera_position = (Vector3){10.5f, 5.0f, 9.5f};
     state->camera_euler = Vector3_zero();
 
     state->view = Matrice4_translation(state->camera_position);

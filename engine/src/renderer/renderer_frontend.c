@@ -28,9 +28,26 @@ typedef struct RENDERER_SYSTEM_STATE {
     u32 material_shader_id;
     u32 ui_shader_id;
     u32 render_mode;
+    // The number of render targets. Typically lines up with the amount of swapchain images.
+    u8 window_render_target_count;
+    // The current window framebuffer width.
+    u32 framebuffer_width;
+    // The current window framebuffer height.
+    u32 framebuffer_height;
+
+    // A pointer to the world renderpass. TODO: Configurable via views.
+    RENDERPASS* world_renderpass;
+    // A pointer to the UI renderpass. TODO: Configurable via views.
+    RENDERPASS* ui_renderpass;
+    // Indicates if the window is currently being resized.
+    b8 resizing;
+    // The current number of frames since the last resize operation.'
+    // Only set if resizing = true. Otherwise 0.
+    u8 frames_since_resize;
 } RENDERER_SYSTEM_STATE;
 
 static RENDERER_SYSTEM_STATE* state_ptr;
+void regenerate_render_targets(void);
 
 b8 renderer_on_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
     switch (code) {
@@ -72,6 +89,12 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
     }
     state_ptr = state;
 
+   // Default framebuffer size. Overridden when window is created.
+    state_ptr->framebuffer_width = 1280;
+    state_ptr->framebuffer_height = 720;
+    state_ptr->resizing = false;
+    state_ptr->frames_since_resize = 0;
+
     if (!renderer_backend_create(rendering_backend_api, &state_ptr->backend)){
         PRINT_ERROR("failed to create backend. Shutting down.");
         return false;
@@ -82,8 +105,56 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
 
     event_register(EVENT_CODE_SET_RENDER_MODE, state, renderer_on_event);
 
+    RENDERER_BACKEND_CONFIG renderer_config = {0};
+    renderer_config.application_name = application_name;
+    renderer_config.on_rendertarget_refresh_required = regenerate_render_targets;
+
+    // Renderpasses. TODO: read config from file.
+    renderer_config.renderpass_count = 2;
+    const char* world_renderpass_name = "renderpass.builtin.world";
+    const char* ui_renderpass_name = "renderpass.builtin.ui";
+    RENDERPASS_CONFIG pass_configs[2];
+    pass_configs[0].name = world_renderpass_name;
+    pass_configs[0].prev_name = 0;
+    pass_configs[0].next_name = ui_renderpass_name;
+    pass_configs[0].render_area = (Vector4){0, 0, 1280, 720};
+    pass_configs[0].clear_color = (Vector4){0.0f, 0.0f, 0.2f, 1.0f};
+    pass_configs[0].clear_flags = RENDERPASS_clear_color_BUFFER_FLAG | RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG | RENDERPASS_CLEAR_STENCIL_BUFFER_FLAG;
+
+    pass_configs[1].name = ui_renderpass_name;
+    pass_configs[1].prev_name = world_renderpass_name;
+    pass_configs[1].next_name = 0;
+    pass_configs[1].render_area = (Vector4){0, 0, 1280, 720};
+    pass_configs[1].clear_color = (Vector4){0.0f, 0.0f, 0.2f, 1.0f};
+    pass_configs[1].clear_flags = RENDERPASS_CLEAR_NONE_FLAG;
+
+    renderer_config.pass_configs = pass_configs;
+
     // Initialize the backend.
-    CRITICAL_INIT(state_ptr->backend.init(&state_ptr->backend, application_name), "Renderer backend failed to initialize. Shutting down.");
+    CRITICAL_INIT(state_ptr->backend.init(&state_ptr->backend, &renderer_config, &state_ptr->window_render_target_count), "Renderer backend failed to initialize. Shutting down.");
+
+    // TODO: Will know how to get these when we define views.
+    state_ptr->world_renderpass = state_ptr->backend.renderpass_get(world_renderpass_name);
+    state_ptr->world_renderpass->render_target_count = state_ptr->window_render_target_count;
+    state_ptr->world_renderpass->targets = yallocate_aligned(sizeof(RENDER_TARGET) * state_ptr->window_render_target_count, 8, MEMORY_TAG_ARRAY);
+
+    state_ptr->ui_renderpass = state_ptr->backend.renderpass_get(ui_renderpass_name);
+    state_ptr->ui_renderpass->render_target_count = state_ptr->window_render_target_count;
+    state_ptr->ui_renderpass->targets = yallocate_aligned(sizeof(RENDER_TARGET) * state_ptr->window_render_target_count, 8, MEMORY_TAG_ARRAY);
+
+    regenerate_render_targets();
+
+    // Update the main/world renderpass dimensions.
+    state_ptr->world_renderpass->render_area.x = 0;
+    state_ptr->world_renderpass->render_area.y = 0;
+    state_ptr->world_renderpass->render_area.z = state_ptr->framebuffer_width;
+    state_ptr->world_renderpass->render_area.w = state_ptr->framebuffer_height;
+
+    // Also update the UI renderpass dimensions.
+    state_ptr->ui_renderpass->render_area.x = 0;
+    state_ptr->ui_renderpass->render_area.y = 0;
+    state_ptr->ui_renderpass->render_area.z = state_ptr->framebuffer_width;
+    state_ptr->ui_renderpass->render_area.w = state_ptr->framebuffer_height;
 
     // Shaders
     RESOURCE config_resource;
@@ -127,7 +198,11 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
 
 void renderer_system_shutdown(void* state) {
     if (state_ptr) {
-
+        // Destroy render targets.
+        for (u8 i = 0; i < state_ptr->window_render_target_count; ++i) {
+            state_ptr->backend.render_target_destroy(&state_ptr->world_renderpass->targets[i], true);
+            state_ptr->backend.render_target_destroy(&state_ptr->ui_renderpass->targets[i], true);
+        }
         state_ptr->backend.shutdown(&state_ptr->backend);
     }
     state_ptr = 0;
@@ -135,9 +210,12 @@ void renderer_system_shutdown(void* state) {
 
 void renderer_on_resized(u16 width, u16 height) {
     if (state_ptr) {
-        state_ptr->projection = Matrice4_perspective(deg_to_rad(45.0f), width / (f32)height, state_ptr->near_clip, state_ptr->far_clip);
-        state_ptr->ui_projection = Matrice4_orthographic(0, (f32)height, (f32)width, 0, -100.f, 100.0f); // Y-Axis is flipped intentionally
-        state_ptr->backend.resized(&state_ptr->backend, width, height);
+        // Flag as resizing and store the change, but wait to regenerate.
+        state_ptr->resizing = true;
+        state_ptr->framebuffer_width = width;
+        state_ptr->framebuffer_height = height;
+        // Also reset the frame count since the last  resize operation.
+        state_ptr->frames_since_resize = 0;
     } else {
         PRINT_WARNING("renderer backend does not exist to accept resize: %i %i", width, height);
     }
@@ -146,10 +224,41 @@ void renderer_on_resized(u16 width, u16 height) {
 b8 renderer_draw_frame(RENDER_PACKET* packet) {
     state_ptr->backend.frame_number++;
 
+    // Make sure the window is not currently being resized by waiting a designated
+    // number of frames after the last resize operation before performing the backend updates.
+    if (state_ptr->resizing) {
+        state_ptr->frames_since_resize++;
+
+        // If the required number of frames have passed since the resize, go ahead and perform the actual updates.
+        if (state_ptr->frames_since_resize >= 30) {
+            f32 width = state_ptr->framebuffer_width;
+            f32 height = state_ptr->framebuffer_height;
+            state_ptr->projection = Matrice4_perspective(deg_to_rad(45.0f), width / (f32)height, state_ptr->near_clip, state_ptr->far_clip);
+            state_ptr->ui_projection = Matrice4_orthographic(0, (f32)width, (f32)height, 0, -100.f, 100.0f);  // Intentionally flipped on y axis.
+            state_ptr->backend.resized(&state_ptr->backend, width, height);
+
+            state_ptr->frames_since_resize = 0;
+            state_ptr->resizing = false;
+        } else {
+            // Skip rendering the frame and try again next time.
+            return true;
+        }
+    }
+
+    // TODO: views
+    // Update the main/world renderpass dimensions.
+    state_ptr->world_renderpass->render_area.z = state_ptr->framebuffer_width;
+    state_ptr->world_renderpass->render_area.w = state_ptr->framebuffer_height;
+
+    // Also update the UI renderpass dimensions.
+    state_ptr->ui_renderpass->render_area.z = state_ptr->framebuffer_width;
+    state_ptr->ui_renderpass->render_area.w = state_ptr->framebuffer_height;
+
     // If the begin frame returned successfully, mid-frame operations may continue.
     if (state_ptr->backend.begin_frame(&state_ptr->backend, packet->delta_time)) {
+        u8 attachment_index = state_ptr->backend.window_attachment_index_get();
         //START world renderpass
-        if (!state_ptr->backend.begin_renderpass(&state_ptr->backend, BUILTIN_RENDERPASS_WORLD)) {
+        if (!state_ptr->backend.begin_renderpass(&state_ptr->backend, state_ptr->world_renderpass, &state_ptr->world_renderpass->targets[attachment_index])) {
             PRINT_ERROR("backend.begin_renderpass -> BUILTIN_RENDERPASS_WORLD failed. Application shutting down...");
             return false;
         }
@@ -194,7 +303,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
         }
         //END Draw geometries.
 
-        if (!state_ptr->backend.end_renderpass(&state_ptr->backend, BUILTIN_RENDERPASS_WORLD)) {
+        if (!state_ptr->backend.end_renderpass(&state_ptr->backend, state_ptr->world_renderpass)) {
             PRINT_ERROR("backend.end_renderpass -> BUILTIN_RENDERPASS_WORLD failed. Application shutting down...");
             return false;
         }
@@ -205,7 +314,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
         //END world renderpass
 
         //START UI renderpass
-        if (!state_ptr->backend.begin_renderpass(&state_ptr->backend, BUILTIN_RENDERPASS_UI)) {
+        if (!state_ptr->backend.begin_renderpass(&state_ptr->backend, state_ptr->ui_renderpass, &state_ptr->ui_renderpass->targets[attachment_index])) {
             PRINT_ERROR("backend.begin_renderpass -> BUILTIN_RENDERPASS_UI failed. Application shutting down...");
             return false;
         }
@@ -248,7 +357,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
             state_ptr->backend.draw_geometry(packet->ui_geometries[i]);
         }
 
-        if (!state_ptr->backend.end_renderpass(&state_ptr->backend, BUILTIN_RENDERPASS_UI)) {
+        if (!state_ptr->backend.end_renderpass(&state_ptr->backend, state_ptr->ui_renderpass)) {
             PRINT_ERROR("backend.end_renderpass -> BUILTIN_RENDERPASS_UI failed. Application shutting down...");
             return false;
         }
@@ -308,23 +417,12 @@ void renderer_destroy_geometry(GEOMETRY* geometry) {
 }
 
 
-b8 renderer_renderpass_id(const char* name, u8* out_renderpass_id) {
-    // TODO: HACK: Need dynamic renderpasses instead of hardcoding them.
-    if (strings_equali("renderpass.builtin.world", name)) {
-        *out_renderpass_id = BUILTIN_RENDERPASS_WORLD;
-        return true;
-    } else if (strings_equali("renderpass.builtin.ui", name)) {
-        *out_renderpass_id = BUILTIN_RENDERPASS_UI;
-        return true;
-    }
-
-    PRINT_ERROR("renderer_renderpass_id: No renderpass named '%s'.", name);
-    *out_renderpass_id = INVALID_ID_U8;
-    return false;
+RENDERPASS* renderer_renderpass_get(const char* name) {
+    return state_ptr->backend.renderpass_get(name);
 }
 
-b8 renderer_shader_create(SHADER* s, u8 renderpass_id, u8 stage_count, const char** stage_filenames, E_SHADER_STAGE* stages) {
-    return state_ptr->backend.shader_create(s, renderpass_id, stage_count, stage_filenames, stages);
+b8 renderer_shader_create(SHADER* s, RENDERPASS* pass, u8 stage_count, const char** stage_filenames, E_SHADER_STAGE* stages) {
+    return state_ptr->backend.shader_create(s, pass, stage_count, stage_filenames, stages);
 }
 
 void renderer_shader_destroy(SHADER* s) {
@@ -379,3 +477,51 @@ void renderer_texture_map_release_resources(struct TEXTURE_MAP* map) {
     state_ptr->backend.texture_map_release_resources(map);
 }
 
+void renderer_render_target_create(u8 attachment_count, TEXTURE** attachments, RENDERPASS* pass, u32 width, u32 height, RENDER_TARGET* out_target) {
+    state_ptr->backend.render_target_create(attachment_count, attachments, pass, width, height, out_target);
+}
+
+void renderer_render_target_destroy(RENDER_TARGET* target, b8 free_internal_memory) {
+    state_ptr->backend.render_target_destroy(target, free_internal_memory);
+}
+
+void renderer_renderpass_create(RENDERPASS* out_renderpass, f32 depth, u32 stencil, b8 has_prev_pass, b8 has_next_pass) {
+    state_ptr->backend.renderpass_create(out_renderpass, depth, stencil, has_prev_pass, has_next_pass);
+}
+
+void renderer_renderpass_destroy(RENDERPASS* pass) {
+    state_ptr->backend.renderpass_destroy(pass);
+}
+
+void regenerate_render_targets(void) {
+    // Create render targets for each. TODO: Should be configurable.
+    for (u8 i = 0; i < state_ptr->window_render_target_count; ++i) {
+        // Destroy the old first if they exist.
+        state_ptr->backend.render_target_destroy(&state_ptr->world_renderpass->targets[i], false);
+        state_ptr->backend.render_target_destroy(&state_ptr->ui_renderpass->targets[i], false);
+
+        TEXTURE* window_target_texture = state_ptr->backend.window_attachment_get(i);
+        TEXTURE* depth_target_texture = state_ptr->backend.depth_attachment_get();
+
+        // World render targets.
+        TEXTURE* attachments[2] = {window_target_texture, depth_target_texture};
+        state_ptr->backend.render_target_create(
+            2,
+            attachments,
+            state_ptr->world_renderpass,
+            state_ptr->framebuffer_width,
+            state_ptr->framebuffer_height,
+            &state_ptr->world_renderpass->targets[i]);
+
+        // UI render targets
+        TEXTURE* ui_attachments[1] = {window_target_texture};
+        state_ptr->backend.render_target_create(
+            1,
+            ui_attachments,
+            state_ptr->ui_renderpass,
+            state_ptr->framebuffer_width,
+            state_ptr->framebuffer_height,
+            &state_ptr->ui_renderpass->targets[i]);
+
+    }
+}

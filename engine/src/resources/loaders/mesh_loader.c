@@ -1205,7 +1205,7 @@ b8 import_obj_material_library_file(const char* mtl_file_path) {
 }
 
 /**
- * @brief Write out a kohi material file from config. This gets loaded by name later when the mesh
+ * @brief Write out a y material file from config. This gets loaded by name later when the mesh
  * is requested for load.
  *
  * @param mtl_file_path The filepath of the material library file which originally contained the material definition.

@@ -12,15 +12,6 @@ void renderer_on_resized(u16 width, u16 height);
 
 b8 renderer_draw_frame(RENDER_PACKET* packet);
 
-/**More actions
- * @brief Sets the view matrix in the renderer. NOTE: exposed to public API.
- *
- * @deprecated HACK: this should not be exposed outside the engine.
- * @param view The view matrix to be set.
- * @param view_position The view position to be set.
- */
-YAPI void renderer_set_view(Matrice4 view, Vector3 view_position);
-
 void renderer_texture_create(const u8* pixels, struct TEXTURE* texture);
 void renderer_texture_destroy(struct TEXTURE* texture);
 

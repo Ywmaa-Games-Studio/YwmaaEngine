@@ -20,6 +20,7 @@
 #include "systems/geometry_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
+#include "systems/camera_system.h"
 
 // TODO: temp
 #include "math/ymath.h"
@@ -67,6 +68,9 @@ typedef struct APPLICATION_STATE {
 
     u64 geometry_system_memory_requirement;
     void* geometry_system_state;
+
+    u64 camera_system_memory_requirement;
+    void* camera_system_state;
 
     // TODO: temp
     Mesh meshes[10];
@@ -200,7 +204,16 @@ b8 application_create(GAME* game_instance) {
         return false;
     }
     
-
+    // Camera
+    CAMERA_SYSTEM_CONFIG camera_sys_config;
+    camera_sys_config.max_camera_count = 61;
+    camera_system_init(&app_state->camera_system_memory_requirement, 0, camera_sys_config);
+    app_state->camera_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->camera_system_memory_requirement);
+    if (!camera_system_init(&app_state->camera_system_memory_requirement, app_state->camera_system_state, camera_sys_config)) {
+        PRINT_ERROR("Failed to initialize camera system. Application cannot continue.");
+        return false;
+    }
+    
     // Allocate the texture & material systems memory before the renderer to not overflow the renderer's memory
     TEXTURE_SYSTEM_CONFIG texture_sys_config;
     texture_sys_config.max_texture_count = 65536;

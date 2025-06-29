@@ -41,6 +41,26 @@ typedef union Matrice_u {
     f32 data[16];
 } Matrice4;
 
+/**
+ * @brief Represents the extents of a 2d object.
+ */
+typedef struct Extents2D {
+    /** @brief The minimum extents of the object. */
+    Vector2 min;
+    /** @brief The maximum extents of the object. */
+    Vector2 max;
+} Extents2D;
+
+/**
+ * @brief Represents the extents of a 3d object.
+ */
+typedef struct Extents3D {
+    /** @brief The minimum extents of the object. */
+    Vector3 min;
+    /** @brief The maximum extents of the object. */
+    Vector3 max;
+} Extents3D;
+
 typedef struct Vertex3D {
     Vector3 position;
     /** @brief The normal of the vertex. */

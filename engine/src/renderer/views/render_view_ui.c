@@ -114,7 +114,7 @@ b8 render_view_ui_on_render(const struct RENDER_VIEW* self, const struct RENDER_
         }
 
         // Apply globals
-        if (!material_system_apply_global(shader_id, &packet->projection_matrix, &packet->view_matrix, 0, 0, 0)) {
+        if (!material_system_apply_global(shader_id, frame_number, &packet->projection_matrix, &packet->view_matrix, 0, 0, 0)) {
             PRINT_ERROR("Failed to use apply globals for material shader. Render frame failed.");
             return false;
         }

@@ -87,7 +87,7 @@ b8 webgpu_pipeline_create(
     // The face orientation is defined by assuming that when looking
     // from the front of the face, its corner vertices are enumerated
     // in the counter-clockwise (CCW) order.
-    pipeline_desc.primitive.frontFace = WGPUFrontFace_CW;
+    pipeline_desc.primitive.frontFace = WGPUFrontFace_CCW;
     
     // But the face orientation does not matter much because we do not
     // cull (i.e. "hide") the faces pointing away from us (which is often

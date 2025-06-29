@@ -22,8 +22,8 @@ struct object_uniform_object {
 };
 @group(0) @binding(0) var<uniform> global_ubo: global_uniform_object;
 @group(1) @binding(0) var<uniform> object_ubo: object_uniform_object;
-@group(1) @binding(1) var diffuse_sampler: sampler;
-@group(1) @binding(2) var diffuse_texture: texture_2d<f32>;
+@group(2) @binding(0) var diffuse_sampler: sampler;
+@group(2) @binding(1) var diffuse_texture: texture_2d<f32>;
 var<push_constant> model_ubo: model_uniform_object;
 
 @vertex

@@ -71,7 +71,7 @@ typedef struct WEBGPU_GEOMETRY_DATA {
 // TODO: make configurable
 #define WEBGPU_MAX_UI_SHADER_COUNT 1024
 
-#define WEBGPU_SHADER_BIND_GROUPS 2
+#define WEBGPU_SHADER_BIND_GROUPS 3
 /**
  * @brief Put some hard limits in place for the count of supported textures,
  * attributes, uniforms, etc. This is to maintain memory locality and avoid
@@ -84,6 +84,7 @@ typedef struct WEBGPU_GEOMETRY_DATA {
 #define WEBGPU_SHADER_MAX_GLOBAL_TEXTURES 31
 /** @brief The maximum number of textures allowed at the instance level. */
 #define WEBGPU_SHADER_MAX_INSTANCE_TEXTURES 31
+
 #define INSTANCE_BINDINGS_ENTRY_COUNT 1
 /** @brief The maximum number of vertex input attributes allowed. */
 #define WEBGPU_SHADER_MAX_ATTRIBUTES 16
@@ -112,6 +113,7 @@ typedef struct WEBGPU_BIND_GROUP_STATE {
 typedef struct WEBGPU_SHADER_BIND_GROUP_SET_STATE {
     /** @brief The descriptor sets for this instance, one per frame. */
     WGPUBindGroup bind_group;
+    WGPUBindGroup textures_bind_group;
 
     /** @brief A bind state per bind group, which in turn handles frames. Count is managed in shader config. */
     WEBGPU_BIND_GROUP_STATE bind_group_states[WEBGPU_SHADER_MAX_BINDINGS];
@@ -161,7 +163,9 @@ typedef struct WEBGPU_SHADER_CONFIG {
      */
     u8 bind_group_count;
     /** @brief bind sets, max of 3. Index 0=global, 1=instance, 2=local */
-    WGPUBindGroupLayoutEntry instance_bind_group_entries[INSTANCE_BINDINGS_ENTRY_COUNT + WEBGPU_SHADER_MAX_INSTANCE_TEXTURES];
+    WGPUBindGroupLayoutEntry instance_bind_group_entries[INSTANCE_BINDINGS_ENTRY_COUNT];
+    WGPUBindGroupLayoutEntry instance_textures_bind_group_entries[WEBGPU_SHADER_MAX_INSTANCE_TEXTURES];
+   
     WGPUBindGroupLayoutDescriptor bind_group_layout_desc[WEBGPU_SHADER_BIND_GROUPS];
 
     /** @brief An array of attribute descriptions for this shader. */

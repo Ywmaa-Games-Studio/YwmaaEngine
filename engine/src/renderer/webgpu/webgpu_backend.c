@@ -423,15 +423,15 @@ void webgpu_renderer_destroy_geometry(GEOMETRY* geometry) {
 const u32 BIND_GROUP_SET_INDEX_GLOBAL = 0;
 // The index of the instance bind set.
 const u32 BIND_GROUP_SET_INDEX_INSTANCE = 1;
-// we have group 2 instead of push constants and local
-const u32 BIND_GROUP_SET_INDEX_LOCAL = 2;
+// The index of the instance bind set.
+const u32 BIND_GROUP_SET_INDEX_INSTANCE_TEXTURES = 2;
 
 //START BINDINGS Of Global
 // The index of the UBO binding.
 const u32 ENTRY_BINDING_INDEX_UBO = 0;
 // The index of the image sampler binding.
-const u32 ENTRY_BINDING_INDEX_SAMPLER = 1;
-const u32 ENTRY_BINDING_INDEX_TEXTURE = 2;
+const u32 ENTRY_BINDING_INDEX_SAMPLER = 0;
+const u32 ENTRY_BINDING_INDEX_TEXTURE = 1;
 //END BINDINGS Of Global
 
 //START BINDINGS Of Local
@@ -550,6 +550,16 @@ b8 webgpu_renderer_shader_create(struct SHADER *shader, RENDERPASS* pass, u8 sta
 
         out_shader->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE] = instance_bind_group_layout_desc;
         out_shader->config.bind_group_count++;
+
+        WGPUBindGroupLayoutDescriptor instance_textures_bind_group_layout_desc = {0};
+        instance_textures_bind_group_layout_desc.nextInChain = NULL;
+        instance_textures_bind_group_layout_desc.label = (WGPUStringView){"Instance textures object shader bind group descriptor", sizeof("Instance textures object shader bind group descriptor")};
+
+        instance_textures_bind_group_layout_desc.entries = out_shader->config.instance_textures_bind_group_entries;
+        instance_textures_bind_group_layout_desc.entryCount = 0;
+
+        out_shader->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE_TEXTURES] = instance_textures_bind_group_layout_desc;
+        out_shader->config.bind_group_count++;
     }
     // Invalidate all instance states.
     // TODO: dynamic
@@ -660,20 +670,13 @@ b8 webgpu_renderer_shader_init(struct SHADER *shader)
     vertex_buffer_layout.arrayStride = shader->attribute_stride;
     vertex_buffer_layout.stepMode = WGPUVertexStepMode_Vertex;
 
-    // Create a texture bind group layout
-    WGPUBindGroupLayoutDescriptor texture_bind_group_layout_desc;
-    texture_bind_group_layout_desc.nextInChain = NULL;
-    texture_bind_group_layout_desc.label = (WGPUStringView){"Texture bind group descriptor", sizeof("Texture bind group descriptor")};
-
-
-
     // Process uniforms.
     u32 uniform_count = darray_length(shader->uniforms);
-    u32 sampler_position = ENTRY_BINDING_INDEX_UBO+1; // first position after UBO
+    u32 sampler_position = 0;
     for (u32 i = 0; i < uniform_count; ++i) {
         // For samplers, the descriptor bindings need to be updated. Other types of uniforms don't need anything to be done here.
         if (shader->uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER) {
-            const u32 set_index = (shader->uniforms[i].scope == SHADER_SCOPE_GLOBAL ? BIND_GROUP_SET_INDEX_GLOBAL : BIND_GROUP_SET_INDEX_INSTANCE);
+            const u32 set_index = (shader->uniforms[i].scope == SHADER_SCOPE_GLOBAL ? BIND_GROUP_SET_INDEX_GLOBAL : BIND_GROUP_SET_INDEX_INSTANCE_TEXTURES);
             WGPUBindGroupLayoutDescriptor* bind_config = &shader_internal_data->config.bind_group_layout_desc[set_index];
 
             bind_config->entryCount += 2;
@@ -681,20 +684,20 @@ b8 webgpu_renderer_shader_init(struct SHADER *shader)
             // Define texture binding layout
             // Setup texture binding
             
-            webgpu_bind_layout_set_default(&shader_internal_data->config.instance_bind_group_entries[sampler_position]);
-            shader_internal_data->config.instance_bind_group_entries[sampler_position].nextInChain = NULL;
-            shader_internal_data->config.instance_bind_group_entries[sampler_position].binding = sampler_position;
-            shader_internal_data->config.instance_bind_group_entries[sampler_position].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-            shader_internal_data->config.instance_bind_group_entries[sampler_position].sampler.type = WGPUSamplerBindingType_Filtering;
+            webgpu_bind_layout_set_default(&shader_internal_data->config.instance_textures_bind_group_entries[sampler_position]);
+            shader_internal_data->config.instance_textures_bind_group_entries[sampler_position].nextInChain = NULL;
+            shader_internal_data->config.instance_textures_bind_group_entries[sampler_position].binding = sampler_position;
+            shader_internal_data->config.instance_textures_bind_group_entries[sampler_position].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+            shader_internal_data->config.instance_textures_bind_group_entries[sampler_position].sampler.type = WGPUSamplerBindingType_Filtering;
 
             sampler_position++;
 
-            webgpu_bind_layout_set_default(&shader_internal_data->config.instance_bind_group_entries[sampler_position]);
-            shader_internal_data->config.instance_bind_group_entries[sampler_position].nextInChain = NULL;
-            shader_internal_data->config.instance_bind_group_entries[sampler_position].binding = sampler_position;
-            shader_internal_data->config.instance_bind_group_entries[sampler_position].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-            shader_internal_data->config.instance_bind_group_entries[sampler_position].texture.sampleType = WGPUTextureSampleType_Float;
-            shader_internal_data->config.instance_bind_group_entries[sampler_position].texture.viewDimension = WGPUTextureViewDimension_2D;
+            webgpu_bind_layout_set_default(&shader_internal_data->config.instance_textures_bind_group_entries[sampler_position]);
+            shader_internal_data->config.instance_textures_bind_group_entries[sampler_position].nextInChain = NULL;
+            shader_internal_data->config.instance_textures_bind_group_entries[sampler_position].binding = sampler_position;
+            shader_internal_data->config.instance_textures_bind_group_entries[sampler_position].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+            shader_internal_data->config.instance_textures_bind_group_entries[sampler_position].texture.sampleType = WGPUTextureSampleType_Float;
+            shader_internal_data->config.instance_textures_bind_group_entries[sampler_position].texture.viewDimension = WGPUTextureViewDimension_2D;
 
             sampler_position++;
         }
@@ -942,7 +945,6 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
 
     u32 total_bind_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entryCount;
     if (needs_update) {
-        //u32 descriptor_count = 0;
         u32 bind_index = 0;
         WGPUBindGroupEntry binding[total_bind_count];
         // Binding 0 - Uniform buffer
@@ -956,6 +958,17 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
         binding[ENTRY_BINDING_INDEX_UBO].sampler = NULL;
         binding[ENTRY_BINDING_INDEX_UBO].textureView = NULL;
         binding[ENTRY_BINDING_INDEX_UBO].nextInChain = NULL;
+
+        // A bind group contains one or multiple bindings
+        WGPUBindGroupDescriptor instance_bind_group_desc = {0};
+        instance_bind_group_desc.nextInChain = NULL;
+        instance_bind_group_desc.label = (WGPUStringView){"instance bind group", sizeof("instance bind group")-1};
+        instance_bind_group_desc.layout = internal->bind_group_layouts[BIND_GROUP_SET_INDEX_INSTANCE];
+        // There must be as many bindings as declared in the layout!
+        instance_bind_group_desc.entryCount = 1;
+        instance_bind_group_desc.entries = binding;
+        
+        object_state->instance_bind_state.bind_group = wgpuDeviceCreateBindGroup(context.device, &instance_bind_group_desc);
         
         // Only do this if the descriptor has not yet been updated.
         u8* instance_ubo_generation = &object_state->instance_bind_state.bind_group_states[bind_index].generations;
@@ -965,23 +978,29 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
         }
         bind_index++;
 
+    }
+
+    u32 textures_total_bind_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE_TEXTURES].entryCount;
+
+    if (needs_update){
+        WGPUBindGroupEntry binding[textures_total_bind_count];
         // Samplers will always be in the binding. If the binding count is less than 2, there are no samplers.
-        if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entryCount > 1) {
+        if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE_TEXTURES].entryCount > 1) {
             u32 sampler_count = 0;
             // Iterate samplers.
-            for (u32 i = 0; i < total_bind_count; ++i) {
-                if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entries[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
+            for (u32 i = 0; i < textures_total_bind_count; ++i) {
+                if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE_TEXTURES].entries[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
                     sampler_count++;
                 }
             }
             
             //u32 update_sampler_count = 0;
-            // start from index 1 because 0 is UBO, increment by 2 because each sampler has a texture after it
-            for (u32 i = 1; i < (sampler_count*2); i+= 2) {
+            // increment by 2 because each sampler has a texture after it
+            for (u32 i = 0; i < (sampler_count*2); i+= 2) {
                 // TODO: only update in the list if actually needing an update.
 
                 // i is sampler position which is usually odd number, increase 1 to get to the next even, divide by 2 (because each 2 are one texture), subtract 1 to start index at 0
-                u32 texture_index = ((i+1)/2)-1;
+                u32 texture_index = ((i)/2);
                 TEXTURE_MAP* map = internal->instance_states[s->bound_instance_id].instance_texture_maps[texture_index];
                 TEXTURE* t = map->texture;
                 WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)t->internal_data;
@@ -1004,25 +1023,22 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
 
         }
 
-        // A bind group contains one or multiple bindings
-        WGPUBindGroupDescriptor instance_bind_group_desc = {0};
-        instance_bind_group_desc.nextInChain = NULL;
-        instance_bind_group_desc.label = (WGPUStringView){"instance bind group", sizeof("instance bind group")-1};
-        instance_bind_group_desc.layout = internal->bind_group_layouts[BIND_GROUP_SET_INDEX_INSTANCE];
+        WGPUBindGroupDescriptor instance_textures_bind_group_desc = {0};
+        instance_textures_bind_group_desc.nextInChain = NULL;
+        instance_textures_bind_group_desc.label = (WGPUStringView){"instance textures bind group", sizeof("instance textures bind group")-1};
+        instance_textures_bind_group_desc.layout = internal->bind_group_layouts[BIND_GROUP_SET_INDEX_INSTANCE_TEXTURES];
         // There must be as many bindings as declared in the layout!
-        instance_bind_group_desc.entryCount = total_bind_count;
-        instance_bind_group_desc.entries = binding;
+        instance_textures_bind_group_desc.entryCount = textures_total_bind_count;
+        instance_textures_bind_group_desc.entries = binding;
         
-        object_state->instance_bind_state.bind_group = wgpuDeviceCreateBindGroup(context.device, &instance_bind_group_desc);
-
-        //if (descriptor_count > 0) {
-            // Load the data into the buffer.
-            //PRINT_INFO("ubo wriitng");
-            //wgpuQueueWriteBuffer(context.queue, internal->uniform_buffer.handle, object_state->offset, internal->mapped_uniform_buffer_block, s->ubo_size);
+        //if (!object_state->instance_bind_state.textures_bind_group){
+            object_state->instance_bind_state.textures_bind_group = wgpuDeviceCreateBindGroup(context.device, &instance_textures_bind_group_desc);
         //}
         wgpuDevicePoll(context.device, true, NULL);
-        wgpuRenderPassEncoderSetBindGroup(internal->renderpass->handle, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
     }
+
+    wgpuRenderPassEncoderSetBindGroup(internal->renderpass->handle, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
+    wgpuRenderPassEncoderSetBindGroup(internal->renderpass->handle, BIND_GROUP_SET_INDEX_INSTANCE_TEXTURES, object_state->instance_bind_state.textures_bind_group, 0, NULL);
     
     
     return true;
@@ -1046,10 +1062,10 @@ b8 webgpu_renderer_shader_acquire_instance_resources(struct SHADER *s, TEXTURE_M
     }
 
     WEBGPU_SHADER_INSTANCE_STATE* instance_state = &internal->instance_states[*out_instance_id];
-    u32 binding_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entryCount; 
+    u32 binding_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE_TEXTURES].entryCount; 
     u32 instance_texture_count = 0;
     for (u32 i = 0; i < binding_count; i++){
-        if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE].entries[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
+        if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_INSTANCE_TEXTURES].entries[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
             instance_texture_count++;
         }
     }
@@ -1438,6 +1454,7 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     WEBGPU_IMAGE* depth_image = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_TEXTURE);
     webgpu_image_create(
         &context,
+        "__ywmaaengine_default_depth_texture__",
         WGPUTextureDimension_2D,
         context.framebuffer_width,
         context.framebuffer_height,
@@ -1549,6 +1566,7 @@ void webgpu_renderer_texture_create(const u8* pixels, TEXTURE* texture){
     // different options here.
     webgpu_image_create(
         &context,
+        texture->name,
         WGPUTextureDimension_2D,
         texture->width,
         texture->height,
@@ -1587,6 +1605,7 @@ void webgpu_renderer_texture_resize(TEXTURE* t, u32 new_width, u32 new_height) {
         // different options here.
         webgpu_image_create(
             &context,
+            t->name,
             WGPUTextureDimension_2D,
             new_width,
             new_height,
@@ -1611,6 +1630,7 @@ void webgpu_renderer_texture_create_writeable(TEXTURE* t) {
     // different options here.
     webgpu_image_create(
         &context,
+        t->name,
         WGPUTextureDimension_2D,
         t->width,
         t->height,

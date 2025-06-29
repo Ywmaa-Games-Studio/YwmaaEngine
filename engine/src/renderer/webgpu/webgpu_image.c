@@ -5,6 +5,7 @@
 
 void webgpu_image_create(
     WEBGPU_CONTEXT* context,
+    const char* name,
     WGPUTextureDimension image_type,
     u32 width,
     u32 height,
@@ -22,7 +23,7 @@ void webgpu_image_create(
     // Creation info.
     WGPUTextureDescriptor textureDesc;
     textureDesc.nextInChain = NULL;
-    textureDesc.label = (WGPUStringView){"Texture Desc", sizeof("Texture Desc")};
+    textureDesc.label = (WGPUStringView){name, sizeof(name)-1};
     textureDesc.size.width = width;
     textureDesc.size.height = height;
     textureDesc.format = format;
@@ -39,11 +40,12 @@ void webgpu_image_create(
     // Create view
     if (create_view) {
         out_image->view = 0;
-        webgpu_image_view_create(format, usage, out_image, view_aspect_flags);
+        webgpu_image_view_create(name, format, usage, out_image, view_aspect_flags);
     }
 }
 
 void webgpu_image_view_create(
+    const char* name,
     WGPUTextureFormat format,
     WGPUTextureUsage usage,
     WEBGPU_IMAGE* image,
@@ -51,7 +53,7 @@ void webgpu_image_view_create(
 
     WGPUTextureViewDescriptor textureViewDesc;
     textureViewDesc.aspect = aspect_flags;
-    textureViewDesc.label = (WGPUStringView){"Texture View Desc", sizeof("Texture View Desc")};
+    textureViewDesc.label = (WGPUStringView){name, sizeof(name)-1};
     // TODO: Make configurable
     textureViewDesc.baseArrayLayer = 0;
     textureViewDesc.arrayLayerCount = 1;

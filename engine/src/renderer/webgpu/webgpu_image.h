@@ -4,6 +4,7 @@
 
 void webgpu_image_create(
     WEBGPU_CONTEXT* context,
+    const char* name,
     WGPUTextureDimension image_type,
     u32 width,
     u32 height,
@@ -15,6 +16,7 @@ void webgpu_image_create(
     WEBGPU_IMAGE* out_image);
 
 void webgpu_image_view_create(
+    const char* name,
     WGPUTextureFormat format,
     WGPUTextureUsage usage,
     WEBGPU_IMAGE* image,

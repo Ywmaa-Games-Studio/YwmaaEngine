@@ -609,7 +609,7 @@ void webgpu_renderer_shader_destroy(struct SHADER *s)
         yzero_memory(&shader->config, sizeof(WEBGPU_SHADER_CONFIG));
 
         // Free the internal data memory.
-        yfree(s->internal_data, MEMORY_TAG_RENDERER);
+        yfree(s->internal_data);
         s->internal_data = 0;
     }
     
@@ -1113,7 +1113,7 @@ b8 webgpu_renderer_shader_release_instance_resources(struct SHADER *s, u32 insta
 
 
     if (instance_state->instance_texture_maps) {
-        yfree(instance_state->instance_texture_maps, MEMORY_TAG_ARRAY);
+        yfree(instance_state->instance_texture_maps);
         instance_state->instance_texture_maps = 0;
     }
 
@@ -1241,9 +1241,9 @@ void webgpu_renderpass_destroy(RENDERPASS* pass) {
     if (pass && pass->internal_data) {
         WEBGPU_RENDERPASS* internal_data = pass->internal_data;
         wgpuRenderPassEncoderRelease(internal_data->handle);
-        yfree((void*)internal_data->descriptor.colorAttachments, MEMORY_TAG_RENDERER);
-        yfree((void*)internal_data->descriptor.depthStencilAttachment, MEMORY_TAG_RENDERER);
-        yfree(internal_data, MEMORY_TAG_RENDERER);
+        yfree((void*)internal_data->descriptor.colorAttachments);
+        yfree((void*)internal_data->descriptor.depthStencilAttachment);
+        yfree(internal_data);
         pass->internal_data = 0;
     }
 }
@@ -1285,7 +1285,7 @@ void webgpu_renderer_render_target_destroy(RENDER_TARGET* target, b8 free_intern
                     }
                 }
             }
-            yfree(target->attachments, MEMORY_TAG_ARRAY);
+            yfree(target->attachments);
             target->attachments = 0;
             target->attachment_count = 0;
         }
@@ -1367,7 +1367,7 @@ void webgpu_renderer_texture_map_release_resources(TEXTURE_MAP* map){
             return;
         }
         wgpuSamplerRelease(*(WGPUSampler*)map->internal_data);
-        yfree(map->internal_data, MEMORY_TAG_TEXTURE);
+        yfree(map->internal_data);
         map->internal_data = 0;
     }
 }
@@ -1652,7 +1652,7 @@ void webgpu_renderer_texture_destroy(TEXTURE* texture){
         webgpu_image_destroy(image);
         yzero_memory(image, sizeof(WEBGPU_IMAGE));
 
-        yfree(texture->internal_data, MEMORY_TAG_TEXTURE);
+        yfree(texture->internal_data);
     }
     
 

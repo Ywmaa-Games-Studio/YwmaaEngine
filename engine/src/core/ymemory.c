@@ -148,7 +148,7 @@ void* yallocate_aligned(u64 size, u16 alignment, E_MEMORY_TAG tag) {
     
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
     u64 allocated_size = 0; 
-    void* block = hpha_allocate(&state_ptr->allocator, size, alignment, &allocated_size);
+    void* block = hpha_allocate(&state_ptr->allocator, size, alignment, tag, &allocated_size);
     // Track stats
     yallocate_report(allocated_size, tag);
 #else
@@ -171,9 +171,9 @@ void yfree_report(u64 size, E_MEMORY_TAG tag) {
     state_ptr->alloc_count--;
 }
 
-b8 ymemory_get_size(void* block, u64* out_size) {
+b8 ymemory_get_size(void* block, u64* out_size, u8* out_tag) {
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
-    b8 result = hpha_get_size(&state_ptr->allocator, block, out_size);
+    b8 result = hpha_get_size(&state_ptr->allocator, block, out_size, out_tag);
 #else
     *out_size = 0;
     *out_alignment = 1;
@@ -197,7 +197,7 @@ void* yreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alignment
     void* new_block = yallocate_aligned(new_size, alignment, tag);
     if (block && new_block) {
         ycopy_memory(new_block, block, old_size);
-        yfree(block, tag);
+        yfree(block);
     }
     return new_block;
 }
@@ -208,16 +208,14 @@ void yreallocate_report(u64 old_size, u64 new_size, E_MEMORY_TAG tag) {
 }
 
 
-void yfree(void* block, E_MEMORY_TAG tag) {
-    if (tag == MEMORY_TAG_UNKNOWN) {
-        PRINT_WARNING("yfree called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
-    }
+void yfree(void* block) {
     if (state_ptr) {
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
         // Track stats
         u64 size;
+        u8 tag;
         // Use HPHA for freeing
-        b8 result = hpha_free(&state_ptr->allocator, block, &size);
+        b8 result = hpha_free(&state_ptr->allocator, block, &size, &tag);
         if (!result) {
             PRINT_ERROR("Failed to free memory block in custom allocator %p", block);
         }

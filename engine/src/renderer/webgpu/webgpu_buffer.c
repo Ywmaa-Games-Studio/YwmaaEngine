@@ -6,7 +6,7 @@
 
 void webgpu_buffer_cleanup_freelist(WEBGPU_BUFFER* buffer) {
     freelist_destroy(&buffer->buffer_freelist);
-    yfree(buffer->freelist_block, MEMORY_TAG_RENDERER);
+    yfree(buffer->freelist_block);
     buffer->freelist_memory_requirement = 0;
     buffer->freelist_block = 0;
 }

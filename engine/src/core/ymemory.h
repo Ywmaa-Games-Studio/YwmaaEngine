@@ -56,11 +56,9 @@ YAPI void* yreallocate_aligned(void* block, u64 old_size, u64 new_size, u16 alig
 
 YAPI void yreallocate_report(u64 old_size, u64 new_size, E_MEMORY_TAG tag);
 
-YAPI void yfree(void* block, E_MEMORY_TAG tag);
+YAPI void yfree(void* block);
 
-YAPI void kfree_report(u64 size, E_MEMORY_TAG tag);
-
-YAPI b8 ymemory_get_size(void* block, u64* out_size);
+YAPI b8 ymemory_get_size(void* block, u64* out_size, u8* out_tag);
 
 YAPI void* yzero_memory(void* block, u64 size);
 

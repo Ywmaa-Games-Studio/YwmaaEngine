@@ -31,7 +31,7 @@ RopeNode* rope_new_leaf(const char* data, u64 length) {
     node->type = ROPE_LEAF;
     node->leaf.data = (char*)yallocate(is_empty ? 1 : length, MEMORY_TAG_ROPE);
     if (!node->leaf.data) {
-        yfree(node, MEMORY_TAG_ROPE);
+        yfree(node);
         return NULL;
     }
     ycopy_memory(node->leaf.data, data, length);
@@ -51,7 +51,7 @@ RopeNode* rope_from_list(const char** strings, const u64* lengths, u64 count) {
         nodes[i] = rope_new_leaf(strings[i], lengths[i]);
     }
     RopeNode* balanced = rope_balance(nodes, count);
-    yfree(nodes, MEMORY_TAG_ROPE);
+    yfree(nodes);
     return balanced;
 }
 
@@ -172,18 +172,18 @@ void rope_free(RopeNode* node) {
 
     switch (node->type) {
         case ROPE_LEAF:
-            yfree(node->leaf.data, MEMORY_TAG_ROPE);
+            yfree(node->leaf.data);
             break;
         case ROPE_CONCAT:
             rope_free(node->concat.left);
             rope_free(node->concat.right);
             if (node->concat.flattened_cache) {
-                yfree(node->concat.flattened_cache, MEMORY_TAG_ROPE);
+                yfree(node->concat.flattened_cache);
             }
             break;
     }
 
-    yfree(node, MEMORY_TAG_ROPE);
+    yfree(node);
 }
 
 RopeNode* rope_insert_at(RopeNode* root, u64 index, const char* insert_data) {

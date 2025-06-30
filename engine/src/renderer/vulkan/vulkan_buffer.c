@@ -11,7 +11,7 @@
 void cleanup_freelist(VULKAN_BUFFER* buffer) {
     if (buffer->has_freelist) {
         freelist_destroy(&buffer->buffer_freelist);
-        yfree(buffer->freelist_block, MEMORY_TAG_RENDERER);
+        yfree(buffer->freelist_block);
         buffer->freelist_memory_requirement = 0;
         buffer->freelist_block = 0;
     }
@@ -121,12 +121,12 @@ b8 vulkan_buffer_resize(
         void* old_block = 0;
         if (!freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, new_block, new_size, &old_block)) {
             PRINT_ERROR("vulkan_buffer_resize failed to resize internal free list.");
-            yfree(new_block, MEMORY_TAG_RENDERER);
+            yfree(new_block);
             return false;
         }
 
         // Clean up the old memory, then assign the new properties over.
-        yfree(old_block, MEMORY_TAG_RENDERER);
+        yfree(old_block);
         buffer->freelist_memory_requirement = new_memory_requirement;
         buffer->freelist_block = new_block;
     }

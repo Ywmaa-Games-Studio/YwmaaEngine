@@ -137,7 +137,7 @@ b8 render_view_system_create(const RENDER_VIEW_CONFIG* config) {
     // Call the on create
     if (!view->on_create(view)) {
         PRINT_ERROR("Failed to create view.");
-        yfree(view->passes, MEMORY_TAG_ARRAY);
+        yfree(view->passes);
         yzero_memory(&state_ptr->registered_views[id], sizeof(RENDER_VIEW));
         return false;
     }

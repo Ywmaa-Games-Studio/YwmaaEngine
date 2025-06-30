@@ -11,13 +11,13 @@ YAPI b8 dynamic_allocator_create(u64 total_size, u64* memory_requirement, void* 
 
 YAPI b8 dynamic_allocator_destroy(DYNAMIC_ALLOCATOR* allocator);
 
-YAPI void* dynamic_allocator_allocate(DYNAMIC_ALLOCATOR* allocator, u64 size);
+YAPI void* dynamic_allocator_allocate(DYNAMIC_ALLOCATOR* allocator, u64 size, u8 tag);
 
-YAPI void* dynamic_allocator_allocate_aligned(DYNAMIC_ALLOCATOR* allocator, u64 size, u16 alignment);
+YAPI void* dynamic_allocator_allocate_aligned(DYNAMIC_ALLOCATOR* allocator, u64 size, u16 alignment, u8 tag);
 
 YAPI b8 dynamic_allocator_free(DYNAMIC_ALLOCATOR* allocator, void* block);
 
-YAPI b8 dynamic_allocator_get_size(DYNAMIC_ALLOCATOR* allocator, void* block, u64* out_size);
+YAPI b8 dynamic_allocator_get_size(DYNAMIC_ALLOCATOR* allocator, void* block, u64* out_size, u8* out_tag);
 
 YAPI u64 dynamic_allocator_free_space(DYNAMIC_ALLOCATOR* allocator);
 

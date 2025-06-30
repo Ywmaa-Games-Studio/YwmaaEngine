@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.23 -04:59
  * Last edited:
- *   <l1741PMle>
+ *   <l1811PMle>
  * Auto updated?
  *   Yes
  *
@@ -75,7 +75,7 @@ void hpha_allocator_destroy(HPHA_ALLOCATOR* allocator) {
     dynamic_allocator_destroy(&allocator->large_allocator);
 }
 
-void* hpha_allocate(HPHA_ALLOCATOR* allocator, u64 size, u16 alignment, u64* allocated_size) {
+void* hpha_allocate(HPHA_ALLOCATOR* allocator, u64 size, u16 alignment, u8 tag, u64* allocated_size) {
     if (!allocator) return 0;
 
     DYNAMIC_ALLOCATOR* target = 0;
@@ -87,34 +87,40 @@ void* hpha_allocate(HPHA_ALLOCATOR* allocator, u64 size, u16 alignment, u64* all
         target = &allocator->large_allocator;
     }
 
-    void* block = dynamic_allocator_allocate_aligned(target, size, alignment);
+    void* block = dynamic_allocator_allocate_aligned(target, size, alignment, tag);
     if (!block) {
         // Fallback to platform allocator
         PRINT_WARNING("HPHA allocation failed for size %llu. Falling back to platform allocator.", size);
         block = platform_allocate(size, alignment);
     }
-    dynamic_allocator_get_size(target, block, allocated_size);
+    u8* out_tag = 0;
+    dynamic_allocator_get_size(target, block, allocated_size, out_tag);
     return block;
 }
 
-b8 hpha_free(HPHA_ALLOCATOR* allocator, void* block, u64* freed_size) {
+b8 hpha_free(HPHA_ALLOCATOR* allocator, void* block, u64* freed_size, u8* freed_tag) {
     if (!allocator || !block) return false;
     
     // Try each allocator to find the owner
     u64 size;
-    if (dynamic_allocator_get_size(&allocator->small_allocator, block, &size)) {
+    u8 tag;
+    if (dynamic_allocator_get_size(&allocator->small_allocator, block, &size, &tag)) {
         *freed_size = size;
+        *freed_tag = tag;
         return dynamic_allocator_free(&allocator->small_allocator, block);
     }
-    if (dynamic_allocator_get_size(&allocator->medium_allocator, block, &size)) {
+    if (dynamic_allocator_get_size(&allocator->medium_allocator, block, &size, &tag)) {
         *freed_size = size;
+        *freed_tag = tag;
         return dynamic_allocator_free(&allocator->medium_allocator, block);
     }
-    if (dynamic_allocator_get_size(&allocator->large_allocator, block, &size)) {
+    if (dynamic_allocator_get_size(&allocator->large_allocator, block, &size, &tag)) {
         *freed_size = size;
+        *freed_tag = tag;
         return dynamic_allocator_free(&allocator->large_allocator, block);
     }
     freed_size = 0; //unknown
+    freed_tag = 0;
 
     // Not owned by any allocator - must be a platform fallback
     platform_free(block, false);
@@ -133,20 +139,20 @@ void hpha_allocator_total_space(HPHA_ALLOCATOR* allocator, u64* out_small_total,
     if (out_large_total) *out_large_total = dynamic_allocator_total_space(&allocator->large_allocator);
 }
 
-b8 hpha_get_size(HPHA_ALLOCATOR* allocator, void* block, u64* out_size) {
+b8 hpha_get_size(HPHA_ALLOCATOR* allocator, void* block, u64* out_size, u8* out_tag) {
     if (!allocator || !block) {
         PRINT_ERROR("hpha_get_size requires valid allocator and block");
         return false;
     }
 
     // Check if block belongs to any sub-allocator
-    if (dynamic_allocator_get_size(&allocator->small_allocator, block, out_size)) {
+    if (dynamic_allocator_get_size(&allocator->small_allocator, block, out_size, out_tag)) {
         return true;
     }
-    if (dynamic_allocator_get_size(&allocator->medium_allocator, block, out_size)) {
+    if (dynamic_allocator_get_size(&allocator->medium_allocator, block, out_size, out_tag)) {
         return true;
     }
-    if (dynamic_allocator_get_size(&allocator->large_allocator, block, out_size)) {
+    if (dynamic_allocator_get_size(&allocator->large_allocator, block, out_size, out_tag)) {
         return true;
     }
 

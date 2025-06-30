@@ -42,7 +42,7 @@ b8 render_view_ui_on_create(struct RENDER_VIEW* self) {
 
 void render_view_ui_on_destroy(struct RENDER_VIEW* self) {
     if (self && self->internal_data) {
-        yfree(self->internal_data, MEMORY_TAG_RENDERER);
+        yfree(self->internal_data);
         self->internal_data = 0;
     }
 }

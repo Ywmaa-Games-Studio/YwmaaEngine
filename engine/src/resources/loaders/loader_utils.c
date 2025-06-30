@@ -12,11 +12,11 @@ b8 resource_unload(struct RESOURCE_LOADER* self, RESOURCE* resource, E_MEMORY_TA
 
     u32 path_length = string_length(resource->full_path);
     if (path_length) {
-        yfree(resource->full_path, MEMORY_TAG_STRING);
+        yfree(resource->full_path);
     }
 
     if (resource->data) {
-        yfree(resource->data, tag);
+        yfree(resource->data);
         resource->data = 0;
         resource->data_size = 0;
         resource->loader_id = INVALID_ID;

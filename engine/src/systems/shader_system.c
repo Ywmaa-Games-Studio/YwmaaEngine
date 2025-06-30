@@ -242,13 +242,13 @@ void shader_destroy(SHADER* s) {
 
     u32 sampler_count = darray_length(s->global_texture_maps);
     for (u32 i = 0; i < sampler_count; ++i) {
-        yfree(s->global_texture_maps[i], MEMORY_TAG_RENDERER);
+        yfree(s->global_texture_maps[i]);
     }
     darray_destroy(s->global_texture_maps);
 
     // Free the name.
     if (s->name) {
-        yfree(s->name, MEMORY_TAG_STRING);
+        yfree(s->name);
     }
     s->name = 0;
 }

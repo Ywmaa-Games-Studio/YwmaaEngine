@@ -112,10 +112,10 @@ GEOMETRY* geometry_system_acquire_from_config(GEOMETRY_CONFIG config, b8 auto_re
 void geometry_system_config_dispose(GEOMETRY_CONFIG* config) {
     if (config) {
         if (config->vertices) {
-            yfree(config->vertices, MEMORY_TAG_ARRAY);
+            yfree(config->vertices);
         }
         if (config->vertices) {
-            yfree(config->indices, MEMORY_TAG_ARRAY);
+            yfree(config->indices);
         }
         yzero_memory(config, sizeof(GEOMETRY_CONFIG));
     }

@@ -384,7 +384,7 @@ void string_cleanup_split_array(char** str_darray) {
         u32 count = darray_length(str_darray);
         // Free each string.
         for (u32 i = 0; i < count; ++i) {
-            yfree(str_darray[i], MEMORY_TAG_STRING);
+            yfree(str_darray[i]);
         }
 
         // Clear the darray

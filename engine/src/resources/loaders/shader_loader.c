@@ -306,19 +306,19 @@ void shader_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
     // Clean up attributes.
     u32 count = darray_length(data->attributes);
     for (u32 i = 0; i < count; ++i) {
-        yfree(data->attributes[i].name, MEMORY_TAG_STRING);
+        yfree(data->attributes[i].name);
     }
     darray_destroy(data->attributes);
 
     // Clean up uniforms.
     count = darray_length(data->uniforms);
     for (u32 i = 0; i < count; ++i) {
-        yfree(data->uniforms[i].name, MEMORY_TAG_STRING);
+        yfree(data->uniforms[i].name);
     }
     darray_destroy(data->uniforms);
 
-    yfree(data->renderpass_name, MEMORY_TAG_STRING);
-    yfree(data->name, MEMORY_TAG_STRING);
+    yfree(data->renderpass_name);
+    yfree(data->name);
     yzero_memory(data, sizeof(SHADER_CONFIG));
 
     if (!resource_unload(self, resource, MEMORY_TAG_RESOURCE)) {

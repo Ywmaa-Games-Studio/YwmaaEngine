@@ -18,7 +18,7 @@ void _darray_destroy(void* array) {
     u64* header = ((u64*)array) - DARRAY_FIELD_LENGTH;
     //u64 header_size = DARRAY_FIELD_LENGTH * sizeof(u64);
     //u64 total_size = header_size + header[DARRAY_CAPACITY] * header[DARRAY_STRIDE];
-    yfree(header, MEMORY_TAG_DARRAY);
+    yfree(header);
 }
 
 u64 _darray_field_get(void* array, u64 field) {

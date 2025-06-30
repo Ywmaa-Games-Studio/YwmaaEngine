@@ -85,7 +85,7 @@ void benchmark_yallocate(u16 alignment) {
         // Free phase
         start = clock();
         for (int i = 0; i < NUM_ALLOCATIONS; i++) {
-            yfree(allocs[i].ptr, MEMORY_TAG_APPLICATION);
+            yfree(allocs[i].ptr);
         }
         end = clock();
         total_time += ((double)(end - start)) / CLOCKS_PER_SEC;
@@ -108,7 +108,7 @@ void run_alignment_tests(void) {
         printf("Requested: %3hu bytes, Actual: %s\n", 
                alignment, 
                is_aligned ? "Aligned" : "Unaligned");
-        yfree(ptr, MEMORY_TAG_APPLICATION);
+        yfree(ptr);
     }
 }
 

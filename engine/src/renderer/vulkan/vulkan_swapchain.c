@@ -34,7 +34,7 @@ void vulkan_swapchain_destroy(
     VULKAN_SWAPCHAIN* swapchain) {
     destroy(context, swapchain);
     for (u32 i = 0; i < swapchain->image_count; ++i) {
-        yfree(swapchain->render_textures[i]->internal_data, MEMORY_TAG_TEXTURE);
+        yfree(swapchain->render_textures[i]->internal_data);
     }
 }
 
@@ -281,7 +281,7 @@ void create(VULKAN_CONTEXT* context, u32 width, u32 height, VULKAN_SWAPCHAIN* sw
 void destroy(VULKAN_CONTEXT* context, VULKAN_SWAPCHAIN* swapchain) {
     vkDeviceWaitIdle(context->device.logical_device);
     vulkan_image_destroy(context, (VULKAN_IMAGE*)swapchain->depth_texture->internal_data);
-    yfree(swapchain->depth_texture->internal_data, MEMORY_TAG_TEXTURE);
+    yfree(swapchain->depth_texture->internal_data);
     swapchain->depth_texture->internal_data = 0;
 
     // Only destroy the views, not the images, since those are owned by the swapchain and are thus

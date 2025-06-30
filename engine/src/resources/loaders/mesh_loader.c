@@ -216,7 +216,7 @@ b8 load_y_mesh_file(FILE_HANDLE* y_mesh_file, GEOMETRY_CONFIG** out_geometries_d
         filesystem_read(y_mesh_file, sizeof(u32), &g.index_count, &bytes_read);
         if (g.index_size == 0 || g.index_count == 0) {
             PRINT_ERROR("Invalid index size or count for geometry %u in mesh file '%s'.", i, name);
-            yfree(g.vertices, MEMORY_TAG_ARRAY);
+            yfree(g.vertices);
             return false;
         }
         g.indices = yallocate(g.index_size * g.index_count, MEMORY_TAG_ARRAY);
@@ -625,7 +625,7 @@ b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_
         if (!filesystem_read(gltf_file, file_size, file_data, &bytes_read) || bytes_read != file_size) {
             PRINT_ERROR("Failed to read glTF file '%s'.", path);
             filesystem_close(gltf_file);
-            yfree(file_data, MEMORY_TAG_STRING);
+            yfree(file_data);
             return false;
         }
     }
@@ -640,7 +640,7 @@ b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_
         &data);
     if (result != cgltf_result_success) {
         PRINT_ERROR("Failed to parse glTF file '%s'.", path);
-        yfree(file_data, MEMORY_TAG_STRING);
+        yfree(file_data);
         return false;
     }
 
@@ -652,7 +652,7 @@ b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_
     if (result != cgltf_result_success) {
         PRINT_ERROR("Failed to load buffers for glTF file '%s'. error: '%s'", path, cgltf_error_messages[result]);
         cgltf_free(data);
-        yfree(file_data, MEMORY_TAG_STRING);
+        yfree(file_data);
         return false;
     }
 
@@ -792,7 +792,7 @@ b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_
     if (darray_length(*out_geometries_darray) == 0) {
         PRINT_ERROR("No geometries found in glTF file '%s'.", path);
         cgltf_free(data);
-        yfree(file_data, MEMORY_TAG_STRING);
+        yfree(file_data);
         return false;
     }
 
@@ -916,13 +916,13 @@ b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_
     if (!write_y_mesh_file(out_y_mesh_filename, name, darray_length(*out_geometries_darray), *out_geometries_darray)) {
         PRINT_ERROR("Failed to write y_mesh file '%s'.", out_y_mesh_filename);
         cgltf_free(data);
-        yfree(file_data, MEMORY_TAG_STRING);
+        yfree(file_data);
         return false;
     }
     // Free the cgltf data.
     cgltf_free(data);
     // Now we can free the file data since we're done with everything
-    yfree(file_data, MEMORY_TAG_STRING);
+    yfree(file_data);
     PRINT_DEBUG("Successfully imported glTF file '%s' and wrote to '%s'.", path, out_y_mesh_filename);
     filesystem_close(gltf_file);
     
@@ -1371,7 +1371,7 @@ b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* o
         u64 bytes_read = 0;
         if (!filesystem_read_all_bytes(&source_file, buffer, &bytes_read) || bytes_read != file_size) {
             PRINT_ERROR("Failed to read source texture: %s", source_path);
-            yfree(buffer, MEMORY_TAG_ARRAY);
+            yfree(buffer);
             filesystem_close(&source_file);
             filesystem_close(&dest_file);
             return false;
@@ -1380,13 +1380,13 @@ b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* o
         u64 bytes_written = 0;
         if (!filesystem_write(&dest_file, file_size, buffer, &bytes_written) || bytes_written != file_size) {
             PRINT_ERROR("Failed to write texture data to: %s", out_filename);
-            yfree(buffer, MEMORY_TAG_ARRAY);
+            yfree(buffer);
             filesystem_close(&source_file);
             filesystem_close(&dest_file);
             return false;
         }
 
-        yfree(buffer, MEMORY_TAG_ARRAY);
+        yfree(buffer);
         filesystem_close(&source_file);
         filesystem_close(&dest_file);
         PRINT_DEBUG("Copied external texture: %s -> %s", source_path, out_filename);

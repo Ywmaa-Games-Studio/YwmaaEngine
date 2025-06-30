@@ -15,6 +15,7 @@ typedef struct dynamic_allocator_state {
 typedef struct alloc_header {
     u32 size;
     u16 padding;
+    u8 tag;
 } alloc_header;
 
 b8 dynamic_allocator_create(u64 total_size, u64* memory_requirement, void* memory, DYNAMIC_ALLOCATOR* out_allocator) {
@@ -68,11 +69,11 @@ b8 dynamic_allocator_destroy(DYNAMIC_ALLOCATOR* allocator) {
     return true;
 }
 
-void* dynamic_allocator_allocate(DYNAMIC_ALLOCATOR* allocator, u64 size) {
-    return dynamic_allocator_allocate_aligned(allocator, size, 1);
+void* dynamic_allocator_allocate(DYNAMIC_ALLOCATOR* allocator, u64 size, u8 tag) {
+    return dynamic_allocator_allocate_aligned(allocator, size, 1, tag);
 }
 
-void* dynamic_allocator_allocate_aligned(DYNAMIC_ALLOCATOR* allocator, u64 size, u16 alignment) {
+void* dynamic_allocator_allocate_aligned(DYNAMIC_ALLOCATOR* allocator, u64 size, u16 alignment, u8 tag) {
     if (!allocator || !size || !alignment) {
         PRINT_ERROR("dynamic_allocator_allocate_aligned requires a valid allocator, size and alignment.");
         return 0;
@@ -122,6 +123,7 @@ void* dynamic_allocator_allocate_aligned(DYNAMIC_ALLOCATOR* allocator, u64 size,
     YASSERT_MSG((header_position - (u64)ptr) < 65536U, "dynamic_allocator_allocate_aligned got padding bigger than 65536. the padding variable is u16");
     header->padding = (header_position - (u64)ptr);
     header->size = (u32)required_size;
+    header->tag = tag;
     YASSERT_MSG(header->size, "dynamic_allocator_allocate_aligned got a size of 0. Memory corruption likely as this should always be nonzero.");
     
     // Align the user block after the header.
@@ -156,7 +158,7 @@ b8 dynamic_allocator_free(DYNAMIC_ALLOCATOR* allocator, void* block) {
     return true;
 }
 
-b8 dynamic_allocator_get_size(DYNAMIC_ALLOCATOR* allocator, void* block, u64* out_size) {
+b8 dynamic_allocator_get_size(DYNAMIC_ALLOCATOR* allocator, void* block, u64* out_size, u8* out_tag) {
     if (!allocator || !block || !out_size) {
         PRINT_ERROR("dynamic_allocator_get_size requires non-null inputs.");
         return false;
@@ -172,6 +174,9 @@ b8 dynamic_allocator_get_size(DYNAMIC_ALLOCATOR* allocator, void* block, u64* ou
     u64 header_position = ((u64)block - sizeof(alloc_header));
     alloc_header* header = (alloc_header*)header_position;
     *out_size = header->size;
+    if (out_tag){
+        *out_tag = header->tag;
+    }
     YASSERT_MSG(*out_size, "dynamic_allocator_get_size found an out_size of 0. Memory corruption likely.");
     return true;
 }

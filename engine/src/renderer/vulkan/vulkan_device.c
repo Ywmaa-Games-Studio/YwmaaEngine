@@ -368,10 +368,10 @@ b8 physical_device_meets_requirements(
 
         if (out_swapchain_support->format_count < 1 || out_swapchain_support->present_mode_count < 1) {
             if (out_swapchain_support->formats) {
-                yfree(out_swapchain_support->formats, MEMORY_TAG_RENDERER);
+                yfree(out_swapchain_support->formats);
             }
             if (out_swapchain_support->present_modes) {
-                yfree(out_swapchain_support->present_modes, MEMORY_TAG_RENDERER);
+                yfree(out_swapchain_support->present_modes);
             }
             PRINT_INFO("Required swapchain support not present, skipping device.");
             return false;
@@ -406,12 +406,12 @@ b8 physical_device_meets_requirements(
 
                     if (!found) {
                         PRINT_INFO("Required extension not found: '%s', skipping device.", requirements->device_extension_names[i]);
-                        yfree(available_extensions, MEMORY_TAG_RENDERER);
+                        yfree(available_extensions);
                         return false;
                     }
                 }
             }
-            yfree(available_extensions, MEMORY_TAG_RENDERER);
+            yfree(available_extensions);
         }
 
         // Sampler anisotropy
@@ -484,7 +484,7 @@ void create_logical_device(VULKAN_CONTEXT* context){
             }
         }
     }
-    yfree(available_extensions, MEMORY_TAG_RENDERER);
+    yfree(available_extensions);
 
     u32 extension_count = portability_required ? 2 : 1;
     const char** extension_names = portability_required
@@ -568,16 +568,14 @@ void destroy_logical_device(VULKAN_CONTEXT* context){
 
     if (context->device.swapchain_support.formats) {
         yfree(
-            context->device.swapchain_support.formats,
-            MEMORY_TAG_RENDERER);
+            context->device.swapchain_support.formats);
         context->device.swapchain_support.formats = 0;
         context->device.swapchain_support.format_count = 0;
     }
 
     if (context->device.swapchain_support.present_modes) {
         yfree(
-            context->device.swapchain_support.present_modes,
-            MEMORY_TAG_RENDERER);
+            context->device.swapchain_support.present_modes);
         context->device.swapchain_support.present_modes = 0;
         context->device.swapchain_support.present_mode_count = 0;
     }

@@ -19,7 +19,7 @@ void linear_allocator_destroy(LINEAR_ALLOCATOR* allocator) {
     if (allocator) {
         allocator->allocated = 0;
         if (allocator->owns_memory && allocator->memory) {
-            yfree(allocator->memory, MEMORY_TAG_LINEAR_ALLOCATOR);
+            yfree(allocator->memory);
         } 
         allocator->memory = 0;
         allocator->total_size = 0;

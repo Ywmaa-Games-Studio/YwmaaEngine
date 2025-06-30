@@ -107,14 +107,14 @@ void geometry_deduplicate_vertices(u32 vertex_count, Vertex3D* vertices, u32 ind
     }
     if (*out_vertex_count == 0) {
         PRINT_WARNING("geometry_deduplicate_vertices: No unique vertices found. This is unexpected.");
-        yfree(unique_verts, MEMORY_TAG_ARRAY);
+        yfree(unique_verts);
         *out_vertices = 0;
         return;
     }
     // Allocate new vertices array
     if (*out_vertex_count > vertex_count) {
         PRINT_WARNING("geometry_deduplicate_vertices: Unique vertex count (%d) exceeds original vertex count (%d). This is unexpected.", *out_vertex_count, vertex_count);
-        yfree(unique_verts, MEMORY_TAG_ARRAY);
+        yfree(unique_verts);
         *out_vertices = 0;
         return;
     }
@@ -122,7 +122,7 @@ void geometry_deduplicate_vertices(u32 vertex_count, Vertex3D* vertices, u32 ind
     // Copy over unique
     ycopy_memory(*out_vertices, unique_verts, sizeof(Vertex3D) * (*out_vertex_count));
     // Destroy temp array
-    yfree(unique_verts, MEMORY_TAG_ARRAY);
+    yfree(unique_verts);
 
     u32 removed_count = vertex_count - *out_vertex_count;
     PRINT_DEBUG("geometry_deduplicate_vertices: removed %d vertices, orig/now %d/%d.", removed_count, vertex_count, *out_vertex_count);

@@ -77,7 +77,7 @@ SpirVBinary compileShaderToSPIRV_Vulkan(glslang_stage_t stage, const char* shade
 
 void spirv_binary_free(SpirVBinary* bin) {
     if (bin && bin->words) {
-        yfree(bin->words, MEMORY_TAG_ARRAY);
+        yfree(bin->words);
         bin->words = NULL;
         bin->size = 0;
     }

@@ -1081,7 +1081,7 @@ void vulkan_renderer_texture_destroy(struct TEXTURE* texture) {
         vulkan_image_destroy(&context, image);
         yzero_memory(image, sizeof(VULKAN_IMAGE));
 
-        yfree(texture->internal_data, MEMORY_TAG_TEXTURE);
+        yfree(texture->internal_data);
     }
     yzero_memory(texture, sizeof(struct TEXTURE));
 }
@@ -1257,7 +1257,7 @@ void vulkan_renderer_shader_destroy(SHADER* s) {
         yzero_memory(&shader->config, sizeof(VULKAN_SHADER_CONFIG));
 
         // Free the internal data memory.
-        yfree(s->internal_data, MEMORY_TAG_RENDERER);
+        yfree(s->internal_data);
         s->internal_data = 0;
     }
 }
@@ -1779,7 +1779,7 @@ b8 vulkan_renderer_shader_release_instance_resources(SHADER* s, u32 instance_id)
     yzero_memory(instance_state->descriptor_set_state.descriptor_states, sizeof(VULKAN_DESCRIPTOR_STATE) * VULKAN_SHADER_MAX_BINDINGS);
 
     if (instance_state->instance_texture_maps) {
-        yfree(instance_state->instance_texture_maps, MEMORY_TAG_ARRAY);
+        yfree(instance_state->instance_texture_maps);
         instance_state->instance_texture_maps = 0;
     }
 
@@ -1931,7 +1931,7 @@ void vulkan_renderpass_destroy(RENDERPASS* pass) {
         VULKAN_RENDERPASS* internal_data = pass->internal_data;
         vkDestroyRenderPass(context.device.logical_device, internal_data->handle, context.allocator);
         internal_data->handle = 0;
-        yfree(internal_data, MEMORY_TAG_RENDERER);
+        yfree(internal_data);
         pass->internal_data = 0;
     }
 }
@@ -1965,7 +1965,7 @@ void vulkan_renderer_render_target_destroy(RENDER_TARGET* target, b8 free_intern
         vkDestroyFramebuffer(context.device.logical_device, (VkFramebuffer)target->internal_framebuffer, context.allocator);
         target->internal_framebuffer = 0;
         if (free_internal_memory) {
-            yfree(target->attachments, MEMORY_TAG_ARRAY);
+            yfree(target->attachments);
             target->attachments = 0;
             target->attachment_count = 0;
         }

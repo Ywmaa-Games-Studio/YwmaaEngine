@@ -173,11 +173,11 @@ void *platform_set_memory(void *dest, i32 value, u64 size) {
     return memset(dest, value, size);
 }
 
-void platform_console_write(const char *message, u8 colour) {
+void platform_console_write(const char *message, u8 color) {
     HANDLE console_handle = GetStdHandle(STD_OUTPUT_HANDLE);
     // ERROR,WARN,INFO,DEBUG,TRACE
     static u8 levels[5] = {4, 6, 2, 1, 8};
-    SetConsoleTextAttribute(console_handle, levels[colour]);
+    SetConsoleTextAttribute(console_handle, levels[color]);
     OutputDebugStringA(message);
     u64 length = strlen(message);
     LPDWORD number_written = 0;

@@ -5,7 +5,7 @@
 void webgpu_image_create(
     WEBGPU_CONTEXT* context,
     const char* name,
-    WGPUTextureDimension image_type,
+    E_TEXTURE_TYPE type,
     u32 width,
     u32 height,
     WGPUTextureFormat format,
@@ -17,6 +17,7 @@ void webgpu_image_create(
 
 void webgpu_image_view_create(
     const char* name,
+    E_TEXTURE_TYPE type,
     WGPUTextureFormat format,
     WGPUTextureUsage usage,
     WEBGPU_IMAGE* image,
@@ -29,6 +30,7 @@ void webgpu_image_view_create(
  */
 void webgpu_image_copy_from_buffer(
     WEBGPU_CONTEXT* context,
+    E_TEXTURE_TYPE type,
     WEBGPU_IMAGE* image,
     const void* data,
     u8 bytes_per_pixel

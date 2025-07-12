@@ -159,7 +159,7 @@ void material_system_shutdown(void* state) {
 MATERIAL* material_system_acquire(const char* name) {
     // Load material configuration from resource;
     RESOURCE material_resource;
-    if (!resource_system_load(name, RESOURCE_TYPE_MATERIAL, &material_resource)) {
+    if (!resource_system_load(name, RESOURCE_TYPE_MATERIAL, 0, &material_resource)) {
         PRINT_ERROR("Failed to load material resource, returning nullptr.");
         return 0;
     }
@@ -400,7 +400,7 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
 
     m->shader_id = shader_system_get_id(config.shader_name);
 
-    // Diffuse colour
+    // Diffuse color
     m->diffuse_color = config.diffuse_color;
     m->shiness = config.shiness;
 

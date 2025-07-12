@@ -164,12 +164,15 @@ typedef struct WEBGPU_SHADER_CONFIG {
     u8 bind_group_count;
     /** @brief bind sets, max of 3. Index 0=global, 1=instance, 2=local */
     WGPUBindGroupLayoutEntry instance_bind_group_entries[INSTANCE_BINDINGS_ENTRY_COUNT];
-    WGPUBindGroupLayoutEntry instance_textures_bind_group_entries[WEBGPU_SHADER_MAX_INSTANCE_TEXTURES];
+    WGPUBindGroupLayoutEntry textures_bind_group_entries[WEBGPU_SHADER_MAX_INSTANCE_TEXTURES];
    
     WGPUBindGroupLayoutDescriptor bind_group_layout_desc[WEBGPU_SHADER_BIND_GROUPS];
 
     /** @brief An array of attribute descriptions for this shader. */
     WGPUVertexAttribute attributes[WEBGPU_SHADER_MAX_ATTRIBUTES];
+
+    /** @brief Face culling mode, provided by the front end. */
+    E_FACE_CULL_MODE cull_mode;
 } WEBGPU_SHADER_CONFIG;
 
 typedef struct WEBGPU_SHADER {
@@ -199,6 +202,16 @@ typedef struct WEBGPU_SHADER {
     /** @brief The instance states for all instances. @todo TODO: make dynamic */
     u32 instance_count;
     WEBGPU_SHADER_INSTANCE_STATE instance_states[WEBGPU_MAX_MATERIAL_COUNT];
+    /** @brief The number of global non-sampler uniforms. */
+    u8 global_uniform_count;
+    /** @brief The number of global sampler uniforms. */
+    u8 global_uniform_sampler_count;
+    /** @brief The number of instance non-sampler uniforms. */
+    u8 instance_uniform_count;
+    /** @brief The number of instance sampler uniforms. */
+    u8 instance_uniform_sampler_count;
+    /** @brief The number of local non-sampler uniforms. */
+    u8 local_uniform_count;
 } WEBGPU_SHADER;
 #define WEBGPU_MAX_REGISTERED_RENDERPASSES 31
 typedef struct WEBGPU_CONTEXT {
@@ -227,6 +240,7 @@ typedef struct WEBGPU_CONTEXT {
     WGPUSurface surface;
     WGPUQueue queue;
     WGPUCommandEncoder encoder;
+    struct SHADER* current_shader;
 
     TEXTURE* render_texture;
     TEXTURE* depth_texture;

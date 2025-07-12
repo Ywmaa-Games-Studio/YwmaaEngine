@@ -31,7 +31,7 @@ b8 add_sampler(SHADER* shader, SHADER_UNIFORM_CONFIG* config);
 b8 add_uniform(SHADER* shader, SHADER_UNIFORM_CONFIG* config);
 u32 get_shader_id(const char* shader_name);
 u32 new_shader_id(void);
-b8 uniform_add(SHADER* shader, const char* uniform_name, u32 size, E_SHADER_UNIFORM_TYPE type, SHADER_SCOPE scope, u32 set_location, b8 is_sampler);
+b8 uniform_add(SHADER* shader, const char* uniform_name, u32 size, E_SHADER_UNIFORM_TYPE type, E_SHADER_SCOPE scope, u32 set_location, b8 is_sampler);
 b8 uniform_name_valid(SHADER* shader, const char* uniform_name);
 b8 shader_uniform_add_state_valid(SHADER* shader);
 void shader_destroy(SHADER* s);
@@ -117,8 +117,6 @@ b8 shader_system_create(const SHADER_CONFIG* config, E_RENDERER_BACKEND_API back
     }
     out_shader->state = SHADER_STATE_NOT_CREATED;
     out_shader->name = string_duplicate(config->name);
-    out_shader->use_instances = config->use_instances;
-    out_shader->use_locals = config->use_local;
     out_shader->push_constant_range_count = 0;
     yzero_memory(out_shader->push_constant_ranges, sizeof(range) * 32);
     out_shader->bound_instance_id = INVALID_ID;
@@ -162,14 +160,14 @@ b8 shader_system_create(const SHADER_CONFIG* config, E_RENDERER_BACKEND_API back
     {
         case RENDERER_BACKEND_API_VULKAN:
             // Create the shader with the renderer.
-            if (!renderer_shader_create(out_shader, pass, config->stage_count, (const char**)config->vulkan_stage_filenames, config->stages)) {
+            if (!renderer_shader_create(out_shader, config, pass, config->stage_count, (const char**)config->vulkan_stage_filenames, config->stages)) {
                 PRINT_ERROR("Error creating shader.");
                 return false;
             }
             break;
         case RENDERER_BACKEND_API_WEBGPU:
             // Create the shader with the renderer.
-            if (!renderer_shader_create(out_shader, pass, config->stage_count, (const char**)config->webgpu_stage_filenames, config->stages)) {
+            if (!renderer_shader_create(out_shader, config, pass, config->stage_count, (const char**)config->webgpu_stage_filenames, config->stages)) {
                 PRINT_ERROR("Error creating shader.");
                 return false;
             }
@@ -190,7 +188,7 @@ b8 shader_system_create(const SHADER_CONFIG* config, E_RENDERER_BACKEND_API back
 
     // Process uniforms
     for (u32 i = 0; i < config->uniform_count; ++i) {
-        if (config->uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER) {
+        if (config->uniforms[i].type == SHADER_UNIFORM_TYPE_SAMPLER || config->uniforms[i].type == SHADER_UNIFORM_TYPE_CUBE_SAMPLER) {
             add_sampler(out_shader, &config->uniforms[i]);
         } else {
             add_uniform(out_shader, &config->uniforms[i]);
@@ -405,10 +403,6 @@ b8 add_attribute(SHADER* shader, const SHADER_ATTRIBUTE_CONFIG* config) {
 }
 
 b8 add_sampler(SHADER* shader, SHADER_UNIFORM_CONFIG* config) {
-    if (config->scope == SHADER_SCOPE_INSTANCE && !shader->use_instances) {
-        PRINT_ERROR("add_sampler cannot add an instance sampler for a shader that does not use instances.");
-        return false;
-    }
 
     // Samples can't be used for push constants.
     if (config->scope == SHADER_SCOPE_LOCAL) {
@@ -494,7 +488,7 @@ u32 new_shader_id(void) {
     return INVALID_ID;
 }
 
-b8 uniform_add(SHADER* shader, const char* uniform_name, u32 size, E_SHADER_UNIFORM_TYPE type, SHADER_SCOPE scope, u32 set_location, b8 is_sampler) {
+b8 uniform_add(SHADER* shader, const char* uniform_name, u32 size, E_SHADER_UNIFORM_TYPE type, E_SHADER_SCOPE scope, u32 set_location, b8 is_sampler) {
     u32 uniform_count = darray_length(shader->uniforms);
     if (uniform_count + 1 > state_ptr->config.max_uniform_count) {
         PRINT_ERROR("A shader can only accept a combined maximum of %d uniforms and samplers at global, instance and local scopes.", state_ptr->config.max_uniform_count);
@@ -518,10 +512,6 @@ b8 uniform_add(SHADER* shader, const char* uniform_name, u32 size, E_SHADER_UNIF
                                                   : shader->ubo_size;
         entry.size = is_sampler ? 0 : size;
     } else {
-        if (entry.scope == SHADER_SCOPE_LOCAL && !shader->use_locals) {
-            PRINT_ERROR("Cannot add a locally-scoped uniform for a shader that does not support locals.");
-            return false;
-        }
         // Push a new aligned range (align to 4, as required by Vulkan spec)
         entry.set_index = INVALID_ID_U8;
         range r = get_aligned_range(shader->push_constant_size, size, 4);

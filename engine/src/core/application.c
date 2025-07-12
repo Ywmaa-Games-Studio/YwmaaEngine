@@ -77,6 +77,8 @@ typedef struct APPLICATION_STATE {
     void* camera_system_state;
 
     // TODO: temp
+    Skybox sb;
+
     Mesh meshes[10];
     u32 mesh_count;
 
@@ -132,7 +134,7 @@ b8 application_create(GAME* game_instance) {
     // Memory system must be the first thing to be stood up.
     MEMORY_SYSTEM_CONFIG memory_system_config = {0};
     
-    memory_system_config.total_alloc_size = MEBIBYTES(512);
+    memory_system_config.total_alloc_size = MEBIBYTES(1024);
     if (!memory_system_init(memory_system_config)) {
         PRINT_ERROR("Failed to initialize memory system; shutting down.");
         return false;
@@ -285,6 +287,21 @@ b8 application_create(GAME* game_instance) {
     }
 
     // Load render views
+    RENDER_VIEW_CONFIG skybox_config = {0};
+    skybox_config.type = RENDERER_VIEW_KNOWN_TYPE_SKYBOX;
+    skybox_config.width = 0;
+    skybox_config.height = 0;
+    skybox_config.name = "skybox";
+    skybox_config.pass_count = 1;
+    RENDER_VIEW_PASS_CONFIG skybox_passes[1];
+    skybox_passes[0].name = "renderpass.builtin.skybox";
+    skybox_config.passes = skybox_passes;
+    skybox_config.view_matrix_source = RENDER_VIEW_VIEW_MATRIX_SOURCE_SCENE_CAMERA;
+    if (!render_view_system_create(&skybox_config)) {
+        PRINT_ERROR("Failed to create skybox view. Aborting application.");
+        return false;
+    }
+
     RENDER_VIEW_CONFIG opaque_world_config = {0};
     opaque_world_config.type = RENDERER_VIEW_KNOWN_TYPE_WORLD;
     opaque_world_config.width = 0;
@@ -316,6 +333,30 @@ b8 application_create(GAME* game_instance) {
     }
     
     // TODO: temp 
+
+    // Skybox
+    TEXTURE_MAP* cube_map = &app_state->sb.cubemap;
+    cube_map->filter_magnify = cube_map->filter_minify = TEXTURE_FILTER_MODE_LINEAR;
+    cube_map->repeat_u = cube_map->repeat_v = cube_map->repeat_w = TEXTURE_REPEAT_CLAMP_TO_EDGE;
+    cube_map->use = TEXTURE_USE_MAP_CUBEMAP;
+    if (!renderer_texture_map_acquire_resources(cube_map)) {
+        PRINT_ERROR("Unable to acquire resources for cube map texture.");
+        return false;
+    }
+    cube_map->texture = texture_system_acquire_cube("skybox", true);
+    GEOMETRY_CONFIG skybox_cube_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "skybox_cube", 0);
+    // Clear out the material name.
+    skybox_cube_config.material_name[0] = 0;
+    app_state->sb.g = geometry_system_acquire_from_config(skybox_cube_config, true);
+    app_state->sb.render_frame_number = INVALID_ID_U64;
+    SHADER* skybox_shader = shader_system_get(BUILTIN_SHADER_NAME_SKYBOX);
+    TEXTURE_MAP* maps[1] = {&app_state->sb.cubemap};
+    if (!renderer_shader_acquire_instance_resources(skybox_shader, maps, &app_state->sb.instance_id)) {
+        PRINT_ERROR("Unable to acquire shader resources for skybox texture.");
+        return false;
+    }
+
+    // World meshes
     app_state->mesh_count = 0;
 
     // Load up a cube configuration, and load geometry from it.
@@ -359,11 +400,11 @@ b8 application_create(GAME* game_instance) {
     // test loading mesh from file
     Mesh* car_mesh = &app_state->meshes[app_state->mesh_count];
     RESOURCE car_mesh_resource = {0};
-    if (!resource_system_load("falcon", RESOURCE_TYPE_MESH, &car_mesh_resource)) {
+    if (!resource_system_load("falcon", RESOURCE_TYPE_MESH, 0, &car_mesh_resource)) {
         PRINT_ERROR("Failed to load car mesh resource.");
     } else {
         // just for release builds, because it optimizes out the resource loading
-        resource_system_load("falcon", RESOURCE_TYPE_MESH, &car_mesh_resource);
+        resource_system_load("falcon", RESOURCE_TYPE_MESH, 0, &car_mesh_resource);
         GEOMETRY_CONFIG* configs = (GEOMETRY_CONFIG*)car_mesh_resource.data;
         car_mesh->geometry_count = car_mesh_resource.data_size;
         car_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * car_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
@@ -379,11 +420,11 @@ b8 application_create(GAME* game_instance) {
     // A bigger test mesh
     Mesh* sponza_mesh = &app_state->meshes[app_state->mesh_count];
     RESOURCE sponza_mesh_resource = {0};
-    if (!resource_system_load("sponza", RESOURCE_TYPE_MESH, &sponza_mesh_resource)) {
+    if (!resource_system_load("sponza", RESOURCE_TYPE_MESH, 0, &sponza_mesh_resource)) {
         PRINT_ERROR("Failed to load sponza mesh!");
     } else{
         // just for release builds, because it optimizes out the resource loading
-        resource_system_load("sponza", RESOURCE_TYPE_MESH, (RESOURCE*)&sponza_mesh_resource);
+        resource_system_load("sponza", RESOURCE_TYPE_MESH, 0, (RESOURCE*)&sponza_mesh_resource);
         GEOMETRY_CONFIG* sponza_configs = (GEOMETRY_CONFIG*)sponza_mesh_resource.data;
         sponza_mesh->geometry_count = sponza_mesh_resource.data_size;
         if (sponza_mesh->geometry_count == 0) {
@@ -401,7 +442,7 @@ b8 application_create(GAME* game_instance) {
 
     Mesh* helmet_mesh = &app_state->meshes[app_state->mesh_count];
     RESOURCE helmet_mesh_resource = {0};
-    if (!resource_system_load("FlightHelmet", RESOURCE_TYPE_MESH, &helmet_mesh_resource)) {
+    if (!resource_system_load("FlightHelmet", RESOURCE_TYPE_MESH, 0, &helmet_mesh_resource)) {
         PRINT_ERROR("Failed to load helmet mesh!");
     } else {
         GEOMETRY_CONFIG* helmet_configs = (GEOMETRY_CONFIG*)helmet_mesh_resource.data;
@@ -421,7 +462,7 @@ b8 application_create(GAME* game_instance) {
     
     Mesh* duck_mesh = &app_state->meshes[app_state->mesh_count];
     RESOURCE duck_mesh_resource = {0};
-    if (!resource_system_load("Duck", RESOURCE_TYPE_MESH, &duck_mesh_resource)) {
+    if (!resource_system_load("Duck", RESOURCE_TYPE_MESH, 0, &duck_mesh_resource)) {
         PRINT_ERROR("Failed to load duck mesh!");
     } else {
         GEOMETRY_CONFIG* duck_configs = (GEOMETRY_CONFIG*)duck_mesh_resource.data;
@@ -560,17 +601,25 @@ b8 application_run(void) {
             packet.delta_time = delta;
 
             // TODO: Read from frame config.
-            packet.view_count = 2;
-            RENDER_VIEW_PACKET views[2];
+            packet.view_count = 3;
+            RENDER_VIEW_PACKET views[3];
             yzero_memory(views, sizeof(RENDER_VIEW_PACKET) * packet.view_count);
             packet.views = views;
+
+            // Skybox
+            SKYBOX_PACKET_DATA skybox_data = {0};
+            skybox_data.sb = &app_state->sb;
+            if (!render_view_system_build_packet(render_view_system_get("skybox"), &skybox_data, &packet.views[0])) {
+                PRINT_ERROR("Failed to build packet for view 'skybox'.");
+                return false;
+            }
 
             // World 
             MESH_PACKET_DATA world_mesh_data = {0};
             world_mesh_data.mesh_count = app_state->mesh_count;
             world_mesh_data.meshes = app_state->meshes;
             // TODO: performs a lookup on every frame.
-            if (!render_view_system_build_packet(render_view_system_get("world_opaque"), &world_mesh_data, &packet.views[0])) {
+            if (!render_view_system_build_packet(render_view_system_get("world_opaque"), &world_mesh_data, &packet.views[1])) {
                 PRINT_ERROR("Failed to build packet for view 'world_opaque'.");
                 return false;
             }
@@ -579,7 +628,7 @@ b8 application_run(void) {
             MESH_PACKET_DATA ui_mesh_data = {0};
             ui_mesh_data.mesh_count = app_state->ui_mesh_count;
             ui_mesh_data.meshes = app_state->ui_meshes;
-            if (!render_view_system_build_packet(render_view_system_get("ui"), &ui_mesh_data, &packet.views[1])) {
+            if (!render_view_system_build_packet(render_view_system_get("ui"), &ui_mesh_data, &packet.views[2])) {
                 PRINT_ERROR("Failed to build packet for view 'ui'.");
                 return false;
             }
@@ -639,6 +688,11 @@ b8 application_run(void) {
     texture_system_shutdown(app_state->texture_system_state);
 
     shader_system_shutdown(app_state->shader_system_state);
+
+    // TODO: Temp
+    // TODO: implement skybox destroy.
+    renderer_texture_map_release_resources(&app_state->sb.cubemap);
+    // TODO: end temp
 
     renderer_system_shutdown(app_state->renderer_system_state);
 

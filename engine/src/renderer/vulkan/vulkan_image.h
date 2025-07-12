@@ -4,7 +4,7 @@
 
 void vulkan_image_create(
     VULKAN_CONTEXT* context,
-    VkImageType image_type,
+    E_TEXTURE_TYPE image_type,
     u32 width,
     u32 height,
     VkFormat format,
@@ -17,6 +17,7 @@ void vulkan_image_create(
 
 void vulkan_image_view_create(
     VULKAN_CONTEXT* context,
+    E_TEXTURE_TYPE type,
     VkFormat format,
     VULKAN_IMAGE* image,
     VkImageAspectFlags aspect_flags);
@@ -26,6 +27,7 @@ void vulkan_image_view_create(
  */
 void vulkan_image_transition_layout(
     VULKAN_CONTEXT* context,
+    E_TEXTURE_TYPE type,
     VULKAN_COMMAND_BUFFER* command_buffer,
     VULKAN_IMAGE* image,
     VkFormat format,
@@ -35,11 +37,13 @@ void vulkan_image_transition_layout(
 /**
  * Copies data in buffer to provided image.
  * @param context The Vulkan context.
+ * @param type The type of texture. Provides hints to creation.
  * @param image The image to copy the buffer's data to.
  * @param buffer The buffer whose data will be copied.
  */
 void vulkan_image_copy_from_buffer(
     VULKAN_CONTEXT* context,
+    E_TEXTURE_TYPE type,
     VULKAN_IMAGE* image,
     VkBuffer buffer,
     VULKAN_COMMAND_BUFFER* command_buffer);

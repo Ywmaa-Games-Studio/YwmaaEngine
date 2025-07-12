@@ -46,7 +46,7 @@ typedef struct SHADER_UNIFORM {
     /** @brief The index of the descriptor set the uniform belongs to (0=global, 1=instance, INVALID_ID=local). */
     u8 set_index;
     /** @brief The scope of the uniform. */
-    SHADER_SCOPE scope;
+    E_SHADER_SCOPE scope;
     /** @brief The type of uniform. */
     E_SHADER_UNIFORM_TYPE type;
 } SHADER_UNIFORM;
@@ -71,13 +71,6 @@ typedef struct SHADER {
     u32 id;
 
     char* name;
-    /**
-     * @brief Indicates if the shader uses instances. If not, it is assumed
-     * that only global uniforms and samplers are used.
-     */
-    b8 use_instances;
-    /** @brief Indicates if locals are used (typically for model matrices, etc.).*/
-    b8 use_locals;
 
     /**
      * @brief The amount of bytes that are required for UBO alignment.
@@ -116,7 +109,7 @@ typedef struct SHADER {
     /** @brief The number of instance textures. */
     u8 instance_texture_count;
 
-    SHADER_SCOPE bound_scope;
+    E_SHADER_SCOPE bound_scope;
 
     /** @brief The identifier of the currently bound instance. */
     u32 bound_instance_id;

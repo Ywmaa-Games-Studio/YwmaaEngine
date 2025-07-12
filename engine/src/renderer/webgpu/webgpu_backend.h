@@ -30,7 +30,7 @@ void webgpu_renderer_texture_write_data(TEXTURE* t, u32 offset, u32 size, const 
 b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
 void webgpu_renderer_destroy_geometry(GEOMETRY* geometry);
 
-b8 webgpu_renderer_shader_create(struct SHADER* shader, RENDERPASS* pass, u8 stage_count, const char** stage_filenames, E_SHADER_STAGE* stages);
+b8 webgpu_renderer_shader_create(struct SHADER* shader, const SHADER_CONFIG* config, RENDERPASS* pass, u8 stage_count, const char** stage_filenames, E_SHADER_STAGE* stages);
 void webgpu_renderer_shader_destroy(struct SHADER* s);
 
 b8 webgpu_renderer_shader_init(struct SHADER* shader);

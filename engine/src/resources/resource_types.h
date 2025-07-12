@@ -28,6 +28,23 @@ typedef struct IMAGE_RESOURCE_DATA {
     u8* pixels;
 } IMAGE_RESOURCE_DATA;
 
+/** @brief Parameters used when loading an image. */
+typedef struct IMAGE_RESOURCE_PARAMS {
+    /** @brief Indicates if the image should be flipped on the y-axis when loaded. */
+    b8 flip_y;
+} IMAGE_RESOURCE_PARAMS;
+
+/** @brief Determines face culling mode during rendering. */
+typedef enum E_FACE_CULL_MODE {
+    /** @brief No faces are culled. */
+    FACE_CULL_MODE_NONE = 0x0,
+    /** @brief Only front faces are culled. */
+    FACE_CULL_MODE_FRONT = 0x1,
+    /** @brief Only back faces are culled. */
+    FACE_CULL_MODE_BACK = 0x2,
+    /** @brief Both front and back faces are culled. */
+    FACE_CULL_MODE_FRONT_AND_BACK = 0x3
+} E_FACE_CULL_MODE;
 
 #define TEXTURE_NAME_MAX_LENGTH 512
 
@@ -43,8 +60,19 @@ typedef enum E_TEXTURE_FLAG {
 /** @brief Holds bit flags for textures.. */
 typedef u8 texture_flag_bits;
 
+/**
+ * @brief Represents various types of textures.
+ */
+typedef enum E_TEXTURE_TYPE {
+    /** @brief A standard two-dimensional texture. */
+    TEXTURE_TYPE_2D,
+    /** @brief A cube texture, used for cubemaps. */
+    TEXTURE_TYPE_CUBE
+} E_TEXTURE_TYPE;
+
 typedef struct TEXTURE {
     u32 id;
+    E_TEXTURE_TYPE type;
     u32 width;
     u32 height;
     u8 channel_count;
@@ -60,6 +88,7 @@ typedef enum E_TEXTURE_USE {
     TEXTURE_USE_MAP_DIFFUSE = 0x01,
     TEXTURE_USE_MAP_SPECULAR = 0x02,
     TEXTURE_USE_MAP_NORMAL = 0x03,
+    TEXTURE_USE_MAP_CUBEMAP = 0x04,
 } E_TEXTURE_USE;
 
 /** @brief Represents supported texture filtering modes. */
@@ -150,6 +179,13 @@ typedef struct Mesh {
     Transform transform;
 } Mesh;
 
+typedef struct Skybox {
+    TEXTURE_MAP cubemap;
+    GEOMETRY* g;
+    u32 instance_id;
+    /** @brief Synced to the renderer's current frame number when the material has been applied that frame. */
+    u64 render_frame_number;
+} Skybox;
 
 /** @brief Shader stages available in the system. */
 typedef enum E_SHADER_STAGE {
@@ -188,6 +224,7 @@ typedef enum E_SHADER_UNIFORM_TYPE {
     SHADER_UNIFORM_TYPE_UINT32 = 9U,
     SHADER_UNIFORM_TYPE_MATRIX_4 = 10U,
     SHADER_UNIFORM_TYPE_SAMPLER = 11U,
+    SHADER_UNIFORM_TYPE_CUBE_SAMPLER = 12U,
     SHADER_UNIFORM_TYPE_CUSTOM = 255U
 } E_SHADER_UNIFORM_TYPE;
 
@@ -195,14 +232,14 @@ typedef enum E_SHADER_UNIFORM_TYPE {
  * @brief Defines shader scope, which indicates how
  * often it gets updated.
  */
-typedef enum SHADER_SCOPE {
+typedef enum E_SHADER_SCOPE {
     /** @brief Global shader scope, generally updated once per frame. */
     SHADER_SCOPE_GLOBAL = 0,
     /** @brief Instance shader scope, generally updated "per-instance" of the shader. */
     SHADER_SCOPE_INSTANCE = 1,
     /** @brief Local shader scope, generally updated per-object */
     SHADER_SCOPE_LOCAL = 2
-} SHADER_SCOPE;
+} E_SHADER_SCOPE;
 
 /** @brief Configuration for an attribute. */
 typedef struct SHADER_ATTRIBUTE_CONFIG {
@@ -229,7 +266,7 @@ typedef struct SHADER_UNIFORM_CONFIG {
     /** @brief The type of the uniform. */
     E_SHADER_UNIFORM_TYPE type;
     /** @brief The scope of the uniform. */
-    SHADER_SCOPE scope;
+    E_SHADER_SCOPE scope;
 } SHADER_UNIFORM_CONFIG;
 
 /**
@@ -241,10 +278,8 @@ typedef struct SHADER_CONFIG {
     /** @brief The name of the shader to be created. */
     char* name;
 
-    /** @brief Indicates if the shader uses instance-level uniforms. */
-    b8 use_instances;
-    /** @brief Indicates if the shader uses local-level uniforms. */
-    b8 use_local;
+    /** @brief The face cull mode to be used. Default is BACK if not supplied. */
+    E_FACE_CULL_MODE cull_mode;
 
     /** @brief The count of attributes. */
     u8 attribute_count;

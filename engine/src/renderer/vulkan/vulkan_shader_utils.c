@@ -20,7 +20,7 @@ b8 create_shader_module(
 
     // Read the resource.
     RESOURCE text_resource;
-    if (!resource_system_load(file_name, RESOURCE_TYPE_TEXT, &text_resource)) {
+    if (!resource_system_load(file_name, RESOURCE_TYPE_TEXT, 0, &text_resource)) {
         PRINT_ERROR("Unable to read shader module: %s.", file_name);
         return false;
     }

@@ -253,7 +253,7 @@ void create(VULKAN_CONTEXT* context, u32 width, u32 height, VULKAN_SWAPCHAIN* sw
     VULKAN_IMAGE* image = yallocate_aligned(sizeof(VULKAN_IMAGE), 8, MEMORY_TAG_TEXTURE);
     vulkan_image_create(
         context,
-        VK_IMAGE_TYPE_2D,
+        TEXTURE_TYPE_2D,
         swapchain_extent.width,
         swapchain_extent.height,
         context->device.depth_format,

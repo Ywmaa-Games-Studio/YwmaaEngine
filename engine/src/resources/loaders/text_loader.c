@@ -10,7 +10,7 @@
 
 #include "io/filesystem.h"
 
-b8 text_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* out_resource) {
+b8 text_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }

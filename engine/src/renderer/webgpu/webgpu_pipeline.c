@@ -32,6 +32,7 @@ b8 webgpu_pipeline_create(
     WGPUFragmentState* fragment_stage,
     u32 push_constant_range_count,
     range* push_constant_ranges,
+    E_FACE_CULL_MODE cull_mode,
     b8 is_wireframe,
     b8 depth_test_enabled,
     WEBGPU_PIPELINE* pipeline
@@ -92,8 +93,18 @@ b8 webgpu_pipeline_create(
     // But the face orientation does not matter much because we do not
     // cull (i.e. "hide") the faces pointing away from us (which is often
     // used for optimization).
-    pipeline_desc.primitive.cullMode = WGPUCullMode_None;
-    
+    switch (cull_mode) {
+        case FACE_CULL_MODE_NONE:
+            pipeline_desc.primitive.cullMode = WGPUCullMode_None;
+            break;
+        case FACE_CULL_MODE_FRONT:
+            pipeline_desc.primitive.cullMode = WGPUCullMode_Front;
+            break;
+        default:
+        case FACE_CULL_MODE_BACK:
+            pipeline_desc.primitive.cullMode = WGPUCullMode_Back;
+            break;
+    }
     if (depth_test_enabled){
         // [...] Describe stencil/depth pipeline state
         WGPUDepthStencilState depthStencilState;

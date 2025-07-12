@@ -217,7 +217,7 @@ b8 render_view_world_on_render(const struct RENDER_VIEW* self, const struct REND
         }
 
         // Apply globals
-        // TODO: Find a generic way to request data such as ambient colour (which should be from a scene),
+        // TODO: Find a generic way to request data such as ambient color (which should be from a scene),
         // and mode (from the renderer)
         if (!material_system_apply_global(shader_id, frame_number, &packet->projection_matrix, &packet->view_matrix, &packet->ambient_color, &packet->view_position, data->render_mode)) {
             PRINT_ERROR("Failed to use apply globals for material shader. Render frame failed.");

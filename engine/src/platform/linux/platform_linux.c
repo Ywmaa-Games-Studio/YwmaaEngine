@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l1796PMle>
+ *   <l1936AMle>
  * Auto updated?
  *   Yes
  *
@@ -180,10 +180,10 @@ void* platform_set_memory(void* dest, i32 value, u64 size) {
     return memset(dest, value, size);
 }
 
-void platform_console_write(const char* message, u8 colour) {
+void platform_console_write(const char* message, u8 color) {
     // ERROR,WARN,INFO,DEBUG,TRACE
     const char* color_strings[] = {"1;31", "1;33", "1;32", "1;34", "1;30"};
-    printf("\033[%sm%s\033[0m", color_strings[colour], message);
+    printf("\033[%sm%s\033[0m", color_strings[color], message);
 }
 
 f64 platform_get_absolute_time(void) {
@@ -302,7 +302,7 @@ b8 platform_x11_system_startup(
     platform_state->window = loader_xcb_generate_id(platform_state->connection);
 
     // Register event types.
-    // XCB_CW_BACK_PIXEL = filling then window bg with a single colour
+    // XCB_CW_BACK_PIXEL = filling then window bg with a single color
     // XCB_CW_EVENT_MASK is required.
     u32 event_mask = XCB_CW_BACK_PIXEL | XCB_CW_EVENT_MASK;
 
@@ -312,7 +312,7 @@ b8 platform_x11_system_startup(
                        XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_POINTER_MOTION |
                        XCB_EVENT_MASK_STRUCTURE_NOTIFY;
 
-    // Values to be sent over XCB (bg colour, events)
+    // Values to be sent over XCB (bg color, events)
     u32 value_list[] = {platform_state->screen->black_pixel, event_values};
 
     // Create the window

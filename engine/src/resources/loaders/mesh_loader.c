@@ -69,7 +69,7 @@ b8 load_y_mesh_file(FILE_HANDLE* y_mesh_file, GEOMETRY_CONFIG** out_geometries_d
 b8 write_y_mesh_file(const char* path, const char* name, u32 geometry_count, GEOMETRY_CONFIG* geometries);
 b8 write_y_material_file(const char* directory, MATERIAL_CONFIG* config);
 
-b8 mesh_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* out_resource) {
+b8 mesh_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -851,7 +851,7 @@ b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_
             m.diffuse_color.r = pbr->base_color_factor[0];
             m.diffuse_color.g = pbr->base_color_factor[1];
             m.diffuse_color.b = pbr->base_color_factor[2];
-            // NOTE: This is only used by the colour shader, and will set to max_norm by default.
+            // NOTE: This is only used by the color shader, and will set to max_norm by default.
             // Transparency could be added as a material property all its own at a later time.
             //m.diffuse_color.a = pbr->base_color_factor[3];
             m.diffuse_color.a = 1.0f;
@@ -1064,8 +1064,8 @@ b8 import_obj_material_library_file(const char* mtl_file_path) {
                 switch (second_char) {
                     case 'a':
                     case 'd': {
-                        // Ambient/Diffuse colour are treated the same at this level.
-                        // ambient colour is determined by the level.
+                        // Ambient/Diffuse color are treated the same at this level.
+                        // ambient color is determined by the level.
                         char t[2];
                         sscanf(
                             line,
@@ -1075,13 +1075,13 @@ b8 import_obj_material_library_file(const char* mtl_file_path) {
                             &current_config.diffuse_color.g,
                             &current_config.diffuse_color.b);
 
-                        // NOTE: This is only used by the colour shader, and will set to max_norm by default.
+                        // NOTE: This is only used by the color shader, and will set to max_norm by default.
                         // Transparency could be added as a material property all its own at a later time.
                         current_config.diffuse_color.a = 1.0f;
 
                     } break;
                     case 's': {
-                        // Specular colour
+                        // Specular color
                         char t[2];
 
                         // NOTE: Not using this for now.

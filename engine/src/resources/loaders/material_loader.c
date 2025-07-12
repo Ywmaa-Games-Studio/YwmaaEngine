@@ -10,7 +10,7 @@
 
 #include "io/filesystem.h"
 
-b8 material_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_resource) {
+b8 material_loader_load(RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -89,7 +89,7 @@ b8 material_loader_load(RESOURCE_LOADER* self, const char* name, RESOURCE* out_r
         } else if (strings_equali(trimmed_var_name, "normal_map_name")) {
             string_ncopy(resource_data->normal_map_name, trimmed_value, TEXTURE_NAME_MAX_LENGTH);
         } else if (strings_equali(trimmed_var_name, "diffuse_color")) {
-            // Parse the colour
+            // Parse the color
             if (!string_to_vector4(trimmed_value, &resource_data->diffuse_color)) {
                 PRINT_WARNING("Error parsing diffuse_color in file '%s'. Using default of white instead.", full_file_path);
                 // NOTE: already assigned above, no need to have it here.

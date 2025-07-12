@@ -11,7 +11,7 @@
 
 #include "io/filesystem.h"
 
-b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* out_resource) {
+b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -36,8 +36,7 @@ b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* 
     resource_data->uniforms = darray_create(SHADER_UNIFORM_CONFIG);
     resource_data->stage_count = 0;
     resource_data->stages = darray_create(E_SHADER_STAGE);
-    resource_data->use_instances = false;
-    resource_data->use_local = false;
+    resource_data->cull_mode = FACE_CULL_MODE_BACK;
     resource_data->stage_count = 0;
     resource_data->stage_names = darray_create(char*);
     resource_data->vulkan_stage_filenames = darray_create(char*);
@@ -136,10 +135,15 @@ b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* 
             } else if (resource_data->stage_count != count) {
                 PRINT_ERROR("shader_loader_load: Invalid file layout. Count mismatch between stage names and stage filenames.");
             }
-        } else if (strings_equali(trimmed_var_name, "use_instance")) {
-            string_to_bool(trimmed_value, &resource_data->use_instances);
-        } else if (strings_equali(trimmed_var_name, "use_local")) {
-            string_to_bool(trimmed_value, &resource_data->use_local);
+        } else if (strings_equali(trimmed_var_name, "cull_mode")) {
+            if (strings_equali(trimmed_value, "front")) {
+                resource_data->cull_mode = FACE_CULL_MODE_FRONT;
+            } else if (strings_equali(trimmed_value, "front_and_back")) {
+                resource_data->cull_mode = FACE_CULL_MODE_FRONT_AND_BACK;
+            } else if (strings_equali(trimmed_value, "none")) {
+                resource_data->cull_mode = FACE_CULL_MODE_NONE;
+            }
+            // Any other value will use the default of BACK.
         } else if (strings_equali(trimmed_var_name, "attribute")) {
             // Parse attribute.
             char** fields = darray_create(char*);
@@ -241,6 +245,9 @@ b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, RESOURCE* 
                     uniform.size = 64;
                 } else if (strings_equali(fields[0], "samp") || strings_equali(fields[0], "sampler")) {
                     uniform.type = SHADER_UNIFORM_TYPE_SAMPLER;
+                    uniform.size = 0;  // Samplers don't have a size.
+                } else if (strings_equali(fields[0], "cube_samp") || strings_equali(fields[0], "cube_sampler")) {
+                    uniform.type = SHADER_UNIFORM_TYPE_CUBE_SAMPLER;
                     uniform.size = 0;  // Samplers don't have a size.
                 } else {
                     PRINT_ERROR("shader_loader_load: Invalid file layout. Uniform type must be f32, vec2, vec3, vec4, i8, i16, i32, u8, u16, u32 or mat4.");

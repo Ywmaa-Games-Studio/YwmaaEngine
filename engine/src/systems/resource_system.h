@@ -13,7 +13,7 @@ typedef struct RESOURCE_LOADER {
     E_RESOURCE_TYPE type;
     const char* custom_type;
     const char* type_path;
-    b8 (*load)(struct RESOURCE_LOADER* self, const char* name, RESOURCE* out_resource);
+    b8 (*load)(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource);
     void (*unload)(struct RESOURCE_LOADER* self, RESOURCE* resource);
 } RESOURCE_LOADER;
 
@@ -22,8 +22,8 @@ void resource_system_shutdown(void* state);
 
 YAPI b8 resource_system_register_loader(RESOURCE_LOADER loader);
 
-YAPI b8 resource_system_load(const char* name, E_RESOURCE_TYPE type, RESOURCE* out_resource);
-YAPI b8 resource_system_load_custom(const char* name, const char* custom_type, RESOURCE* out_resource);
+YAPI b8 resource_system_load(const char* name, E_RESOURCE_TYPE type, void* params, RESOURCE* out_resource);
+YAPI b8 resource_system_load_custom(const char* name, const char* custom_type, void* params, RESOURCE* out_resource);
 
 YAPI void resource_system_unload(RESOURCE* resource);
 

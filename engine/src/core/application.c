@@ -22,6 +22,7 @@
 #include "systems/shader_system.h"
 #include "systems/camera_system.h"
 #include "systems/render_view_system.h"
+#include "systems/job_system.h"
 
 // TODO: temp
 #include "math/ymath.h"
@@ -42,6 +43,9 @@ typedef struct APPLICATION_STATE {
 
     u64 event_system_memory_requirement;
     void* event_system_state;
+
+    u64 job_system_memory_requirement;
+    void* job_system_state;
 
     u64 logging_system_memory_requirement;
     void* logging_system_state;
@@ -266,10 +270,41 @@ b8 application_create(GAME* game_instance) {
         thread_count = max_thread_count;
     }
 
+    
+    job_system_init(&app_state->job_system_memory_requirement, 0, 0, 0);
+    // Job system.
+    app_state->job_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->job_system_memory_requirement);
+    
     // Renderer system
     app_state->renderer_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_system_memory_requirement);
     if (!renderer_system_init(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_instance->app_config.name, game_instance->app_config.renderer_backend_api)) { //RENDERER_BACKEND_API_WEBGPU|RENDERER_BACKEND_API_VULKAN
         PRINT_ERROR("Failed to initialize renderer. Aborting application.");
+        return false;
+    }
+
+    b8 renderer_multithreaded = renderer_is_multithreaded();
+
+    // Initialize the job system.
+    // Requires knowledge of renderer multithread support, so should be initialized here.
+    u32 job_thread_types[15];
+    for (u32 i = 0; i < 15; ++i) {
+        job_thread_types[i] = JOB_TYPE_GENERAL;
+    }
+
+    if (max_thread_count == 1 || !renderer_multithreaded) {
+        // Everything on one job thread.
+        job_thread_types[0] |= (JOB_TYPE_GPU_RESOURCE | JOB_TYPE_RESOURCE_LOAD);
+    } else if (max_thread_count == 2) {
+        // Split things between the 2 threads
+        job_thread_types[0] |= JOB_TYPE_GPU_RESOURCE;
+        job_thread_types[1] |= JOB_TYPE_RESOURCE_LOAD;
+    } else {
+        // Dedicate the first 2 threads to these things, pass off general tasks to other threads.
+        job_thread_types[0] = JOB_TYPE_GPU_RESOURCE;
+        job_thread_types[1] = JOB_TYPE_RESOURCE_LOAD;
+    }
+    if (!job_system_init(&app_state->job_system_memory_requirement, app_state->job_system_state, thread_count, job_thread_types)) {
+        PRINT_ERROR("Failed to initialize job system. Aborting application.");
         return false;
     }
 
@@ -536,7 +571,7 @@ b8 application_create(GAME* game_instance) {
 
     // Get UI geometry from config.
     app_state->ui_mesh_count = 1;
-    app_state->ui_meshes[0].geometry_count =1;
+    app_state->ui_meshes[0].geometry_count = 1;
     app_state->ui_meshes[0].geometries = yallocate_aligned(sizeof(GEOMETRY*), 8, MEMORY_TAG_ARRAY);
     app_state->ui_meshes[0].geometries[0] = geometry_system_acquire_from_config(ui_config, true);
     app_state->ui_meshes[0].transform = transform_create();
@@ -583,6 +618,9 @@ b8 application_run(void) {
             f64 current_time = app_state->clock.elapsed;
             f64 delta = (current_time - app_state->last_time);
             f64 frame_start_time = platform_get_absolute_time();
+
+            // Update the job system.
+            job_system_update();
     
             if (!app_state->game_instance->update(app_state->game_instance, (f32)delta)) {
                 PRINT_ERROR("Game update failed, shutting down.");
@@ -714,6 +752,8 @@ b8 application_run(void) {
     renderer_system_shutdown(app_state->renderer_system_state);
 
     resource_system_shutdown(app_state->resource_system_state);
+
+    job_system_shutdown(app_state->job_system_state);
 
     platform_system_shutdown(app_state->platform_system_state);
 

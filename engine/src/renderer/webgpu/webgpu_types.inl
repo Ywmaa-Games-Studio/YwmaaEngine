@@ -258,6 +258,9 @@ typedef struct WEBGPU_CONTEXT {
     // TODO: make dynamic
     WEBGPU_GEOMETRY_DATA geometries[WEBGPU_MAX_GEOMETRY_COUNT];
 
+    /** @brief Indicates if multi-threading is supported by this device. */
+    b8 multithreading_enabled;
+
     /**
      * @brief A pointer to a function to be called when the backend requires
      * rendertargets to be refreshed/regenerated.

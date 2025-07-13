@@ -83,6 +83,9 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const  RENDERER_BACKE
         return false;
     }
 
+    // TODO: implement multi-threading.
+    context.multithreading_enabled = false;
+
     //START Surface
     PRINT_DEBUG("Creating WebGPU surface...");
     if (!platform_create_webgpu_surface(&context)) {
@@ -1357,6 +1360,10 @@ TEXTURE* webgpu_renderer_depth_attachment_get(void) {
 u8 webgpu_renderer_window_attachment_index_get(void) {
     // we only have one attachment.
     return 0;
+}
+
+b8 webgpu_renderer_is_multithreaded(void) {
+    return context.multithreading_enabled;
 }
 
 WGPUAddressMode webgpu_convert_repeat_type(const char* axis, E_TEXTURE_REPEAT repeat) {

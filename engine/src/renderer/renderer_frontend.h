@@ -234,3 +234,9 @@ void renderer_renderpass_create(RENDERPASS* out_renderpass, f32 depth, u32 stenc
  * @param pass A pointer to the renderpass to be destroyed.
  */
 void renderer_renderpass_destroy(RENDERPASS* pass);
+
+/**
+ * @brief Indicates if the renderer is capable of multi-threading.
+ */
+b8 renderer_is_multithreaded(void);
+

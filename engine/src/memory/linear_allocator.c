@@ -1,5 +1,5 @@
 #include "linear_allocator.h"
-
+//#include "platform/platform.h"
 #include "core/ymemory.h"
 #include "core/logger.h"
 
@@ -12,6 +12,7 @@ void linear_allocator_create(u64 total_size, void* memory, LINEAR_ALLOCATOR* out
             out_allocator->memory = memory;
         } else {
             out_allocator->memory = yallocate(total_size, MEMORY_TAG_LINEAR_ALLOCATOR);
+            //out_allocator->memory = platform_allocate(total_size, false);
         }
     }
 }
@@ -20,6 +21,7 @@ void linear_allocator_destroy(LINEAR_ALLOCATOR* allocator) {
         allocator->allocated = 0;
         if (allocator->owns_memory && allocator->memory) {
             yfree(allocator->memory);
+            //platform_free(allocator->memory, false);
         } 
         allocator->memory = 0;
         allocator->total_size = 0;
@@ -48,5 +50,6 @@ void linear_allocator_free_all(LINEAR_ALLOCATOR* allocator) {
     if (allocator && allocator->memory) {
         allocator->allocated = 0;
         yzero_memory(allocator->memory, allocator->total_size);
+        //platform_zero_memory(allocator->memory, allocator->total_size);
     }
 }

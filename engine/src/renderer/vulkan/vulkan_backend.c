@@ -116,6 +116,9 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const RENDERER_BACKEN
     PRINT_INFO("Vulkan Instance created.");
     //END Setup Vulkan instance.
 
+    // TODO: implement multi-threading.
+    context.multithreading_enabled = false;
+
     vulkan_setup_debugger();
 
     //START Surface
@@ -2031,6 +2034,10 @@ TEXTURE* vulkan_renderer_depth_attachment_get(void) {
 }
 u8 vulkan_renderer_window_attachment_index_get(void) {
     return (u8)context.image_index;
+}
+
+b8 vulkan_renderer_is_multithreaded(void) {
+    return context.multithreading_enabled;
 }
 
 #include "shader_compiler.h"

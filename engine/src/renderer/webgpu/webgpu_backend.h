@@ -56,3 +56,5 @@ void webgpu_renderer_render_target_destroy(RENDER_TARGET* target, b8 free_intern
 TEXTURE* webgpu_renderer_window_attachment_get(u8 index);
 TEXTURE* webgpu_renderer_depth_attachment_get(void);
 u8 webgpu_renderer_window_attachment_index_get(void);
+
+b8 webgpu_renderer_is_multithreaded(void);

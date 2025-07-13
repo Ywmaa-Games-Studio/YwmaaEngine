@@ -10,9 +10,11 @@ b8 resource_unload(struct RESOURCE_LOADER* self, RESOURCE* resource, E_MEMORY_TA
         return false;
     }
 
-    u32 path_length = string_length(resource->full_path);
-    if (path_length) {
-        yfree(resource->full_path);
+    if (resource->full_path) {
+        u32 path_length = string_length(resource->full_path);
+        if (path_length) {
+            yfree(resource->full_path);
+        }
     }
 
     if (resource->data) {

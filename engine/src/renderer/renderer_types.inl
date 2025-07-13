@@ -544,7 +544,7 @@ typedef struct RENDER_VIEW_PACKET {
 
 typedef struct MESH_PACKET_DATA {
     u32 mesh_count;
-    Mesh* meshes;
+    Mesh** meshes;
 } MESH_PACKET_DATA;
 
 typedef struct SKYBOX_PACKET_DATA {

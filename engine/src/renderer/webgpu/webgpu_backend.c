@@ -1051,6 +1051,26 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
                     u32 texture_index = ((i)/2);
                     TEXTURE_MAP* map = internal->instance_states[s->bound_instance_id].instance_texture_maps[texture_index];
                     TEXTURE* t = map->texture;
+
+                    // Ensure the texture is valid.
+                    if (t->generation == INVALID_ID) {
+                        switch (map->use) {
+                            case TEXTURE_USE_MAP_DIFFUSE:
+                                t = texture_system_get_default_diffuse_texture();
+                                break;
+                            case TEXTURE_USE_MAP_SPECULAR:
+                                t = texture_system_get_default_specular_texture();
+                                break;
+                            case TEXTURE_USE_MAP_NORMAL:
+                                t = texture_system_get_default_normal_texture();
+                                break;
+                            default:
+                                PRINT_WARNING("Undefined texture use %d", map->use);
+                                t = texture_system_get_default_texture();
+                                break;
+                        }
+                    }
+
                     WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)t->internal_data;
                     // Assign view and sampler.
                     // Create a binding

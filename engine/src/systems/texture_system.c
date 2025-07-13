@@ -8,6 +8,7 @@
 #include "renderer/renderer_frontend.h"
 
 #include "systems/resource_system.h"
+#include "systems/job_system.h"
 
 // enable debug logging for this file
 //#define DEBUG_LOG 1
@@ -30,6 +31,15 @@ typedef struct TEXTURE_REFERENCE {
     u32 handle;
     b8 auto_release;
 } TEXTURE_REFERENCE;
+
+// Also used as result_data from job.
+typedef struct TEXTURE_LOAD_PARAMS {
+    char* resource_name;
+    TEXTURE* out_texture;
+    TEXTURE temp_texture;
+    u32 current_generation;
+    RESOURCE image_resource;
+} TEXTURE_LOAD_PARAMS;
 
 static TEXTURE_SYSTEM_STATE* state_ptr = 0;
 b8 create_default_textures(TEXTURE_SYSTEM_STATE* state);
@@ -438,31 +448,72 @@ b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME
     return true;
 }
 
-b8 load_texture(const char* texture_name, TEXTURE* t) {
-    IMAGE_RESOURCE_PARAMS params;
-    params.flip_y = true;
+void texture_load_job_success(void* params) {
+    TEXTURE_LOAD_PARAMS* texture_params = (TEXTURE_LOAD_PARAMS*)params;
 
-    RESOURCE img_resource;
-    if (!resource_system_load(texture_name, RESOURCE_TYPE_IMAGE, &params, &img_resource)) {
-        PRINT_ERROR("Failed to load image resource for texture '%s'", texture_name);
-        return false;
+    // This also handles the GPU upload. Can't be jobified until the renderer is multithreaded.
+    IMAGE_RESOURCE_DATA* resource_data = (IMAGE_RESOURCE_DATA*)texture_params->image_resource.data;
+
+    // Acquire internal texture resources and upload to GPU. Can't be jobified until the renderer is multithreaded.
+    renderer_texture_create(resource_data->pixels, &texture_params->temp_texture);
+
+    // Take a copy of the old texture.
+    TEXTURE old = *texture_params->out_texture;
+
+    // Assign the temp texture to the pointer.
+    *texture_params->out_texture = texture_params->temp_texture;
+
+    // Destroy the old texture.
+    renderer_texture_destroy(&old);
+    yzero_memory(&old, sizeof(TEXTURE));
+
+    if (texture_params->current_generation == INVALID_ID) {
+        texture_params->out_texture->generation = 0;
+    } else {
+        texture_params->out_texture->generation = texture_params->current_generation + 1;
     }
 
-    IMAGE_RESOURCE_DATA* resource_data = img_resource.data;
+    PRINT_TRACE("Successfully loaded texture '%s'.", texture_params->resource_name);
+
+    // Clean up data.
+    resource_system_unload(&texture_params->image_resource);
+    if (texture_params->resource_name) {
+        yfree(texture_params->resource_name);
+        texture_params->resource_name = 0;
+    }
+}
+
+void texture_load_job_fail(void* params) {
+    TEXTURE_LOAD_PARAMS* texture_params = (TEXTURE_LOAD_PARAMS*)params;
+
+    PRINT_ERROR("Failed to load texture '%s'.", texture_params->resource_name);
+
+    resource_system_unload(&texture_params->image_resource);
+}
+
+b8 texture_load_job_start(void* params, void* result_data) {
+    TEXTURE_LOAD_PARAMS* load_params = (TEXTURE_LOAD_PARAMS*)params;
+
+    IMAGE_RESOURCE_PARAMS resource_params;
+    resource_params.flip_y = true;
+
+    b8 result = resource_system_load(load_params->resource_name, RESOURCE_TYPE_IMAGE, &resource_params, &load_params->image_resource);
+
+    IMAGE_RESOURCE_DATA* resource_data = load_params->image_resource.data;
 
     // Use a temporary texture to load into.
-    TEXTURE temp_texture;
-    temp_texture.width = resource_data->width;
-    temp_texture.height = resource_data->height;
-    temp_texture.channel_count = resource_data->channel_count;
+    load_params->temp_texture.width = resource_data->width;
+    load_params->temp_texture.height = resource_data->height;
+    load_params->temp_texture.channel_count = resource_data->channel_count;
 
-    u32 current_generation = t->generation;
-    t->generation = INVALID_ID;
 
-    u64 total_size = temp_texture.width * temp_texture.height * temp_texture.channel_count;
+    load_params->current_generation = load_params->out_texture->generation;
+    load_params->out_texture->generation = INVALID_ID;
+
+    u64 total_size = load_params->temp_texture.width * load_params->temp_texture.height * load_params->temp_texture.channel_count;
     // Check for transparency
     b32 has_transparency = false;
-    for (u64 i = 0; i < total_size; i += temp_texture.channel_count) {
+    for (u64 i = 0; i < total_size; i += load_params->temp_texture.channel_count) {
         u8 a = resource_data->pixels[i + 3];
         if (a < 255) {
             has_transparency = true;
@@ -471,31 +522,28 @@ b8 load_texture(const char* texture_name, TEXTURE* t) {
     }
 
     // Take a copy of the name.
-    string_ncopy(temp_texture.name, texture_name, TEXTURE_NAME_MAX_LENGTH);
-    temp_texture.generation = INVALID_ID;
-    temp_texture.flags = has_transparency ? TEXTURE_FLAG_HAS_TRANSPARENCY : 0;
+    string_ncopy(load_params->temp_texture.name, load_params->resource_name, TEXTURE_NAME_MAX_LENGTH);
+    load_params->temp_texture.generation = INVALID_ID;
+    load_params->temp_texture.flags |= has_transparency ? TEXTURE_FLAG_HAS_TRANSPARENCY : 0;
 
-    // Acquire internal texture resources and upload to GPU.
-    renderer_texture_create(resource_data->pixels, &temp_texture);
+    // NOTE: The load params are also used as the result data here, only the image_resource field is populated now.
+    ycopy_memory(result_data, load_params, sizeof(TEXTURE_LOAD_PARAMS));
 
-    // Take a copy of the old texture.
-    TEXTURE old = *t;
+    return result;
+}
 
-    // Assign the temp texture to the pointer.
-    *t = temp_texture;
+b8 load_texture(const char* texture_name, TEXTURE* t) {
+    // Kick off a texture loading job. Only handles loading from disk
+    // to CPU. GPU upload is handled after completion of this job.
+    TEXTURE_LOAD_PARAMS params;
+    params.resource_name = string_duplicate(texture_name);
+    params.out_texture = t;
+    params.image_resource = (RESOURCE){0};
+    params.current_generation = t->generation;
+    params.temp_texture = (TEXTURE){0};
 
-    // Destroy the old texture.
-    renderer_texture_destroy(&old);
-
-    if (current_generation == INVALID_ID) {
-        t->generation = 0;
-
-    } else {
-        t->generation = current_generation + 1;
-    }
-
-    // Clean up data.
-    resource_system_unload(&img_resource);
+    JOB_INFO job = job_create(texture_load_job_start, texture_load_job_success, texture_load_job_fail, &params, sizeof(TEXTURE_LOAD_PARAMS), sizeof(TEXTURE_LOAD_PARAMS));
+    job_system_submit(job);
     return true;
 }
 

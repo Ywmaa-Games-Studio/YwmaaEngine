@@ -29,6 +29,7 @@
 #include "math/transform.h"
 #include "math/geometry_utils.h"
 #include "data_structures/darray.h"
+#include "resources/mesh.h"
 // TODO: end temp
 
 typedef struct APPLICATION_STATE {
@@ -84,10 +85,13 @@ typedef struct APPLICATION_STATE {
     Skybox sb;
 
     Mesh meshes[10];
-    u32 mesh_count;
+    Mesh* car_mesh;
+    Mesh* sponza_mesh;
+    Mesh* helmet_mesh;
+    Mesh* duck_mesh;
+    b8 models_loaded;
 
     Mesh ui_meshes[10];
-    u32 ui_mesh_count;
     // TODO: end temp
 } APPLICATION_STATE;
 
@@ -100,32 +104,54 @@ b8 application_on_resized(u16 code, void* sender, void* listener_instance, EVENT
 
 // TODO: temp
 b8 event_on_debug_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT data) {
-    const char* names[3] = {
-        "cobblestone",
-        "paving",
-        "paving2"};
-    static i8 choice = 2;
+    if (code == EVENT_CODE_DEBUG0) {
+        const char* names[3] = {
+            "cobblestone",
+            "paving",
+            "paving2"};
+        static i8 choice = 2;
 
-    // Save off the old name.
-    const char* old_name = names[choice];
-    choice++;
-    choice %= 3;
+        // Save off the old names.
+        const char* old_name = names[choice];
 
-    // Acquire the new diffuse texture.
-    // Just swap out the material on the first Mesh if it exists.
-    GEOMETRY* g = app_state->meshes[0].geometries[0];
-    if (g) {
-        // Acquire the new material.
-        g->material = material_system_acquire(names[choice]);
-        if (!g->material) {
-            PRINT_WARNING("event_on_debug_event no material found! Using default material.");
-            g->material = material_system_get_default();
+        choice++;
+        choice %= 3;
+
+        // Just swap out the material on the first mesh if it exists.
+        GEOMETRY* g = app_state->meshes[0].geometries[0];
+        if (g) {
+            // Acquire the new material.
+            g->material = material_system_acquire(names[choice]);
+            if (!g->material) {
+                PRINT_WARNING("event_on_debug_event no material found! Using default material.");
+                g->material = material_system_get_default();
+            }
+
+            // Release the old diffuse material.
+            material_system_release(old_name);
         }
-        // Release the old diffuse material.
-        material_system_release(old_name);
+        return true;
+    } else if (code == EVENT_CODE_DEBUG1) {
+        if (!app_state->models_loaded) {
+            PRINT_DEBUG("Loading models...");
+            app_state->models_loaded = true;
+            if (!mesh_load_from_resource("falcon", app_state->car_mesh)) {
+                PRINT_ERROR("Failed to load falcon mesh!");
+            }
+            if (!mesh_load_from_resource("sponza", app_state->sponza_mesh)) {
+                PRINT_ERROR("Failed to load falcon mesh!");
+            }
+            if (!mesh_load_from_resource("FlightHelmet", app_state->helmet_mesh)) {
+                PRINT_ERROR("Failed to load helmet mesh!");
+            }
+            if (!mesh_load_from_resource("Duck", app_state->duck_mesh)) {
+                PRINT_ERROR("Failed to load duck mesh!");
+            }
+        }
+        return true;
     }
 
-    return true;
+    return false;
 }
 // TODO: end temp
 
@@ -156,6 +182,10 @@ b8 application_create(GAME* game_instance) {
     app_state->game_instance = game_instance;
     app_state->is_running = false;
     app_state->is_suspended = false;
+
+    // TODO: temp debug
+    app_state->models_loaded = false;
+    // TODO: end temp debug
 
     // Create a linear allocator for all systems (except memory) to use.
     u64 systems_allocator_total_size = MEBIBYTES(64);
@@ -188,6 +218,7 @@ b8 application_create(GAME* game_instance) {
     event_register(EVENT_CODE_RESIZED, 0, application_on_resized);
     // TODO: temp
     event_register(EVENT_CODE_DEBUG0, 0, event_on_debug_event);
+    event_register(EVENT_CODE_DEBUG1, 0, event_on_debug_event);
     // TODO: end temp
 
     // Platform
@@ -408,22 +439,29 @@ b8 application_create(GAME* game_instance) {
     }
 
     // World meshes
-    app_state->mesh_count = 0;
+    // Invalidate all meshes.
+    for (u32 i = 0; i < 10; ++i) {
+        app_state->meshes[i].generation = INVALID_ID_U8;
+        app_state->ui_meshes[i].generation = INVALID_ID_U8;
+    }
+
+    u8 mesh_count = 0;
 
     // Load up a cube configuration, and load geometry from it.
-    Mesh* cube_mesh = &app_state->meshes[app_state->mesh_count];
+    Mesh* cube_mesh = &app_state->meshes[mesh_count];
     cube_mesh->geometry_count = 1;
     cube_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * cube_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
     GEOMETRY_CONFIG g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube", "test_material");
     cube_mesh->geometries[0] = geometry_system_acquire_from_config(g_config, true);
     cube_mesh->transform = transform_create();
-    app_state->mesh_count++;
+    mesh_count++;
+    cube_mesh->generation = 0;
     // Clean up the allocations for the geometry config.
     geometry_system_config_dispose(&g_config);
 
 
     // A second cube
-    Mesh* cube_mesh_2 = &app_state->meshes[app_state->mesh_count];
+    Mesh* cube_mesh_2 = &app_state->meshes[mesh_count];
     cube_mesh_2->geometry_count = 1;
     cube_mesh_2->geometries = yallocate_aligned(sizeof(Mesh*) * cube_mesh_2->geometry_count, 8, MEMORY_TAG_ARRAY);
     g_config = geometry_system_generate_cube_config(5.0f, 5.0f, 5.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
@@ -431,12 +469,13 @@ b8 application_create(GAME* game_instance) {
     cube_mesh_2->transform = transform_from_position((Vector3){10.0f, 0.0f, 1.0f});
     // Set the first cube as the parent to the second.
     transform_set_parent(&cube_mesh_2->transform, &cube_mesh->transform);
-    app_state->mesh_count++;
+    mesh_count++;
+    cube_mesh_2->generation = 0;
     // Clean up the allocations for the geometry config.
     geometry_system_config_dispose(&g_config);
 
     // A third cube!
-    Mesh* cube_mesh_3 = &app_state->meshes[app_state->mesh_count];
+    Mesh* cube_mesh_3 = &app_state->meshes[mesh_count];
     cube_mesh_3->geometry_count = 1;
     cube_mesh_3->geometries = yallocate_aligned(sizeof(Mesh*) * cube_mesh_3->geometry_count, 8, MEMORY_TAG_ARRAY);
     g_config = geometry_system_generate_cube_config(2.0f, 2.0f, 2.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
@@ -444,92 +483,28 @@ b8 application_create(GAME* game_instance) {
     cube_mesh_3->transform = transform_from_position((Vector3){5.0f, 0.0f, 1.0f});
     // Set the second cube as the parent to the third.
     transform_set_parent(&cube_mesh_3->transform, &cube_mesh_2->transform);
-    app_state->mesh_count++;
+    mesh_count++;
+    cube_mesh_3->generation = 0;
     // Clean up the allocations for the geometry config.
     geometry_system_config_dispose(&g_config);
 
     // test loading mesh from file
-    Mesh* car_mesh = &app_state->meshes[app_state->mesh_count];
-    RESOURCE car_mesh_resource = {0};
-    if (!resource_system_load("falcon", RESOURCE_TYPE_MESH, 0, &car_mesh_resource)) {
-        PRINT_ERROR("Failed to load car mesh resource.");
-    } else {
-        // just for release builds, because it optimizes out the resource loading
-        resource_system_load("falcon", RESOURCE_TYPE_MESH, 0, &car_mesh_resource);
-        GEOMETRY_CONFIG* configs = (GEOMETRY_CONFIG*)car_mesh_resource.data;
-        car_mesh->geometry_count = car_mesh_resource.data_size;
-        car_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * car_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < car_mesh->geometry_count; ++i) {
-            // Acquire the geometry from the config.
-            car_mesh->geometries[i] = geometry_system_acquire_from_config(configs[i], true);
-        }
-        car_mesh->transform = transform_from_position((Vector3){15.0f, 0.0f, 1.0f});
-        resource_system_unload(&car_mesh_resource);
-        app_state->mesh_count++;
-    }
+    app_state->car_mesh = &app_state->meshes[mesh_count];
+    app_state->car_mesh->transform = transform_from_position((Vector3){15.0f, 0.0f, 1.0f});
+    mesh_count++;
 
     // A bigger test mesh
-    Mesh* sponza_mesh = &app_state->meshes[app_state->mesh_count];
-    RESOURCE sponza_mesh_resource = {0};
-    if (!resource_system_load("sponza", RESOURCE_TYPE_MESH, 0, &sponza_mesh_resource)) {
-        PRINT_ERROR("Failed to load sponza mesh!");
-    } else{
-        // just for release builds, because it optimizes out the resource loading
-        resource_system_load("sponza", RESOURCE_TYPE_MESH, 0, (RESOURCE*)&sponza_mesh_resource);
-        GEOMETRY_CONFIG* sponza_configs = (GEOMETRY_CONFIG*)sponza_mesh_resource.data;
-        sponza_mesh->geometry_count = sponza_mesh_resource.data_size;
-        if (sponza_mesh->geometry_count == 0) {
-            PRINT_ERROR("Sponza mesh has no geometries!");
-            return false;
-        }
-        sponza_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * sponza_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < sponza_mesh->geometry_count; ++i) {
-            sponza_mesh->geometries[i] = geometry_system_acquire_from_config(sponza_configs[i], true);
-        }
-        sponza_mesh->transform = transform_from_position_rotation_scale((Vector3){15.0f, 0.0f, 1.0f}, Quaternion_identity(), (Vector3){0.05f, 0.05f, 0.05f});
-        resource_system_unload(&sponza_mesh_resource);
-        app_state->mesh_count++;
-    }
+    app_state->sponza_mesh = &app_state->meshes[mesh_count];
+    app_state->sponza_mesh->transform = transform_from_position_rotation_scale((Vector3){15.0f, 0.0f, 1.0f}, Quaternion_identity(), (Vector3){0.05f, 0.05f, 0.05f});
+    mesh_count++;
 
-    Mesh* helmet_mesh = &app_state->meshes[app_state->mesh_count];
-    RESOURCE helmet_mesh_resource = {0};
-    if (!resource_system_load("FlightHelmet", RESOURCE_TYPE_MESH, 0, &helmet_mesh_resource)) {
-        PRINT_ERROR("Failed to load helmet mesh!");
-    } else {
-        GEOMETRY_CONFIG* helmet_configs = (GEOMETRY_CONFIG*)helmet_mesh_resource.data;
-        helmet_mesh->geometry_count = helmet_mesh_resource.data_size;
-        if (helmet_mesh->geometry_count == 0) {
-            PRINT_ERROR("helmet mesh has no geometries!");
-            return false;
-        }
-        helmet_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * helmet_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < helmet_mesh->geometry_count; ++i) {
-            helmet_mesh->geometries[i] = geometry_system_acquire_from_config(helmet_configs[i], true);
-        }
-        helmet_mesh->transform = transform_from_position_rotation_scale((Vector3){0.0f, 5.0f, 0.0f}, Quaternion_identity(), (Vector3){10.0f, 10.0f, 10.0f});
-        resource_system_unload(&helmet_mesh_resource);
-        app_state->mesh_count++;
-    }
-    
-    Mesh* duck_mesh = &app_state->meshes[app_state->mesh_count];
-    RESOURCE duck_mesh_resource = {0};
-    if (!resource_system_load("Duck", RESOURCE_TYPE_MESH, 0, &duck_mesh_resource)) {
-        PRINT_ERROR("Failed to load duck mesh!");
-    } else {
-        GEOMETRY_CONFIG* duck_configs = (GEOMETRY_CONFIG*)duck_mesh_resource.data;
-        duck_mesh->geometry_count = duck_mesh_resource.data_size;
-        if (duck_mesh->geometry_count == 0) {
-            PRINT_ERROR("duck mesh has no geometries!");
-            return false;
-        }
-        duck_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * duck_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
-        for (u32 i = 0; i < duck_mesh->geometry_count; ++i) {
-            duck_mesh->geometries[i] = geometry_system_acquire_from_config(duck_configs[i], true);
-        }
-        duck_mesh->transform = transform_from_position_rotation_scale((Vector3){0.0f, 15.0f, 0.0f}, Quaternion_identity(), (Vector3){0.025f, 0.025f, 0.025f});
-        resource_system_unload(&duck_mesh_resource);
-        app_state->mesh_count++;
-    }
+    app_state->helmet_mesh = &app_state->meshes[mesh_count];
+    app_state->helmet_mesh->transform = transform_from_position_rotation_scale((Vector3){0.0f, 5.0f, 0.0f}, Quaternion_identity(), (Vector3){10.0f, 10.0f, 10.0f});
+    mesh_count++;
+
+    app_state->duck_mesh = &app_state->meshes[mesh_count];
+    app_state->duck_mesh->transform = transform_from_position_rotation_scale((Vector3){0.0f, 15.0f, 0.0f}, Quaternion_identity(), (Vector3){0.025f, 0.025f, 0.025f});
+    mesh_count++;
     // TODO: end temp 
 
     // Load up some test UI geometry.
@@ -570,14 +545,11 @@ b8 application_create(GAME* game_instance) {
     ui_config.indices = uiindices;
 
     // Get UI geometry from config.
-    app_state->ui_mesh_count = 1;
     app_state->ui_meshes[0].geometry_count = 1;
     app_state->ui_meshes[0].geometries = yallocate_aligned(sizeof(GEOMETRY*), 8, MEMORY_TAG_ARRAY);
     app_state->ui_meshes[0].geometries[0] = geometry_system_acquire_from_config(ui_config, true);
     app_state->ui_meshes[0].transform = transform_create();
-
-
-
+    app_state->ui_meshes[0].generation = 0;
 
     // Initialize the game.
     if (!app_state->game_instance->init(app_state->game_instance)) {
@@ -635,21 +607,15 @@ b8 application_run(void) {
                 break;
             }
 
-            if (app_state->mesh_count > 0) {
-                // Perform a small rotation on the first mesh.
-                Quaternion rotation = Quaternion_from_axis_angle((Vector3){0, 1, 0}, 0.5f * delta, false);
-                transform_rotate(&app_state->meshes[0].transform, rotation);
+            // Perform a small rotation on the first mesh.
+            Quaternion rotation = Quaternion_from_axis_angle((Vector3){0, 1, 0}, 0.5f * delta, false);
+            transform_rotate(&app_state->meshes[0].transform, rotation);
 
-                // Perform a similar rotation on the second mesh, if it exists.
-                if (app_state->mesh_count > 1) {
-                    transform_rotate(&app_state->meshes[1].transform, rotation);
-                }
+            // Perform a similar rotation on the second mesh, if it exists.
+            transform_rotate(&app_state->meshes[1].transform, rotation);
 
-                // Perform a similar rotation on the third mesh, if it exists.
-                if (app_state->mesh_count > 2) {
-                    transform_rotate(&app_state->meshes[2].transform, rotation);
-                }
-            }
+            // Perform a similar rotation on the third mesh, if it exists.
+            transform_rotate(&app_state->meshes[2].transform, rotation);
 
             // TODO: refactor packet creation
             RENDER_PACKET packet = {0};
@@ -671,8 +637,19 @@ b8 application_run(void) {
 
             // World 
             MESH_PACKET_DATA world_mesh_data = {0};
-            world_mesh_data.mesh_count = app_state->mesh_count;
-            world_mesh_data.meshes = app_state->meshes;
+
+            u32 mesh_count = 0;
+            Mesh* meshes[10];
+            // TODO: flexible size array
+            for (u32 i = 0; i < 10; ++i) {
+                if (app_state->meshes[i].generation != INVALID_ID_U8) {
+                    meshes[mesh_count] = &app_state->meshes[i];
+                    mesh_count++;
+                }
+            }
+            world_mesh_data.mesh_count = mesh_count;
+            world_mesh_data.meshes = meshes;
+
             // TODO: performs a lookup on every frame.
             if (!render_view_system_build_packet(render_view_system_get("world_opaque"), &world_mesh_data, &packet.views[1])) {
                 PRINT_ERROR("Failed to build packet for view 'world_opaque'.");
@@ -681,8 +658,21 @@ b8 application_run(void) {
 
             // ui
             MESH_PACKET_DATA ui_mesh_data = {0};
-            ui_mesh_data.mesh_count = app_state->ui_mesh_count;
-            ui_mesh_data.meshes = app_state->ui_meshes;
+
+            u32 ui_mesh_count = 0;
+            Mesh* ui_meshes[10];
+
+            // TODO: flexible size array
+            for (u32 i = 0; i < 10; ++i) {
+                if (app_state->ui_meshes[i].generation != INVALID_ID_U8) {
+                    ui_meshes[ui_mesh_count] = &app_state->ui_meshes[i];
+                    ui_mesh_count++;
+                }
+            }
+
+            ui_mesh_data.mesh_count = ui_mesh_count;
+            ui_mesh_data.meshes = ui_meshes;
+
             if (!render_view_system_build_packet(render_view_system_get("ui"), &ui_mesh_data, &packet.views[2])) {
                 PRINT_ERROR("Failed to build packet for view 'ui'.");
                 return false;

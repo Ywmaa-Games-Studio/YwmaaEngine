@@ -84,7 +84,7 @@ b8 render_view_ui_on_build_packet(const struct RENDER_VIEW* self, void* data, st
     // Obtain all geometries from the current scene.
     // Iterate all meshes and add them to the packet's geometries collection
     for (u32 i = 0; i < mesh_data->mesh_count; ++i) {
-        Mesh* m = &mesh_data->meshes[i];
+        Mesh* m = mesh_data->meshes[i];
         for (u32 j = 0; j < m->geometry_count; ++j) {
             GEOMETRY_RENDER_DATA render_data;
             render_data.geometry = m->geometries[j];

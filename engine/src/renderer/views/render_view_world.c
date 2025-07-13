@@ -157,7 +157,7 @@ b8 render_view_world_on_build_packet(const struct RENDER_VIEW* self, void* data,
     GEOMETRY_DISTANCE* geometry_distances = darray_create(GEOMETRY_DISTANCE);
 
     for (u32 i = 0; i < mesh_data->mesh_count; ++i) {
-        Mesh* m = &mesh_data->meshes[i];
+        Mesh* m = mesh_data->meshes[i];
         Matrice4 model = transform_get_world(&m->transform);
 
         for (u32 j = 0; j < m->geometry_count; ++j) {

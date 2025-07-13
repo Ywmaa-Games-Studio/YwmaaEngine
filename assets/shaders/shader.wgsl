@@ -4,7 +4,7 @@ struct VertexInput {
     @location(1) normal: vec3f,
     @location(2) texcoord: vec2f,
     @location(3) color: vec4f,
-    @location(4) tangent: vec4f,
+    @location(4) tangent: vec3f,
 };
 
 struct VertexOutput {
@@ -15,7 +15,7 @@ struct VertexOutput {
     @location(3) view_position: vec3f,
     @location(4) frag_position: vec3f,
     @location(5) color: vec4f,
-    @location(6) tangent: vec4f,
+    @location(6) tangent: vec3f,
 };
 
 struct global_uniform_object {
@@ -127,7 +127,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
         push_constants.model[2].xyz,
     );
     out.normal = normalize(m3_model * in.normal);
-	out.tangent = vec4f(normalize(m3_model * in.tangent.xyz), in.tangent.w);
+	out.tangent = normalize(m3_model * in.tangent);
 
 	out.ambient = global_ubo.ambient_color;
     out.view_position = global_ubo.view_position;
@@ -162,9 +162,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     );
 
     var normal : vec3f = in.normal;
-    var tangent : vec3f = in.tangent.xyz;
+    var tangent : vec3f = in.tangent;
     tangent = (tangent - dot(tangent, normal) *  normal);
-    var bitangent : vec3f = cross(in.normal, in.tangent.xyz) * in.tangent.w;
+    var bitangent : vec3f = cross(in.normal, in.tangent);
     TBN = mat3x3<f32>(tangent, bitangent, normal);
 
     // Update the normal to use a sample from the normal map.

@@ -4,7 +4,7 @@ struct VertexInput {
     @location(1) normal: vec3f,
     @location(2) texcoord: vec2f,
     @location(3) color: vec4f,
-    @location(4) tangent: vec4f,
+    @location(4) tangent: vec3f,
 };
 
 struct VertexOutput {

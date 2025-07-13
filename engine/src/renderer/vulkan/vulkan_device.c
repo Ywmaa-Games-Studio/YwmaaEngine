@@ -134,6 +134,25 @@ b8 select_physical_device(VULKAN_CONTEXT* context) {
         return false;
     }
 
+    // Setup requirements
+    // TODO: These requirements should probably be driven by engine
+    // configuration.
+    VULKAN_PHYSICAL_DEVICE_REQUIREMENTS requirements = {0};
+    requirements.graphics = true;
+    requirements.present = true;
+    requirements.transfer = true;
+    // NOTE: Enable this if compute will be required.
+    // requirements.compute = true;
+    requirements.sampler_anisotropy = true;
+#if YPLATFORM_APPLE
+    requirements.discrete_gpu = false;
+#else
+    requirements.discrete_gpu = true;
+#endif
+    requirements.device_extension_names = darray_create(const char*);
+    darray_push(requirements.device_extension_names, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+    // Iterate physical devices to find one that fits the bill.
     VkPhysicalDevice physical_devices[32];
     VK_CHECK(vkEnumeratePhysicalDevices(context->instance, &physical_device_count, physical_devices));
     for (u32 i = 0; i < physical_device_count; ++i) {
@@ -160,23 +179,6 @@ b8 select_physical_device(VULKAN_CONTEXT* context) {
             }
         }
 
-
-        // TODO: These requirements should probably be driven by engine
-        // configuration.
-        VULKAN_PHYSICAL_DEVICE_REQUIREMENTS requirements = {0};
-        requirements.graphics = true;
-        requirements.present = true;
-        requirements.transfer = true;
-        // NOTE: Enable this if compute will be required.
-        // requirements.compute = true;
-        requirements.sampler_anisotropy = true;
-#if YPLATFORM_APPLE
-        requirements.discrete_gpu = false;
-#else
-        requirements.discrete_gpu = true;
-#endif
-        requirements.device_extension_names = darray_create(const char*);
-        darray_push(requirements.device_extension_names, &VK_KHR_SWAPCHAIN_EXTENSION_NAME);
         VULKAN_PHYSICAL_DEVICE_QUEUE_FAMILY_INFO queue_info = {0};
         b8 result = physical_device_meets_requirements(
             physical_devices[i],
@@ -246,6 +248,9 @@ b8 select_physical_device(VULKAN_CONTEXT* context) {
             break;
         }
     }
+
+    // Clean up requirements.
+    darray_destroy(requirements.device_extension_names);
 
     // Ensure a device was selected
     if (!context->device.physical_device) {

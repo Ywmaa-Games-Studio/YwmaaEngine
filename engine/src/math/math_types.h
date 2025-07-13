@@ -69,7 +69,7 @@ typedef struct Vertex3D {
     /** @brief The color of the vertex. */
     Vector4 color;
     /** @brief The tangent of the vertex. */
-    Vector4 tangent;
+    Vector3 tangent;
 } Vertex3D;
 typedef struct Vertex2D {
     Vector2 position;

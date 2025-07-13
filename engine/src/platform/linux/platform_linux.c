@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l1947PMle>
+ *   <l1951AMle>
  * Auto updated?
  *   Yes
  *
@@ -188,7 +188,7 @@ void platform_console_write(const char* message, u8 color) {
 
 f64 platform_get_absolute_time(void) {
     struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     return now.tv_sec + now.tv_nsec * 0.000000001;
 }
 

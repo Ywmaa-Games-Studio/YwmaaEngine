@@ -42,7 +42,7 @@ void camera_system_shutdown(void* state);
  * @param name The name of the Camera to acquire.
  * @return A pointer to a Camera if successful; 0 if an error occurs.
  */
-Camera* camera_system_acquire(const char* name);
+YAPI Camera* camera_system_acquire(const char* name);
 
 /**
  * @brief Releases a Camera with the given name. Intenral reference
@@ -51,11 +51,11 @@ Camera* camera_system_acquire(const char* name);
  * 
  * @param name The name of the Camera to release.
  */
-void camera_system_release(const char* name);
+YAPI void camera_system_release(const char* name);
 
 /**
  * @brief Gets a pointer to the default Camera.
  * 
  * @return A pointer to the default Camera.
  */
-Camera* camera_system_get_default(void);
+YAPI Camera* camera_system_get_default(void);

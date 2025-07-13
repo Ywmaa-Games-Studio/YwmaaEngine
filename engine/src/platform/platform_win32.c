@@ -6,6 +6,8 @@
 #include "core/logger.h"
 #include "input/input.h"
 #include "core/event.h"
+#include "core/ythread.h"
+#include "core/ymutex.h"
 
 #include "data_structures/darray.h"
 
@@ -197,6 +199,138 @@ f64 platform_get_absolute_time(void) {
 void platform_sleep(u64 ms) {
     Sleep(ms);
 }
+
+i32 platform_get_processor_count(void) {
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo(&sysinfo);
+    PRINT_INFO("%i processor cores detected.", sysinfo.dwNumberOfProcessors);
+    return sysinfo.dwNumberOfProcessors;
+}
+
+// NOTE: Begin threads
+b8 ythread_create(PFN_THREAD_START start_function_ptr, void *params, b8 auto_detach, YTHREAD *out_thread) {
+    if (!start_function_ptr) {
+        return false;
+    }
+
+    out_thread->internal_data = CreateThread(
+        0,
+        0,                                           // Default stack size
+        (LPTHREAD_START_ROUTINE)start_function_ptr,  // function ptr
+        params,                                      // param to pass to thread
+        0,
+        (DWORD *)&out_thread->thread_id);
+    PRINT_DEBUG("Starting process on thread id: %#x", out_thread->thread_id);
+    if (!out_thread->internal_data) {
+        return false;
+    }
+    if (auto_detach) {
+        CloseHandle(out_thread->internal_data);
+    }
+    return true;
+}
+
+void ythread_destroy(YTHREAD *thread) {
+    if (thread && thread->internal_data) {
+        DWORD exit_code;
+        GetExitCodeThread(thread->internal_data, &exit_code);
+        // if (exit_code == STILL_ACTIVE) {
+        //     TerminateThread(thread->internal_data, 0);  // 0 = failure
+        // }
+        CloseHandle((HANDLE)thread->internal_data);
+        thread->internal_data = 0;
+        thread->thread_id = 0;
+    }
+}
+
+void ythread_detach(YTHREAD *thread) {
+    if (thread && thread->internal_data) {
+        CloseHandle(thread->internal_data);
+        thread->internal_data = 0;
+    }
+}
+
+void ythread_cancel(YTHREAD *thread) {
+    if (thread && thread->internal_data) {
+        TerminateThread(thread->internal_data, 0);
+        thread->internal_data = 0;
+    }
+}
+
+b8 ythread_is_active(YTHREAD *thread) {
+    if (thread && thread->internal_data) {
+        DWORD exit_code = WaitForSingleObject(thread->internal_data, 0);
+        if (exit_code == WAIT_TIMEOUT) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void ythread_sleep(YTHREAD *thread, u64 ms) {
+    platform_sleep(ms);
+}
+
+u64 get_thread_id(void) {
+    return (u64)GetCurrentThreadId();
+}
+
+// NOTE: End threads.
+
+// NOTE: Begin mutexes
+b8 ymutex_create(YMUTEX *out_mutex) {
+    if (!out_mutex) {
+        return false;
+    }
+
+    out_mutex->internal_data = CreateMutex(0, 0, 0);
+    if (!out_mutex->internal_data) {
+        PRINT_ERROR("Unable to create mutex.");
+        return false;
+    }
+    // KTRACE("Created mutex.");
+    return true;
+}
+
+void ymutex_destroy(YMUTEX *mutex) {
+    if (mutex && mutex->internal_data) {
+        CloseHandle(mutex->internal_data);
+        // KTRACE("Destroyed mutex.");
+        mutex->internal_data = 0;
+    }
+}
+
+b8 ymutex_lock(YMUTEX *mutex) {
+    if (!mutex) {
+        return false;
+    }
+
+    DWORD result = WaitForSingleObject(mutex->internal_data, INFINITE);
+    switch (result) {
+        // The thread got ownership of the mutex
+        case WAIT_OBJECT_0:
+            // KTRACE("Mutex locked.");
+            return true;
+
+            // The thread got ownership of an abandoned mutex.
+        case WAIT_ABANDONED:
+            PRINT_ERROR("Mutex lock failed.");
+            return false;
+    }
+    // KTRACE("Mutex locked.");
+    return true;
+}
+
+b8 ymutex_unlock(YMUTEX *mutex) {
+    if (!mutex || !mutex->internal_data) {
+        return false;
+    }
+    i32 result = ReleaseMutex(mutex->internal_data);
+    // KTRACE("Mutex unlocked.");
+    return result != 0;  // 0 is a failure
+}
+
+// NOTE: End mutexes.
 
 void platform_get_required_extension_names(const char ***names_darray) {
     darray_push(*names_darray, &"VK_KHR_win32_surface");

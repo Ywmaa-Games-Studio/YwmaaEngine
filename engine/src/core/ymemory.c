@@ -2,6 +2,7 @@
 
 #include "core/logger.h"
 #include "core/ystring.h"
+#include "core/ymutex.h"
 #include "core/asserts.h"
 #include "platform/platform.h"
 #include "memory/hpha_allocator.h"
@@ -60,6 +61,8 @@ typedef struct MEMORY_SYSTEM_STATE {
     u64 allocator_memory_requirement;
     HPHA_ALLOCATOR allocator;
     void* allocator_block;
+    // A mutex for allocations/frees
+    YMUTEX allocation_mutex;
 } MEMORY_SYSTEM_STATE;
 
 // Pointer to system state.
@@ -112,6 +115,11 @@ b8 memory_system_init(MEMORY_SYSTEM_CONFIG config) {
     state_ptr->alloc_count = 0;
     state_ptr->allocator_memory_requirement = 0;
 #endif
+    // Create allocation mutex
+    if (!ymutex_create(&state_ptr->allocation_mutex)) {
+        PRINT_ERROR("Unable to create allocation mutex!");
+        return false;
+    }
 
     PRINT_DEBUG("Memory system successfully allocated %llu bytes.", config.total_alloc_size);
     return true;
@@ -119,6 +127,9 @@ b8 memory_system_init(MEMORY_SYSTEM_CONFIG config) {
 
 void memory_system_shutdown(void) {
     if (state_ptr) {
+        // Destroy allocation mutex
+        ymutex_destroy(&state_ptr->allocation_mutex);
+
         hpha_allocator_destroy(&state_ptr->allocator);
         // Free the entire block.
         platform_free(state_ptr, state_ptr->allocator_memory_requirement + sizeof(MEMORY_SYSTEM_STATE));
@@ -136,7 +147,7 @@ void* yallocate_aligned(u64 size, u16 alignment, E_MEMORY_TAG tag) {
     if (tag == MEMORY_TAG_UNKNOWN) {
         PRINT_WARNING("yallocate_aligned called using MEMORY_TAG_UNKNOWN. Re-class this allocation.");
     }
-
+    
     if (!state_ptr) {
         // If the system is not up yet, warn about it but give memory for now.
         /* PRINT_TRACE("Warning: yallocate_aligned called before the memory system is initialized."); */
@@ -144,7 +155,12 @@ void* yallocate_aligned(u64 size, u16 alignment, E_MEMORY_TAG tag) {
         void* block = platform_allocate(size, false);
         return block;
     }
-
+    
+    // Make sure multithreaded requests don't trample each other.
+    if (!ymutex_lock(&state_ptr->allocation_mutex)) {
+        PRINT_ERROR("Error obtaining mutex lock during allocation.");
+        return 0;
+    }
     
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
     u64 allocated_size = 0; 
@@ -154,6 +170,7 @@ void* yallocate_aligned(u64 size, u16 alignment, E_MEMORY_TAG tag) {
 #else
     void* block = yaligned_alloc(size, alignment);
 #endif
+    ymutex_unlock(&state_ptr->allocation_mutex);
     // Use HPHA for allocation
     if (!block) {
         PRINT_ERROR("Allocation failed for size %llu", size);
@@ -210,6 +227,11 @@ void yreallocate_report(u64 old_size, u64 new_size, E_MEMORY_TAG tag) {
 
 void yfree(void* block) {
     if (state_ptr) {
+        // Make sure multithreaded requests don't trample each other.
+        if (!ymutex_lock(&state_ptr->allocation_mutex)) {
+            PRINT_ERROR("Unable to obtain mutex lock for free operation. Heap corruption is likely.");
+            return;
+        }
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
         // Track stats
         u64 size;
@@ -224,6 +246,7 @@ void yfree(void* block) {
         yfree(block);
         b8 result = true;
 #endif
+        ymutex_unlock(&state_ptr->allocation_mutex);
 
         // If the free failed, it's possible this is because the allocation was made
         // before this system was started up. Since this absolutely should be an exception

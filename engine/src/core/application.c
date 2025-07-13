@@ -250,6 +250,22 @@ b8 application_create(GAME* game_instance) {
         return false;
     }
 
+    // This is really a core count. Subtract 1 to account for the main thread already being in use.
+    i32 thread_count = platform_get_processor_count() - 1;
+    if (thread_count < 1) {
+        PRINT_ERROR("Error: Platform reported processor count (minus one for main thread) as %i. Need at least one additional thread for the job system.", thread_count);
+        return false;
+    } else {
+        PRINT_TRACE("Available threads: %i", thread_count);
+    }
+
+    // Cap the thread count.
+    const i32 max_thread_count = 15;
+    if (thread_count > max_thread_count) {
+        PRINT_TRACE("Available threads on the system is %i, but will be capped at %i.", thread_count, max_thread_count);
+        thread_count = max_thread_count;
+    }
+
     // Renderer system
     app_state->renderer_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_system_memory_requirement);
     if (!renderer_system_init(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_instance->app_config.name, game_instance->app_config.renderer_backend_api)) { //RENDERER_BACKEND_API_WEBGPU|RENDERER_BACKEND_API_VULKAN
@@ -535,6 +551,7 @@ b8 application_create(GAME* game_instance) {
     }
 
     // Call resize once to ensure the proper size has been set.
+    renderer_on_resized(app_state->width, app_state->height);
     app_state->game_instance->on_resize(app_state->game_instance, app_state->width, app_state->height);
     
     return true;

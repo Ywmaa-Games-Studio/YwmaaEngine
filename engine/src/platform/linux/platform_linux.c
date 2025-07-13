@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l1936AMle>
+ *   <l1947AMle>
  * Auto updated?
  *   Yes
  *
@@ -205,6 +205,221 @@ void platform_sleep(u64 ms) {
     usleep((ms % 1000) * 1000);
 #endif
 }
+
+i32 platform_get_processor_count(void) {
+    // Load processor info.
+    i32 processor_count = get_nprocs_conf();
+    i32 processors_available = get_nprocs();
+    PRINT_INFO("%i processor cores detected, %i cores available.", processor_count, processors_available);
+    return processors_available;
+}
+
+// NOTE: Begin threads.
+
+b8 ythread_create(PFN_THREAD_START start_function_ptr, void* params, b8 auto_detach, YTHREAD* out_thread) {
+    if (!start_function_ptr) {
+        return false;
+    }
+
+    // pthread_create uses a function pointer that returns void*, so cold-cast to this type.
+    i32 result = pthread_create((pthread_t*)&out_thread->thread_id, 0, (void* (*)(void*))start_function_ptr, params);
+    if (result != 0) {
+        switch (result) {
+            case EAGAIN:
+                PRINT_ERROR("Failed to create thread: insufficient resources to create another thread.");
+                return false;
+            case EINVAL:
+                PRINT_ERROR("Failed to create thread: invalid settings were passed in attributes..");
+                return false;
+            default:
+                PRINT_ERROR("Failed to create thread: an unhandled error has occurred. errno=%i", result);
+                return false;
+        }
+    }
+    PRINT_DEBUG("Starting process on thread id: %#x", out_thread->thread_id);
+
+    // Only save off the handle if not auto-detaching.
+    if (!auto_detach) {
+        out_thread->internal_data = platform_allocate(sizeof(u64), false);
+        *(u64*)out_thread->internal_data = out_thread->thread_id;
+    } else {
+        // If immediately detaching, make sure the operation is a success.
+        result = pthread_detach(out_thread->thread_id);
+        if (result != 0) {
+            switch (result) {
+                case EINVAL:
+                    PRINT_ERROR("Failed to detach newly-created thread: thread is not a joinable thread.");
+                    return false;
+                case ESRCH:
+                    PRINT_ERROR("Failed to detach newly-created thread: no thread with the id %#x could be found.", out_thread->thread_id);
+                    return false;
+                default:
+                    PRINT_ERROR("Failed to detach newly-created thread: an unknown error has occurred. errno=%i", result);
+                    return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+void ythread_destroy(YTHREAD* thread) {
+    ythread_cancel(thread);
+}
+
+void ythread_detach(YTHREAD* thread) {
+    if (thread->internal_data) {
+        i32 result = pthread_detach(*(pthread_t*)thread->internal_data);
+        if (result != 0) {
+            switch (result) {
+                case EINVAL:
+                    PRINT_ERROR("Failed to detach thread: thread is not a joinable thread.");
+                    break;
+                case ESRCH:
+                    PRINT_ERROR("Failed to detach thread: no thread with the id %#x could be found.", thread->thread_id);
+                    break;
+                default:
+                    PRINT_ERROR("Failed to detach thread: an unknown error has occurred. errno=%i", result);
+                    break;
+            }
+        }
+        platform_free(thread->internal_data, false);
+        thread->internal_data = 0;
+    }
+}
+
+void ythread_cancel(YTHREAD* thread) {
+    if (thread->internal_data) {
+        i32 result = pthread_cancel(*(pthread_t*)thread->internal_data);
+        if (result != 0) {
+            switch (result) {
+                case ESRCH:
+                    PRINT_ERROR("Failed to cancel thread: no thread with the id %#x could be found.", thread->thread_id);
+                    break;
+                default:
+                    PRINT_ERROR("Failed to cancel thread: an unknown error has occurred. errno=%i", result);
+                    break;
+            }
+        }
+        platform_free(thread->internal_data, false);
+        thread->internal_data = 0;
+        thread->thread_id = 0;
+    }
+}
+
+b8 ythread_is_active(YTHREAD* thread) {
+    // TODO: Find a better way to verify this.
+    return thread->internal_data != 0;
+}
+
+void ythread_sleep(YTHREAD* thread, u64 ms) {
+    platform_sleep(ms);
+}
+
+u64 get_thread_id(void) {
+    return (u64)pthread_self();
+}
+// NOTE: End threads.
+
+
+// NOTE: Begin mutexes
+b8 ymutex_create(YMUTEX* out_mutex) {
+    if (!out_mutex) {
+        return false;
+    }
+
+    // Initialize
+    pthread_mutex_t mutex;
+    i32 result = pthread_mutex_init(&mutex, 0);
+    if (result != 0) {
+        PRINT_ERROR("Mutex creation failure!");
+        return false;
+    }
+
+    // Save off the mutex handle.
+    out_mutex->internal_data = platform_allocate(sizeof(pthread_mutex_t), false);
+    *(pthread_mutex_t*)out_mutex->internal_data = mutex;
+
+    return true;
+}
+
+void ymutex_destroy(YMUTEX* mutex) {
+    if (mutex) {
+        i32 result = pthread_mutex_destroy((pthread_mutex_t*)mutex->internal_data);
+        switch (result) {
+            case 0:
+                // PRINT_TRACE("Mutex destroyed.");
+                break;
+            case EBUSY:
+                PRINT_ERROR("Unable to destroy mutex: mutex is locked or referenced.");
+                break;
+            case EINVAL:
+                PRINT_ERROR("Unable to destroy mutex: the value specified by mutex is invalid.");
+                break;
+            default:
+                PRINT_ERROR("An handled error has occurred while destroy a mutex: errno=%i", result);
+                break;
+        }
+
+        platform_free(mutex->internal_data, false);
+        mutex->internal_data = 0;
+    }
+}
+
+b8 ymutex_lock(YMUTEX* mutex) {
+    if (!mutex) {
+        return false;
+    }
+    // Lock
+    i32 result = pthread_mutex_lock((pthread_mutex_t*)mutex->internal_data);
+    switch (result) {
+        case 0:
+            // Success, everything else is a failure.
+            // KTRACE("Obtained mutex lock.");
+            return true;
+        case EOWNERDEAD:
+            PRINT_ERROR("Owning thread terminated while mutex still active.");
+            return false;
+        case EAGAIN:
+            PRINT_ERROR("Unable to obtain mutex lock: the maximum number of recursive mutex locks has been reached.");
+            return false;
+        case EBUSY:
+            PRINT_ERROR("Unable to obtain mutex lock: a mutex lock already exists.");
+            return false;
+        case EDEADLK:
+            PRINT_ERROR("Unable to obtain mutex lock: a mutex deadlock was detected.");
+            return false;
+        default:
+            PRINT_ERROR("An handled error has occurred while obtaining a mutex lock: errno=%i", result);
+            return false;
+    }
+}
+
+b8 ymutex_unlock(YMUTEX* mutex) {
+    if (!mutex) {
+        return false;
+    }
+    if (mutex->internal_data) {
+        i32 result = pthread_mutex_unlock((pthread_mutex_t*)mutex->internal_data);
+        switch (result) {
+            case 0:
+                // KTRACE("Freed mutex lock.");
+                return true;
+            case EOWNERDEAD:
+                PRINT_ERROR("Unable to unlock mutex: owning thread terminated while mutex still active.");
+                return false;
+            case EPERM:
+                PRINT_ERROR("Unable to unlock mutex: mutex not owned by current thread.");
+                return false;
+            default:
+                PRINT_ERROR("An handled error has occurred while unlocking a mutex lock: errno=%i", result);
+                return false;
+        }
+    }
+
+    return false;
+}
+// NOTE: End mutexes
 
 #endif // defined(YPLATFORM_LINUX) && !defined(YPLATFORM_ANDROID)
 

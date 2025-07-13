@@ -39,7 +39,7 @@ typedef struct Camera {
  *
  * @return A copy of a newly-created camera.
  */
-Camera camera_create(void);
+YAPI Camera camera_create(void);
 
 /**
  * @brief Defaults the provided camera to default zero
@@ -47,7 +47,7 @@ Camera camera_create(void);
  *
  * @param c A pointer to the camera to be reset.
  */
-void camera_reset(Camera* c);
+YAPI void camera_reset(Camera* c);
 
 /**
  * @brief Gets a copy of the camera's position.
@@ -55,7 +55,7 @@ void camera_reset(Camera* c);
  * @param c A constant pointer to a camera.
  * @return A copy of the camera's position.
  */
-Vector3 camera_position_get(const Camera* c);
+YAPI Vector3 camera_position_get(const Camera* c);
 
 /**
  * @brief Sets the provided camera's position.
@@ -63,7 +63,7 @@ Vector3 camera_position_get(const Camera* c);
  * @param c A pointer to a camera.
  * @param position The position to be set.
  */
-void camera_position_set(Camera* c, Vector3 position);
+YAPI void camera_position_set(Camera* c, Vector3 position);
 
 /**
  * @brief Gets a copy of the camera's rotation in Euler angles.
@@ -71,7 +71,7 @@ void camera_position_set(Camera* c, Vector3 position);
  * @param c A constant pointer to a camera.
  * @return A copy of the camera's rotation in Euler angles.
  */
-Vector3 camera_rotation_euler_get(const Camera* c);
+YAPI Vector3 camera_rotation_euler_get(const Camera* c);
 
 /**
  * @brief Sets the provided camera's rotation in Euler angles.
@@ -79,7 +79,7 @@ Vector3 camera_rotation_euler_get(const Camera* c);
  * @param c A pointer to a camera.
  * @param position The rotation in Euler angles to be set.
  */
-void camera_rotation_euler_set(Camera* c, Vector3 rotation);
+YAPI void camera_rotation_euler_set(Camera* c, Vector3 rotation);
 
 /**
  * @brief Obtains a copy of the camera's view matrix. If camera is
@@ -88,7 +88,7 @@ void camera_rotation_euler_set(Camera* c, Vector3 rotation);
  * @param c A pointer to a camera.
  * @return A copy of the up-to-date view matrix.
  */
-Matrice4 camera_view_get(Camera* c);
+YAPI Matrice4 camera_view_get(Camera* c);
 
 /**
  * @brief Returns a copy of the camera's forward vector.
@@ -96,7 +96,7 @@ Matrice4 camera_view_get(Camera* c);
  * @param c A pointer to a camera.
  * @return A copy of the camera's forward vector.
  */
-Vector3 camera_forward(Camera* c);
+YAPI Vector3 camera_forward(Camera* c);
 
 /**
  * @brief Returns a copy of the camera's backward vector.
@@ -104,7 +104,7 @@ Vector3 camera_forward(Camera* c);
  * @param c A pointer to a camera.
  * @return A copy of the camera's backward vector.
  */
-Vector3 camera_backward(Camera* c);
+YAPI Vector3 camera_backward(Camera* c);
 
 /**
  * @brief Returns a copy of the camera's left vector.
@@ -112,7 +112,7 @@ Vector3 camera_backward(Camera* c);
  * @param c A pointer to a camera.
  * @return A copy of the camera's left vector.
  */
-Vector3 camera_left(Camera* c);
+YAPI Vector3 camera_left(Camera* c);
 
 /**
  * @brief Returns a copy of the camera's right vector.
@@ -120,7 +120,7 @@ Vector3 camera_left(Camera* c);
  * @param c A pointer to a camera.
  * @return A copy of the camera's right vector.
  */
-Vector3 camera_right(Camera* c);
+YAPI Vector3 camera_right(Camera* c);
 
 /**
  * @brief Moves the camera forward by the given amount.
@@ -128,7 +128,7 @@ Vector3 camera_right(Camera* c);
  * @param c A pointer to a camera.
  * @param amount The amount to move.
  */
-void camera_move_forward(Camera* c, f32 amount);
+YAPI void camera_move_forward(Camera* c, f32 amount);
 
 /**
  * @brief Moves the camera backward by the given amount.
@@ -136,7 +136,7 @@ void camera_move_forward(Camera* c, f32 amount);
  * @param c A pointer to a camera.
  * @param amount The amount to move.
  */
-void camera_move_backward(Camera* c, f32 amount);
+YAPI void camera_move_backward(Camera* c, f32 amount);
 
 /**
  * @brief Moves the camera left by the given amount.
@@ -144,7 +144,7 @@ void camera_move_backward(Camera* c, f32 amount);
  * @param c A pointer to a camera.
  * @param amount The amount to move.
  */
-void camera_move_left(Camera* c, f32 amount);
+YAPI void camera_move_left(Camera* c, f32 amount);
 
 /**
  * @brief Moves the camera right by the given amount.
@@ -152,7 +152,7 @@ void camera_move_left(Camera* c, f32 amount);
  * @param c A pointer to a camera.
  * @param amount The amount to move.
  */
-void camera_move_right(Camera* c, f32 amount);
+YAPI void camera_move_right(Camera* c, f32 amount);
 
 /**
  * @brief Moves the camera up (straight along the y-axis) by the given amount.
@@ -160,7 +160,7 @@ void camera_move_right(Camera* c, f32 amount);
  * @param c A pointer to a camera.
  * @param amount The amount to move.
  */
-void camera_move_up(Camera* c, f32 amount);
+YAPI void camera_move_up(Camera* c, f32 amount);
 
 /**
  * @brief Moves the camera down (straight along the y-axis) by the given amount.
@@ -168,7 +168,7 @@ void camera_move_up(Camera* c, f32 amount);
  * @param c A pointer to a camera.
  * @param amount The amount to move.
  */
-void camera_move_down(Camera* c, f32 amount);
+YAPI void camera_move_down(Camera* c, f32 amount);
 
 /**
  * @brief Adjusts the camera's yaw by the given amount.
@@ -176,7 +176,7 @@ void camera_move_down(Camera* c, f32 amount);
  * @param c A pointer to a camera.
  * @param amount The amount to adjust by.
  */
-void camera_yaw(Camera* c, f32 amount);
+YAPI void camera_yaw(Camera* c, f32 amount);
 
 /**
  * @brief Adjusts the camera's pitch by the given amount.
@@ -184,4 +184,4 @@ void camera_yaw(Camera* c, f32 amount);
  * @param c A pointer to a camera.
  * @param amount The amount to adjust by.
  */
-void camera_pitch(Camera* c, f32 amount);
+YAPI void camera_pitch(Camera* c, f32 amount);

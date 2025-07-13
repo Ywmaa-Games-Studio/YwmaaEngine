@@ -9,6 +9,7 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     PRINT_DEBUG("Requesting adapter...");
 
     WGPURequestAdapterOptions adapter_opts = {0};
+    //adapter_opts.backendType = WGPUBackendType_OpenGL;
     adapter_opts.nextInChain = NULL;
     adapter_opts.compatibleSurface = context->surface;
     context->adapter = request_adapter_sync(context->instance, &adapter_opts);

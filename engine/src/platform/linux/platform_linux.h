@@ -7,12 +7,18 @@
 #include "core/logger.h"
 #include "core/event.h"
 #include "input/input.h"
+#include "core/ythread.h"
+#include "core/ymutex.h"
 #include "data_structures/darray.h"
 
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include <pthread.h>
+#include <errno.h>        // For error reporting
+#include <sys/sysinfo.h>  // Processor info
 
 // Include platform-specific Vulkan surface extensions
 #define VK_USE_PLATFORM_XCB_KHR

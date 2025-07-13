@@ -52,7 +52,11 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "ENTITY     ",
     "ENTITY_NODE",
     "SCENE      ",
-    "RESOURCE   "};
+    "RESOURCE   ",
+    "VULKAN     ",
+    "VULKAN_EXT ",
+    "WEBGPU   ",
+    "GPU_LOCAL  "};
 
 typedef struct MEMORY_SYSTEM_STATE {
     MEMORY_SYSTEM_CONFIG config;
@@ -165,12 +169,12 @@ void* yallocate_aligned(u64 size, u16 alignment, E_MEMORY_TAG tag) {
 #if Y_USE_CUSTOM_MEMORY_ALLOCATOR
     u64 allocated_size = 0; 
     void* block = hpha_allocate(&state_ptr->allocator, size, alignment, tag, &allocated_size);
+    ymutex_unlock(&state_ptr->allocation_mutex);
     // Track stats
     yallocate_report(allocated_size, tag);
 #else
     void* block = yaligned_alloc(size, alignment);
 #endif
-    ymutex_unlock(&state_ptr->allocation_mutex);
     // Use HPHA for allocation
     if (!block) {
         PRINT_ERROR("Allocation failed for size %llu", size);
@@ -182,10 +186,16 @@ void* yallocate_aligned(u64 size, u16 alignment, E_MEMORY_TAG tag) {
 }
 
 void yfree_report(u64 size, E_MEMORY_TAG tag) {
+    // Make sure multithreaded requests don't trample each other.
+    if (!ymutex_lock(&state_ptr->allocation_mutex)) {
+        PRINT_ERROR("Error obtaining mutex lock during allocation reporting.");
+        return;
+    }
     state_ptr->stats.total_allocated -= size;
     state_ptr->stats.tagged_allocations[tag] -= size;
     state_ptr->stats.new_tagged_deallocations[tag] += size;
     state_ptr->alloc_count--;
+    ymutex_unlock(&state_ptr->allocation_mutex);
 }
 
 b8 ymemory_get_size(void* block, u64* out_size, u8* out_tag) {
@@ -200,10 +210,16 @@ b8 ymemory_get_size(void* block, u64* out_size, u8* out_tag) {
 }
 
 void yallocate_report(u64 size, E_MEMORY_TAG tag) {
+    // Make sure multithreaded requests don't trample each other.
+    if (!ymutex_lock(&state_ptr->allocation_mutex)) {
+        PRINT_ERROR("Error obtaining mutex lock during allocation reporting.");
+        return;
+    }
     state_ptr->stats.total_allocated += size;
     state_ptr->stats.tagged_allocations[tag] += size;
     state_ptr->stats.new_tagged_allocations[tag] += size;
     state_ptr->alloc_count++;
+    ymutex_unlock(&state_ptr->allocation_mutex);
 }
 
 void* yreallocate(void* block, u64 old_size, u64 new_size, E_MEMORY_TAG tag) {
@@ -241,12 +257,12 @@ void yfree(void* block) {
         if (!result) {
             PRINT_ERROR("Failed to free memory block in custom allocator %p", block);
         }
+        ymutex_unlock(&state_ptr->allocation_mutex);
         yfree_report(size, tag);
 #else
         yfree(block);
         b8 result = true;
 #endif
-        ymutex_unlock(&state_ptr->allocation_mutex);
 
         // If the free failed, it's possible this is because the allocation was made
         // before this system was started up. Since this absolutely should be an exception

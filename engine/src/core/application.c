@@ -682,7 +682,9 @@ b8 application_run(void) {
 
             // TODO: temp
             // Cleanup the packet.
-
+            for (u32 i = 0; i < packet.view_count; ++i) {
+                packet.views[i].view->on_destroy_packet(packet.views[i].view, &packet.views[i]);
+            }
             // TODO: end temp
 
             // Figure out how long the frame took and, if below

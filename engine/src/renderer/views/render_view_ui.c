@@ -96,6 +96,10 @@ b8 render_view_ui_on_build_packet(const struct RENDER_VIEW* self, void* data, st
 
     return true;
 }
+void render_view_ui_on_destroy_packet(const struct RENDER_VIEW* self, struct RENDER_VIEW_PACKET* packet) {
+    darray_destroy(packet->geometries);
+    yzero_memory(packet, sizeof(RENDER_VIEW_PACKET));
+}
 
 b8 render_view_ui_on_render(const struct RENDER_VIEW* self, const struct RENDER_VIEW_PACKET* packet, u64 frame_number, u64 render_target_index) {
     RENDER_VIEW_UI_INTERNAL_DATA* data = self->internal_data;

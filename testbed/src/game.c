@@ -1,6 +1,7 @@
 #include "game.h"
 
 #include <core/logger.h>
+#include <core/ystring.h>
 #include <input/input.h>
 #include <core/event.h>
 
@@ -20,6 +21,16 @@ b8 game_init(GAME* game_instance) {
 
 b8 game_update(GAME* game_instance, f32 delta_time) {
     // PRINT_DEBUG("game_update() called!");
+
+    static u64 alloc_count = 0;
+    u64 prev_alloc_count = alloc_count;
+    alloc_count = get_memory_alloc_count();
+    if (input_is_key_released('M') && input_was_key_pressed('M')) {
+        char* usage = get_memory_usage_str();
+        PRINT_INFO(usage);
+        string_free(usage);
+        PRINT_DEBUG("Allocations: %llu (%llu this frame)", alloc_count, alloc_count - prev_alloc_count);
+    }
     // TODO: temp
     if (input_is_key_released('T') && input_was_key_pressed('T')) {
         PRINT_DEBUG("Swapping texture!");

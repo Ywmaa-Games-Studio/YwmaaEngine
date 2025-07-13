@@ -37,6 +37,12 @@ typedef enum E_MEMORY_TAG {
     MEMORY_TAG_ENTITY_NODE,
     MEMORY_TAG_SCENE,
     MEMORY_TAG_RESOURCE,
+    MEMORY_TAG_VULKAN,
+    // "External" vulkan allocations, for reporting purposes only.
+    MEMORY_TAG_VULKAN_EXT,
+    MEMORY_TAG_WEBGPU,
+    // Representation of GPU-local/vram
+    MEMORY_TAG_GPU_LOCAL,
 
     MEMORY_TAG_MAX_TAGS
 } E_MEMORY_TAG;

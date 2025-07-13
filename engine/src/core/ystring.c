@@ -39,6 +39,14 @@ char* string_duplicate(const char* str) {
     return copy;
 }
 
+void string_free(char* str) {
+    if (str) {
+        yfree(str);
+    } else {
+        // TODO: report null ptr?
+    }
+}
+
 // Case-sensitive string comparison. True if the same, otherwise false.
 b8 strings_equal(const char* str0, const char* str1) {
     return strcmp(str0, str1) == 0;

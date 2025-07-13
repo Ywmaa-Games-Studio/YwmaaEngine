@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l1947AMle>
+ *   <l1947PMle>
  * Auto updated?
  *   Yes
  *
@@ -244,7 +244,11 @@ b8 ythread_create(PFN_THREAD_START start_function_ptr, void* params, b8 auto_det
         *(u64*)out_thread->internal_data = out_thread->thread_id;
     } else {
         // If immediately detaching, make sure the operation is a success.
+#ifdef __GLIBC__
         result = pthread_detach(out_thread->thread_id);
+#else
+        result = pthread_detach(*(pthread_t*)out_thread->internal_data);
+#endif
         if (result != 0) {
             switch (result) {
                 case EINVAL:

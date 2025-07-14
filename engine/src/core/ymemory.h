@@ -64,6 +64,8 @@ YAPI void yreallocate_report(u64 old_size, u64 new_size, E_MEMORY_TAG tag);
 
 YAPI void yfree(void* block);
 
+void yfree_report(u64 size, E_MEMORY_TAG tag);
+
 YAPI b8 ymemory_get_size(void* block, u64* out_size, u8* out_tag);
 
 YAPI void* yzero_memory(void* block, u64 size);

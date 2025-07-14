@@ -19,6 +19,8 @@ typedef struct VULKAN_BUFFER {
     VkBufferUsageFlagBits usage;
     b8 is_locked;
     VkDeviceMemory memory;
+    /** @brief The memory requirements for this buffer. */
+    VkMemoryRequirements memory_requirements;
     i32 memory_index;
     u32 memory_property_flags;
     /** @brief The amount of memory required for the freelist. */
@@ -65,6 +67,10 @@ typedef struct VULKAN_IMAGE {
     VkImage handle;
     VkDeviceMemory memory;
     VkImageView view;
+    /** @brief The GPU memory requirements for this image. */
+    VkMemoryRequirements memory_requirements;
+    /** @brief Memory property flags */
+    VkMemoryPropertyFlags memory_flags;
     u32 width;
     u32 height;
 } VULKAN_IMAGE;

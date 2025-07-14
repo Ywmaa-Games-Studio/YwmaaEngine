@@ -55,7 +55,7 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "RESOURCE   ",
     "VULKAN     ",
     "VULKAN_EXT ",
-    "WEBGPU   ",
+    "WEBGPU     ",
     "GPU_LOCAL  "};
 
 typedef struct MEMORY_SYSTEM_STATE {

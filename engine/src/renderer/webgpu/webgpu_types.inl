@@ -11,17 +11,8 @@
 #include "memory/freelist.h"
 
 typedef struct WEBGPU_BUFFER {
-    u64 total_size;
     WGPUBuffer handle;
-    WGPUBufferUsage usage;
-    b8 is_locked;
-    /** @brief The amount of memory required for the freelist. */
-    u64 freelist_memory_requirement;
-    /** @brief The memory block used by the internal freelist. */
-    void* freelist_block;
-    /** @brief A freelist to track allocations. */
-    FREELIST buffer_freelist;
-    b8 has_freelist;
+    void* mapped_buffer_block;
 } WEBGPU_BUFFER;
 typedef struct WEBGPU_IMAGE {
     WGPUTexture handle;
@@ -176,8 +167,6 @@ typedef struct WEBGPU_SHADER_CONFIG {
 } WEBGPU_SHADER_CONFIG;
 
 typedef struct WEBGPU_SHADER {
-    /** @brief The block of memory mapped to the uniform buffer. */
-    void* mapped_uniform_buffer_block;
 
     /** @brief The shader identifier. */
     u32 id;
@@ -191,10 +180,10 @@ typedef struct WEBGPU_SHADER {
     WEBGPU_RENDERPASS* renderpass;
 
     // Global uniform buffer.
-    WEBGPU_BUFFER uniform_buffer;
-    WEBGPU_BUFFER uniform_buffer_staging;
+    RENDER_BUFFER uniform_buffer;
+    RENDER_BUFFER uniform_buffer_staging;
     // Global uniform buffer.
-    //WEBGPU_BUFFER local_buffer;
+    //RENDER_BUFFER local_buffer;
 
     WGPUBindGroupLayout bind_group_layouts[WEBGPU_SHADER_BIND_GROUPS];
     WGPUBindGroup global_bind_group;
@@ -252,8 +241,8 @@ typedef struct WEBGPU_CONTEXT {
     /** @brief Registered renderpasses. */
     RENDERPASS registered_passes[WEBGPU_MAX_REGISTERED_RENDERPASSES];
 
-    WEBGPU_BUFFER object_vertex_buffer;
-    WEBGPU_BUFFER object_index_buffer;
+    RENDER_BUFFER object_vertex_buffer;
+    RENDER_BUFFER object_index_buffer;
 
     // TODO: make dynamic
     WEBGPU_GEOMETRY_DATA geometries[WEBGPU_MAX_GEOMETRY_COUNT];

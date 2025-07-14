@@ -26,7 +26,7 @@ void mesh_load_job_success(void* params) {
     // This also handles the GPU upload. Can't be jobified until the renderer is multithreaded.
     GEOMETRY_CONFIG* configs = (GEOMETRY_CONFIG*)mesh_params->mesh_resource.data;
     mesh_params->out_mesh->geometry_count = mesh_params->mesh_resource.data_size;
-    mesh_params->out_mesh->geometries = yallocate(sizeof(GEOMETRY*) * mesh_params->out_mesh->geometry_count, MEMORY_TAG_ARRAY);
+    mesh_params->out_mesh->geometries = yallocate_aligned(sizeof(GEOMETRY*) * mesh_params->out_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
     for (u32 i = 0; i < mesh_params->out_mesh->geometry_count; ++i) {
         mesh_params->out_mesh->geometries[i] = geometry_system_acquire_from_config(configs[i], true);
     }

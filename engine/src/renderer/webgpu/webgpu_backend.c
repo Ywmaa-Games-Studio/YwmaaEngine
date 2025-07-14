@@ -7,7 +7,6 @@
 #include "webgpu_swapchain.h"
 #include "webgpu_device.h"
 #include "webgpu_image.h"
-#include "webgpu_buffer.h"
 #include "webgpu_shader_utils.h"
 #include "webgpu_pipeline.h"
 
@@ -15,6 +14,8 @@
 #include "core/ymemory.h"
 #include "core/ystring.h"
 #include "core/application.h"
+
+#include "renderer/renderer_frontend.h"
 
 #include "data_structures/darray.h"
 
@@ -25,27 +26,6 @@
 
 void webgpu_bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout);
 
-b8 webgpu_upload_data_range(WEBGPU_CONTEXT* context, WEBGPU_BUFFER* buffer, u64* out_offset, u64 size, const void* data) {
-    // Allocate space in the buffer.
-    if (!webgpu_buffer_allocate(buffer, size, out_offset)) {
-        PRINT_ERROR("upload_data_range failed to allocate from the given buffer!");
-        return false;
-    }
-
-    webgpu_buffer_load_data(context, buffer, *out_offset, size, data);
-
-    return true;
-}
-
-void webgpu_free_data_range(WEBGPU_BUFFER* buffer, u64 offset, u64 size) {
-    // Free the data range.
-    if (buffer) {
-        webgpu_buffer_free(buffer, size, offset);
-    }
-}
-
-b8 webgpu_create_buffers(WEBGPU_CONTEXT* context);
-void webgpu_destroy_buffers(WEBGPU_CONTEXT* context);
 
 b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend);
 
@@ -156,7 +136,19 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const  RENDERER_BACKE
         hashtable_set(&context.renderpass_table, config->pass_configs[i].name, &id);
     }
 
-    webgpu_create_buffers(&context);
+    // Geometry vertex buffer
+    const u64 vertex_buffer_size = sizeof(Vertex3D) * 2 * 1024 * 1024;
+    if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_VERTEX, vertex_buffer_size, true, &context.object_vertex_buffer)) {
+        PRINT_ERROR("Error creating vertex buffer.");
+        return false;
+    }
+
+    // Geometry index buffer
+    const u64 index_buffer_size = sizeof(u32) * 2 * 1024 * 1024;
+    if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_INDEX, index_buffer_size, true, &context.object_index_buffer)) {
+        PRINT_ERROR("Error creating index buffer.");
+        return false;
+    }
 
     // Mark all geometries as invalid
     for (u32 i = 0; i < WEBGPU_MAX_GEOMETRY_COUNT; ++i) {
@@ -171,8 +163,8 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const  RENDERER_BACKE
 void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
     // Destroy in the opposite order of creation.
 
-
-    webgpu_destroy_buffers(&context);
+    renderer_renderbuffer_destroy(&context.object_vertex_buffer);
+    renderer_renderbuffer_destroy(&context.object_index_buffer);
 
     // Renderpasses
     for (u32 i = 0; i < WEBGPU_MAX_REGISTERED_RENDERPASSES; ++i) {
@@ -367,7 +359,15 @@ b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vert
     internal_data->vertex_count = vertex_count;
     internal_data->vertex_element_size = sizeof(Vertex3D);
     u32 total_size = vertex_count * vertex_size;
-    if (!webgpu_upload_data_range(&context, &context.object_vertex_buffer, &internal_data->vertex_buffer_offset, total_size, vertices)) {
+
+    // Allocate space in the buffer.
+    if (!renderer_renderbuffer_allocate(&context.object_vertex_buffer, total_size, &internal_data->vertex_buffer_offset)) {
+        PRINT_ERROR("webgpu_renderer_create_geometry failed to allocate from the vertex buffer!");
+        return false;
+    }
+
+    // Load the data.
+    if (!renderer_renderbuffer_load_range(&context.object_vertex_buffer, internal_data->vertex_buffer_offset, total_size, vertices)) {
         PRINT_ERROR("webgpu_renderer_create_geometry failed to upload to the vertex buffer!");
         return false;
     }
@@ -377,7 +377,12 @@ b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vert
         internal_data->index_count = index_count;
         internal_data->index_element_size = sizeof(u32);
         total_size = index_count * index_size;
-        if (!webgpu_upload_data_range(&context, &context.object_index_buffer, &internal_data->index_buffer_offset, total_size, indices)){
+        if (!renderer_renderbuffer_allocate(&context.object_index_buffer, total_size, &internal_data->index_buffer_offset)) {
+            PRINT_ERROR("webgpu_renderer_create_geometry failed to allocate from the index buffer!");
+            return false;
+        }
+
+        if (!renderer_renderbuffer_load_range(&context.object_index_buffer, internal_data->index_buffer_offset, total_size, indices)) {
             PRINT_ERROR("webgpu_renderer_create_geometry failed to upload to the index buffer!");
             return false;
         }
@@ -391,11 +396,16 @@ b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vert
 
     if (is_reupload) {
         // Free vertex data
-        webgpu_free_data_range(&context.object_vertex_buffer, old_range.vertex_buffer_offset, old_range.vertex_element_size * old_range.vertex_count);
-
+        if (!renderer_renderbuffer_free(&context.object_vertex_buffer, old_range.vertex_element_size * old_range.vertex_count, old_range.vertex_buffer_offset)) {
+            PRINT_ERROR("webgpu_renderer_create_geometry free operation failed during reupload of vertex data.");
+            return false;
+        }
         // Free index data, if applicable
         if (old_range.index_element_size > 0) {
-            webgpu_free_data_range(&context.object_index_buffer, old_range.index_buffer_offset, old_range.index_element_size  * old_range.index_count);
+            if (!renderer_renderbuffer_free(&context.object_index_buffer, old_range.index_element_size * old_range.index_count, old_range.index_buffer_offset)) {
+                PRINT_ERROR("webgpu_renderer_create_geometry free operation failed during reupload of index data.");
+                return false;
+            }
         }
     }
 
@@ -408,11 +418,15 @@ void webgpu_renderer_destroy_geometry(GEOMETRY* geometry) {
         WEBGPU_GEOMETRY_DATA* internal_data = &context.geometries[geometry->internal_id];
 
         // Free vertex data
-        webgpu_free_data_range(&context.object_vertex_buffer, internal_data->vertex_buffer_offset, internal_data->vertex_element_size * internal_data->vertex_count);
+        if (!renderer_renderbuffer_free(&context.object_vertex_buffer, internal_data->vertex_element_size * internal_data->vertex_count, internal_data->vertex_buffer_offset)) {
+            PRINT_ERROR("webgpu_renderer_destroy_geometry failed to free vertex buffer range.");
+        }
 
         // Free index data, if applicable
         if (internal_data->index_element_size > 0) {
-            webgpu_free_data_range(&context.object_index_buffer, internal_data->index_buffer_offset, internal_data->index_element_size  * internal_data->index_count);
+            if (!renderer_renderbuffer_free(&context.object_index_buffer, internal_data->index_element_size * internal_data->index_count, internal_data->index_buffer_offset)) {
+                PRINT_ERROR("webgpu_renderer_destroy_geometry failed to free index buffer range.");
+            }
         }
 
         // Clean up data.
@@ -420,6 +434,30 @@ void webgpu_renderer_destroy_geometry(GEOMETRY* geometry) {
         internal_data->id = INVALID_ID;
         internal_data->generation = INVALID_ID;
     }
+}
+
+void webgpu_renderer_draw_geometry(GEOMETRY_RENDER_DATA* data) {
+    // Ignore non-uploaded geometries.
+    if (data->geometry && data->geometry->internal_id == INVALID_ID) {
+        return;
+    }
+
+    WEBGPU_GEOMETRY_DATA* buffer_data = &context.geometries[data->geometry->internal_id];
+    // Set vertex buffer while encoding the render pass
+    
+    b8 includes_index_data = buffer_data->index_count > 0;
+    if (!webgpu_buffer_draw(&context.object_vertex_buffer, buffer_data->vertex_buffer_offset, buffer_data->vertex_count, includes_index_data)) {
+        PRINT_ERROR("webgpu_renderer_draw_geometry failed to draw vertex buffer;");
+        return;
+    }
+
+    if (includes_index_data) {
+        if (!webgpu_buffer_draw(&context.object_index_buffer, buffer_data->index_buffer_offset, buffer_data->index_count, !includes_index_data)) {
+            PRINT_ERROR("webgpu_renderer_draw_geometry failed to draw index buffer;");
+            return;
+        }
+    }
+
 }
 
 // The index of the global bind set.
@@ -642,8 +680,9 @@ void webgpu_renderer_shader_destroy(struct SHADER *s)
 
         // Uniform buffer.
         //wgpuBufferUnmap(shader->uniform_buffer.handle);
-        shader->mapped_uniform_buffer_block = 0;
-        webgpu_buffer_destroy(&shader->uniform_buffer);
+        // Uniform buffer.
+        renderer_renderbuffer_destroy(&shader->uniform_buffer);
+        renderer_renderbuffer_destroy(&shader->uniform_buffer_staging);
 
         // Pipeline
         webgpu_pipeline_destroy(&context, &shader->pipeline);
@@ -847,36 +886,27 @@ b8 webgpu_renderer_shader_init(struct SHADER *shader)
     // Uniform  buffer.
     // TODO: max count should be configurable, or perhaps long term support of buffer resizing.
     u64 total_buffer_size = shader->global_ubo_stride + (shader->ubo_stride * WEBGPU_MAX_MATERIAL_COUNT);  // global + (locals)
-    if (!webgpu_buffer_create(
-        &context,
-        total_buffer_size,
-        WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform,
-        false,
-        true,
-        &shader_internal_data->uniform_buffer)) {
-            PRINT_ERROR("WEBGPU global uniform buffer creation failed for object shader.");
-            return false;
-        }
-    if (!webgpu_buffer_create(
-        &context,
-        total_buffer_size,
-        WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite,
-        false,
-        true,
-        &shader_internal_data->uniform_buffer_staging)) {
-            PRINT_ERROR("WEBGPU global uniform buffer staging creation failed for object shader.");
-            return false;
-        }
+    if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_UNIFORM, total_buffer_size, true, &shader_internal_data->uniform_buffer)) {
+        PRINT_ERROR("WebGPU buffer creation failed for object shader.");
+        return false;
+    }
+    
+    if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_STAGING, total_buffer_size, true, &shader_internal_data->uniform_buffer_staging)) {
+        PRINT_ERROR("WebGPU buffer creation failed for object shader.");
+        return false;
+    }
     // Allocate space for the global UBO, whcih should occupy the _stride_ space, _not_ the actual size used.
-    if (!webgpu_buffer_allocate(&shader_internal_data->uniform_buffer, shader->global_ubo_stride, &shader->global_ubo_offset)) {
+    if (!renderer_renderbuffer_allocate(&shader_internal_data->uniform_buffer, shader->global_ubo_stride, &shader->global_ubo_offset)) {
         PRINT_ERROR("Failed to allocate space for the uniform buffer!");
+        return false;
+    }
+    if (!renderer_renderbuffer_allocate(&shader_internal_data->uniform_buffer_staging, shader->global_ubo_stride, &shader->global_ubo_offset)) {
+        PRINT_ERROR("Failed to allocate space for the uniform buffer staging!");
         return false;
     }
 
-    if (!webgpu_buffer_allocate(&shader_internal_data->uniform_buffer_staging, shader->global_ubo_stride, &shader->global_ubo_offset)) {
-        PRINT_ERROR("Failed to allocate space for the uniform buffer!");
-        return false;
-    }
+    // Map the entire buffer's memory.
+    //shader_internal_data->mapped_uniform_buffer_block = webgpu_buffer_map_memory(&s->uniform_buffer);
     
     //shader_internal_data->mapped_uniform_buffer_block = wgpuBufferGetMappedRange(shader_internal_data->uniform_buffer_staging.handle, 0, wgpuBufferGetSize(shader_internal_data->uniform_buffer_staging.handle));//wgpuBufferGetMappedRange(shader_internal_data->uniform_buffer.handle, 0, wgpuBufferGetSize(shader_internal_data->uniform_buffer.handle));
     
@@ -886,7 +916,7 @@ b8 webgpu_renderer_shader_init(struct SHADER *shader)
     // The index of the binding (the entries in bindGroupDesc can be in any order)
     binding_entry.binding = BIND_GROUP_SET_INDEX_GLOBAL;
     // The buffer it is actually bound to
-    binding_entry.buffer = shader_internal_data->uniform_buffer.handle;
+    binding_entry.buffer = ((WEBGPU_BUFFER*)shader_internal_data->uniform_buffer.internal_data)->handle;
     // We can specify an offset within the buffer, so that a single buffer can hold
     // multiple uniform blocks.
     binding_entry.offset = shader->global_ubo_offset;
@@ -904,15 +934,6 @@ b8 webgpu_renderer_shader_init(struct SHADER *shader)
 
     return true;
 }
-//b8 map_completed = false;
-void on_buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
-    WEBGPU_SHADER* s = userdata1;
-    if (status != WGPUMapAsyncStatus_Success){
-        PRINT_ERROR("Failed to map buffer, error: %s", message.data);
-    }
-    s->mapped_uniform_buffer_block = wgpuBufferGetMappedRange(s->uniform_buffer_staging.handle, 0, wgpuBufferGetSize(s->uniform_buffer_staging.handle));
-    //map_completed = true;
-}
 
 b8 webgpu_renderer_shader_use(struct SHADER *shader)
 {
@@ -920,10 +941,7 @@ b8 webgpu_renderer_shader_use(struct SHADER *shader)
     WEBGPU_SHADER* s = shader->internal_data;
     wgpuRenderPassEncoderSetPipeline(s->renderpass->handle, s->pipeline.handle);
     //map_completed = false;
-    WGPUBufferMapCallbackInfo info = {0};
-    info.callback = on_buffer_map_callback;
-    info.userdata1 = s;
-    wgpuBufferMapAsync(s->uniform_buffer_staging.handle, WGPUMapMode_Write, 0, wgpuBufferGetSize(s->uniform_buffer_staging.handle), info);
+    webgpu_buffer_map_memory(&s->uniform_buffer_staging, 0, 0);
 
     wgpuDevicePoll(context.device, true, NULL);
 /*     while (!map_completed){
@@ -1003,7 +1021,7 @@ b8 webgpu_renderer_shader_apply_instance(struct SHADER *s, b8 needs_update)
             WGPUBindGroupEntry binding[total_bind_count];
             // Binding 0 - Uniform buffer
             binding[bind_index].binding = bind_index;
-            binding[bind_index].buffer = internal->uniform_buffer.handle;
+            binding[bind_index].buffer = ((WEBGPU_BUFFER*)internal->uniform_buffer.internal_data)->handle;
             // We can specify an offset within the buffer, so that a single buffer can hold
             // multiple uniform blocks.
             binding[bind_index].offset = object_state->offset;
@@ -1152,11 +1170,11 @@ b8 webgpu_renderer_shader_acquire_instance_resources(struct SHADER *s, TEXTURE_M
     // Allocate some space in the UBO - by the stride, not the size.
     u64 size = s->ubo_stride;
     if (size > 0) {
-        if (!webgpu_buffer_allocate(&internal->uniform_buffer, size, &instance_state->offset)) {
+        if (!renderer_renderbuffer_allocate(&internal->uniform_buffer, size, &instance_state->offset)) {
             PRINT_ERROR("webgpu_material_shader_acquire_resources failed to acquire ubo space");
             return false;
         }
-        if (!webgpu_buffer_allocate(&internal->uniform_buffer_staging, size, &instance_state->offset)) {
+        if (!renderer_renderbuffer_allocate(&internal->uniform_buffer_staging, size, &instance_state->offset)) {
             PRINT_ERROR("webgpu_material_shader_acquire_resources failed to acquire ubo space");
             return false;
         }
@@ -1186,8 +1204,9 @@ b8 webgpu_renderer_shader_release_instance_resources(struct SHADER *s, u32 insta
         yfree(instance_state->instance_texture_maps);
         instance_state->instance_texture_maps = 0;
     }
-
-    webgpu_buffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset);
+    if (!renderer_renderbuffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset)) {
+        PRINT_ERROR("webgpu_renderer_shader_release_instance_resources failed to free range from RENDER_BUFFER.");
+    }
     instance_state->offset = INVALID_ID;
     instance_state->id = INVALID_ID;
 
@@ -1215,7 +1234,8 @@ b8 webgpu_renderer_set_uniform(struct SHADER *frontend_shader, struct SHADER_UNI
             );
         } else {
             // Map the appropriate memory location and copy the data over.
-            u64 addr = (u64)internal->mapped_uniform_buffer_block;
+            WEBGPU_BUFFER* uniform_buffer_staging = internal->uniform_buffer_staging.internal_data;
+            u64 addr = (u64)uniform_buffer_staging->mapped_buffer_block;
             addr += frontend_shader->bound_ubo_offset + uniform->offset;
             ycopy_memory((void*)addr, value, uniform->size);
             if (addr) {
@@ -1231,8 +1251,14 @@ b8 webgpu_shader_after_renderpass(struct SHADER *shader) {
     //PRINT_INFO("buffer size after renderpass");
     wgpuDevicePoll(context.device, true, NULL);
     WEBGPU_SHADER* internal = shader->internal_data;
-    wgpuCommandEncoderCopyBufferToBuffer(context.encoder, internal->uniform_buffer_staging.handle, 0, internal->uniform_buffer.handle, 0, wgpuBufferGetSize(internal->uniform_buffer.handle));
-    wgpuBufferUnmap(internal->uniform_buffer_staging.handle);
+    webgpu_buffer_copy_range(
+        &internal->uniform_buffer_staging,
+        0,
+        &internal->uniform_buffer,
+        0,
+        wgpuBufferGetSize(((WEBGPU_BUFFER*)internal->uniform_buffer.internal_data)->handle)
+    );
+    webgpu_buffer_unmap_memory(&internal->uniform_buffer_staging, 0, 0);
     return true;
 }
 
@@ -1386,6 +1412,280 @@ b8 webgpu_renderer_is_multithreaded(void) {
     return context.multithreading_enabled;
 }
 
+// NOTE: Begin webgpu buffer.
+
+// Indicates if the provided buffer has host-visible memory.
+b8 webgpu_buffer_is_host_visible(WEBGPU_BUFFER* buffer) {
+    WGPUBufferUsage usage = wgpuBufferGetUsage(buffer->handle);
+    return (usage & (WGPUBufferUsage_MapRead | WGPUBufferUsage_MapWrite) || wgpuBufferGetMapState(buffer->handle) != WGPUBufferMapState_Unmapped);
+}
+
+b8 webgpu_buffer_create_internal(RENDER_BUFFER* buffer) {
+    if (!buffer) {
+        PRINT_ERROR("webgpu_buffer_create_internal requires a valid pointer to a buffer.");
+        return false;
+    }
+
+    WEBGPU_BUFFER internal_buffer;
+    WGPUBufferDescriptor buffer_desc = {0};
+    buffer_desc.nextInChain = NULL;
+    buffer_desc.label = (WGPUStringView){"Buffer", sizeof("Buffer")-1};
+    buffer_desc.usage = 0;
+    buffer_desc.size = buffer->total_size;
+    buffer_desc.mappedAtCreation = false;
+    switch (buffer->type) {
+        case RENDERBUFFER_TYPE_VERTEX:
+            buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
+            break;
+        case RENDERBUFFER_TYPE_INDEX:
+            buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
+            break;
+        case RENDERBUFFER_TYPE_UNIFORM: {
+            buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+        } break;
+        case RENDERBUFFER_TYPE_STAGING:
+            buffer_desc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
+            break;
+        case RENDERBUFFER_TYPE_READ:
+            buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_MapRead;
+            break;
+        case RENDERBUFFER_TYPE_STORAGE:
+            PRINT_ERROR("Storage buffer not yet supported.");
+            return false;
+        default:
+            PRINT_ERROR("Unsupported buffer type: %i", buffer->type);
+            return false;
+    }
+    internal_buffer.handle = wgpuDeviceCreateBuffer(context.device, &buffer_desc);
+    // Report memory as in-use.
+    yallocate_report(wgpuBufferGetSize(internal_buffer.handle), MEMORY_TAG_GPU_LOCAL);
+    // Allocate the internal state block of memory at the end once we are sure everything was created successfully.
+    buffer->internal_data = yallocate_aligned(sizeof(WEBGPU_BUFFER), 8, MEMORY_TAG_WEBGPU);
+    *((WEBGPU_BUFFER*)buffer->internal_data) = internal_buffer;
+
+    return true;
+}
+
+void webgpu_buffer_destroy_internal(RENDER_BUFFER* buffer) {
+    if (buffer) {
+        WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
+        if (internal_buffer) {
+            if (internal_buffer->handle) {
+                yfree_report(wgpuBufferGetSize(internal_buffer->handle), MEMORY_TAG_GPU_LOCAL);
+                wgpuBufferDestroy(internal_buffer->handle);
+                wgpuBufferRelease(internal_buffer->handle);
+                internal_buffer->handle = 0;
+            }
+    
+            internal_buffer->mapped_buffer_block = 0;
+
+            // Free up the internal buffer.
+            yfree(buffer->internal_data);
+            buffer->internal_data = 0;
+        }
+    }
+}
+
+b8 webgpu_buffer_resize(RENDER_BUFFER* buffer, u64 new_size) {
+    if (!buffer || !buffer->internal_data) {
+        return false;
+    }
+
+    WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
+
+    // Create new buffer.
+    WGPUBufferDescriptor buffer_desc = {0};
+    buffer_desc.nextInChain = NULL;
+    buffer_desc.label = (WGPUStringView){"Buffer", sizeof("Buffer")-1};
+    buffer_desc.usage = wgpuBufferGetUsage(internal_buffer->handle);
+    buffer_desc.size = new_size;
+    buffer_desc.mappedAtCreation = false;
+
+    WGPUBuffer new_buffer;
+    new_buffer = wgpuDeviceCreateBuffer(context.device, &buffer_desc);
+
+    // Copy over the data.
+    wgpuCommandEncoderCopyBufferToBuffer(context.encoder,
+        internal_buffer->handle,
+        0,
+        new_buffer,
+        0,
+        buffer->total_size);
+
+    // Make sure anything potentially using these is finished.
+    wgpuDevicePoll(context.device, true, NULL);
+
+    // Report free of the old, allocate of the new.
+    yfree_report(wgpuBufferGetSize(internal_buffer->handle), MEMORY_TAG_GPU_LOCAL);
+    yallocate_report(wgpuBufferGetSize(new_buffer), MEMORY_TAG_GPU_LOCAL);
+    
+    // Destroy the old
+    if (internal_buffer->handle) {
+        wgpuBufferDestroy(internal_buffer->handle);
+        wgpuBufferRelease(internal_buffer->handle);
+        internal_buffer->handle = 0;
+    }
+
+
+    // Set new properties
+    internal_buffer->handle = new_buffer;
+
+    return true;
+}
+
+b8 webgpu_buffer_bind(RENDER_BUFFER* buffer, u64 offset) {
+    if (!buffer || !buffer->internal_data) {
+        PRINT_ERROR("webgpu_buffer_bind requires valid pointer to a buffer.");
+        return false;
+    }
+
+    // NOTE: Does nothing, for now.
+    return true;
+}
+
+b8 webgpu_buffer_unbind(RENDER_BUFFER* buffer) {
+    if (!buffer || !buffer->internal_data) {
+        PRINT_ERROR("webgpu_buffer_unbind requires valid pointer to a buffer.");
+        return false;
+    }
+
+    // NOTE: Does nothing, for now.
+    return true;
+}
+
+//b8 map_completed = false;
+void on_buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
+    WEBGPU_BUFFER* internal_buffer = userdata1;
+    if (status != WGPUMapAsyncStatus_Success){
+        PRINT_ERROR("Failed to map buffer, error: %s", message.data);
+    }
+    internal_buffer->mapped_buffer_block = wgpuBufferGetMappedRange(internal_buffer->handle, 0, wgpuBufferGetSize(internal_buffer->handle));
+    //map_completed = true;
+}
+
+void* webgpu_buffer_map_memory(RENDER_BUFFER* buffer, u64 offset, u64 size) {
+    if (!buffer || !buffer->internal_data) {
+        PRINT_ERROR("webgpu_buffer_map_memory requires a valid pointer to a buffer.");
+        return 0;
+    }
+    WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
+    WGPUBufferMapCallbackInfo info = {0};
+    info.callback = on_buffer_map_callback;
+    info.userdata1 = internal_buffer;
+    wgpuBufferMapAsync(internal_buffer->handle, WGPUMapMode_Write, offset, wgpuBufferGetSize(internal_buffer->handle), info);
+    return internal_buffer->mapped_buffer_block;
+}
+
+void webgpu_buffer_unmap_memory(RENDER_BUFFER* buffer, u64 offset, u64 size) {
+    if (!buffer || !buffer->internal_data) {
+        PRINT_ERROR("webgpu_buffer_unmap_memory requires a valid pointer to a buffer.");
+        return;
+    }
+    WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
+    wgpuBufferUnmap(internal_buffer->handle);
+}
+
+b8 webgpu_buffer_flush(RENDER_BUFFER* buffer, u64 offset, u64 size) {
+    if (!buffer || !buffer->internal_data) {
+        PRINT_ERROR("webgpu_buffer_flush requires a valid pointer to a buffer.");
+        return false;
+    }
+    
+    // NOTE: Does nothing, for now.
+    return true;
+}
+
+b8 webgpu_buffer_read(RENDER_BUFFER* buffer, u64 offset, u64 size, void** out_memory) {
+    if (!buffer || !buffer->internal_data || !out_memory) {
+        PRINT_ERROR("webgpu_buffer_read requires a valid pointer to a buffer and out_memory, and the size must be nonzero.");
+        return false;
+    }
+
+    WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
+    if (!webgpu_buffer_is_host_visible(internal_buffer)) {
+        // NOTE: If a read buffer is needed (i.e.) the target buffer's memory is not host visible but is device-local,
+        // create the read buffer, copy data to it, then read from that buffer.
+
+        // Create a host-visible staging buffer to copy to. Mark it as the destination of the transfer.
+        RENDER_BUFFER read;
+        if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_READ, size, false, &read)) {
+            PRINT_ERROR("webgpu_buffer_read() - Failed to create read buffer.");
+            return false;
+        }
+        WEBGPU_BUFFER* read_internal = (WEBGPU_BUFFER*)read.internal_data;
+
+        // Perform the copy from device local to the read buffer.
+        webgpu_buffer_copy_range(buffer, offset, &read, 0, size);
+
+        // Map/copy/unmap
+        webgpu_buffer_map_memory(&read, 0, size);
+        wgpuDevicePoll(context.device, true, NULL);
+        ycopy_memory(*out_memory, read_internal->mapped_buffer_block, size);
+        webgpu_buffer_unmap_memory(&read, 0, size);
+
+        // Clean up the read buffer.
+        renderer_renderbuffer_destroy(&read);
+    } else {
+        // If no staging buffer is needed, map/copy/unmap.
+        webgpu_buffer_map_memory(buffer, 0, size);
+        wgpuDevicePoll(context.device, true, NULL);
+        ycopy_memory(*out_memory, internal_buffer->mapped_buffer_block, size);
+        webgpu_buffer_unmap_memory(buffer, 0, size);
+    }
+
+    return true;
+}
+
+b8 webgpu_buffer_load_range(RENDER_BUFFER* buffer, u64 offset, u64 size, const void* data) {
+    if (!buffer || !buffer->internal_data || !size || !data) {
+        PRINT_ERROR("webgpu_buffer_load_range requires a valid pointer to a buffer, a nonzero size and a valid pointer to data.");
+        return false;
+    }
+
+    WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
+    wgpuQueueWriteBuffer(context.queue, internal_buffer->handle, offset, data, size);
+
+    return true;
+}
+
+b8 webgpu_buffer_copy_range(RENDER_BUFFER* source, u64 source_offset, RENDER_BUFFER* dest, u64 dest_offset, u64 size) {
+    if (!source || !source->internal_data || !dest || !dest->internal_data || !size) {
+        PRINT_ERROR("webgpu_buffer_copy_range requires a valid pointers to source and destination buffers as well as a nonzero size.");
+        return false;
+    }
+
+    wgpuCommandEncoderCopyBufferToBuffer(context.encoder,
+        ((WEBGPU_BUFFER*)source->internal_data)->handle,
+        source_offset,
+        ((WEBGPU_BUFFER*)dest->internal_data)->handle,
+        dest_offset,
+        size);
+    return true;
+}
+
+b8 webgpu_buffer_draw(RENDER_BUFFER* buffer, u64 offset, u32 element_count, b8 bind_only) {
+   WEBGPU_SHADER* internal = context.current_shader->internal_data;
+   WGPUBuffer buffer_handle = ((WEBGPU_BUFFER*)buffer->internal_data)->handle;
+    if (buffer->type == RENDERBUFFER_TYPE_VERTEX) {
+        // Bind vertex buffer at offset.
+        wgpuRenderPassEncoderSetVertexBuffer(internal->renderpass->handle, 0, buffer_handle, offset, wgpuBufferGetSize(buffer_handle));
+        if (!bind_only) {
+            wgpuRenderPassEncoderDraw(internal->renderpass->handle, element_count, 1, 0, 0);
+        }
+        return true;
+    } else if (buffer->type == RENDERBUFFER_TYPE_INDEX) {
+        // Bind index buffer at offset.
+        wgpuRenderPassEncoderSetIndexBuffer(internal->renderpass->handle, buffer_handle, WGPUIndexFormat_Uint32, offset, wgpuBufferGetSize(buffer_handle));
+        if (!bind_only) {
+            wgpuRenderPassEncoderDrawIndexed(internal->renderpass->handle, element_count, 1, 0, 0, 0);
+        }
+        return true;
+    } else {
+        PRINT_ERROR("Cannot draw buffer of type: %i", buffer->type);
+        return false;
+    }
+}
+
 WGPUAddressMode webgpu_convert_repeat_type(const char* axis, E_TEXTURE_REPEAT repeat) {
     switch (repeat) {
         case TEXTURE_REPEAT_REPEAT:
@@ -1448,31 +1748,6 @@ void webgpu_renderer_texture_map_release_resources(TEXTURE_MAP* map){
         yfree(map->internal_data);
         map->internal_data = 0;
     }
-}
-
-void webgpu_renderer_draw_geometry(GEOMETRY_RENDER_DATA* data) {
-    // Ignore non-uploaded geometries.
-    if (data->geometry && data->geometry->internal_id == INVALID_ID) {
-        return;
-    }
-    
-    WEBGPU_SHADER* internal = context.current_shader->internal_data;
-
-
-    WEBGPU_GEOMETRY_DATA* buffer_data = &context.geometries[data->geometry->internal_id];
-    // Set vertex buffer while encoding the render pass
-    
-    wgpuRenderPassEncoderSetVertexBuffer(internal->renderpass->handle, 0, context.object_vertex_buffer.handle, buffer_data->vertex_buffer_offset, wgpuBufferGetSize(context.object_vertex_buffer.handle));
-    // Draw indexed or non-indexed.
-    if (buffer_data->index_count > 0) {
-        // Bind index buffer at offset.
-        wgpuRenderPassEncoderSetIndexBuffer(internal->renderpass->handle, context.object_index_buffer.handle, WGPUIndexFormat_Uint32, buffer_data->index_buffer_offset, wgpuBufferGetSize(context.object_index_buffer.handle));
-        // Issue the draw.
-        wgpuRenderPassEncoderDrawIndexed(internal->renderpass->handle, buffer_data->index_count, 1, 0, 0, 0);
-    } else {
-        wgpuRenderPassEncoderDraw(internal->renderpass->handle, buffer_data->vertex_count, 1, 0, 0);
-    }
-
 }
 
 
@@ -1594,28 +1869,6 @@ WGPUTextureView get_next_surface_texture_view(void) {
 }
 
 
-b8 webgpu_create_buffers(WEBGPU_CONTEXT* context) {
-    const u64 vertex_buffer_size = sizeof(Vertex3D) * 2 * 1024 * 1024;
-    if (!webgpu_buffer_create(context, vertex_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex, false, true, &context->object_vertex_buffer)) {
-        PRINT_ERROR("Error creating vertex buffer.");
-        return false;
-    }
-
-    const u64 index_buffer_size = sizeof(u32) * 2 * 1024 * 1024;
-    if (!webgpu_buffer_create(context, index_buffer_size, WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index, false, true, &context->object_index_buffer)) {
-        PRINT_ERROR("Error creating index buffer.");
-        return false;
-    }
-
-    
-    return true;
-}
-
-void webgpu_destroy_buffers(WEBGPU_CONTEXT* context){
-    webgpu_buffer_destroy(&context->object_vertex_buffer);
-    webgpu_buffer_destroy(&context->object_index_buffer);
-
-}
 
 WGPUTextureFormat webgpu_channel_count_to_format(u8 channel_count, WGPUTextureFormat default_format) {
     switch (channel_count) {
@@ -1637,7 +1890,7 @@ void webgpu_renderer_texture_create(const u8* pixels, TEXTURE* texture){
     // TODO: Use an allocator for this.
     texture->internal_data = (WEBGPU_IMAGE*)yallocate_aligned(sizeof(WEBGPU_IMAGE), 8, MEMORY_TAG_TEXTURE);
     WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)texture->internal_data;
-    u32 size = texture->width * texture->height * texture->channel_count;
+    u32 size = texture->width * texture->height * texture->channel_count * (texture->type == TEXTURE_TYPE_CUBE ? 6 : 1);
 
     // NOTE: Lots of assumptions here, different texture types will require
     // different options here.
@@ -1674,7 +1927,7 @@ void webgpu_renderer_texture_resize(TEXTURE* t, u32 new_width, u32 new_height) {
         // Data is not preserved because there's no reliable way to map the old data to the new
         // since the amount of data differs.
         WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)t->internal_data;
-        webgpu_image_destroy(image);
+        webgpu_image_destroy(image, t->channel_count, t->type);
 
         WGPUTextureFormat image_format = webgpu_channel_count_to_format(t->channel_count, WGPUTextureFormat_RGBA8Unorm);
 
@@ -1726,7 +1979,7 @@ void webgpu_renderer_texture_destroy(TEXTURE* texture){
     WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)texture->internal_data;
 
     if (image) {
-        webgpu_image_destroy(image);
+        webgpu_image_destroy(image, texture->channel_count, texture->type);
         yzero_memory(image, sizeof(WEBGPU_IMAGE));
 
         yfree(texture->internal_data);

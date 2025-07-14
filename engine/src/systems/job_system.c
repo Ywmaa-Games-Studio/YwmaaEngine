@@ -56,7 +56,7 @@ void store_result(PFN_JOB_ON_COMPLETE callback, u32 param_size, void* params) {
     entry.callback = callback;
     if (entry.param_size > 0) {
         // Take a copy, as the job is destroyed after this.
-        entry.params = yallocate(param_size, MEMORY_TAG_JOB);
+        entry.params = yallocate_aligned(param_size, 8, MEMORY_TAG_JOB);
         ycopy_memory(entry.params, params, param_size);
     } else {
         entry.params = 0;
@@ -391,7 +391,7 @@ JOB_INFO job_create_priority(PFN_JOB_START entry_point, PFN_JOB_ON_COMPLETE on_s
 
     job.param_data_size = param_data_size;
     if (param_data_size) {
-        job.param_data = yallocate(param_data_size, MEMORY_TAG_JOB);
+        job.param_data = yallocate_aligned(param_data_size, 8, MEMORY_TAG_JOB);
         ycopy_memory(job.param_data, param_data, param_data_size);
     } else {
         job.param_data = 0;
@@ -399,7 +399,7 @@ JOB_INFO job_create_priority(PFN_JOB_START entry_point, PFN_JOB_ON_COMPLETE on_s
 
     job.result_data_size = result_data_size;
     if (result_data_size) {
-        job.result_data = yallocate(result_data_size, MEMORY_TAG_JOB);
+        job.result_data = yallocate_aligned(result_data_size, 8, MEMORY_TAG_JOB);
     } else {
         job.result_data = 0;
     }

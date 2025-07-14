@@ -413,3 +413,146 @@ void regenerate_render_targets(void) {
 
     }
 }
+
+b8 renderer_renderbuffer_create(E_RENDERBUFFER_TYPE type, u64 total_size, b8 use_freelist, RENDER_BUFFER* out_buffer) {
+    if (!out_buffer) {
+        PRINT_ERROR("renderer_renderbuffer_create requires a valid pointer to hold the created buffer.");
+        return false;
+    }
+
+    yzero_memory(out_buffer, sizeof(RENDER_BUFFER));
+
+    out_buffer->type = type;
+    out_buffer->total_size = total_size;
+
+    // Create the freelist, if needed.
+    if (use_freelist) {
+        freelist_create(total_size, &out_buffer->freelist_memory_requirement, 0, 0);
+        out_buffer->freelist_block = yallocate_aligned(out_buffer->freelist_memory_requirement, 8, MEMORY_TAG_RENDERER);
+        freelist_create(total_size, &out_buffer->freelist_memory_requirement, out_buffer->freelist_block, &out_buffer->buffer_freelist);
+    }
+
+    // Create the internal buffer from the backend.
+    if (!state_ptr->backend.renderbuffer_create_internal(out_buffer)) {
+        PRINT_ERROR("Unable to create backing buffer for RENDER_BUFFER. Application cannot continue.");
+        return false;
+    }
+
+    return true;
+}
+
+void renderer_renderbuffer_destroy(RENDER_BUFFER* buffer) {
+    if (buffer) {
+        if (buffer->freelist_memory_requirement > 0) {
+            freelist_destroy(&buffer->buffer_freelist);
+            yfree(buffer->freelist_block);
+            buffer->freelist_memory_requirement = 0;
+        }
+
+        // Free up the backend resources.
+        state_ptr->backend.renderbuffer_destroy_internal(buffer);
+        buffer->internal_data = 0;
+    }
+}
+
+b8 renderer_renderbuffer_bind(RENDER_BUFFER* buffer, u64 offset) {
+    if (!buffer) {
+        PRINT_ERROR("renderer_renderbuffer_bind requires a valid pointer to a buffer.");
+        return false;
+    }
+
+    return state_ptr->backend.renderbuffer_bind(buffer, offset);
+}
+
+b8 renderer_renderbuffer_unbind(RENDER_BUFFER* buffer) {
+    return state_ptr->backend.renderbuffer_unbind(buffer);
+}
+
+void* renderer_renderbuffer_map_memory(RENDER_BUFFER* buffer, u64 offset, u64 size) {
+    return state_ptr->backend.renderbuffer_map_memory(buffer, offset, size);
+}
+
+void renderer_renderbuffer_unmap_memory(RENDER_BUFFER* buffer, u64 offset, u64 size) {
+    state_ptr->backend.renderbuffer_unmap_memory(buffer, offset, size);
+}
+
+b8 renderer_renderbuffer_flush(RENDER_BUFFER* buffer, u64 offset, u64 size) {
+    return state_ptr->backend.renderbuffer_flush(buffer, offset, size);
+}
+
+b8 renderer_renderbuffer_read(RENDER_BUFFER* buffer, u64 offset, u64 size, void** out_memory) {
+    return state_ptr->backend.renderbuffer_read(buffer, offset, size, out_memory);
+}
+
+b8 renderer_renderbuffer_resize(RENDER_BUFFER* buffer, u64 new_total_size) {
+    // Sanity check.
+    if (new_total_size <= buffer->total_size) {
+        PRINT_ERROR("renderer_renderbuffer_resize requires that new size be larger than the old. Not doing this could lead to data loss.");
+        return false;
+    }
+
+    if (buffer->freelist_memory_requirement > 0) {
+        // Resize the freelist first, if used.
+        u64 new_memory_requirement = 0;
+        freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, 0, 0, 0);
+        void* new_block = yallocate_aligned(new_memory_requirement, 8, MEMORY_TAG_RENDERER);
+        void* old_block = 0;
+        if (!freelist_resize(&buffer->buffer_freelist, &new_memory_requirement, new_block, new_total_size, &old_block)) {
+            PRINT_ERROR("renderer_renderbuffer_resize failed to resize internal free list.");
+            yfree(new_block);
+            return false;
+        }
+
+        // Clean up the old memory, then assign the new properties over.
+        yfree(old_block);
+        buffer->freelist_memory_requirement = new_memory_requirement;
+        buffer->freelist_block = new_block;
+    }
+
+    b8 result = state_ptr->backend.renderbuffer_resize(buffer, new_total_size);
+    if (result) {
+        buffer->total_size = new_total_size;
+    } else {
+        PRINT_ERROR("Failed to resize internal RENDER_BUFFER resources.");
+    }
+    return result;
+}
+
+b8 renderer_renderbuffer_allocate(RENDER_BUFFER* buffer, u64 size, u64* out_offset) {
+    if (!buffer || !size || !out_offset) {
+        PRINT_ERROR("renderer_renderbuffer_allocate requires valid buffer, a nonzero size and valid pointer to hold offset.");
+        return false;
+    }
+
+    if (buffer->freelist_memory_requirement == 0) {
+        PRINT_WARNING("renderer_renderbuffer_allocate called on a buffer not using freelists. Offset will not be valid. Call renderer_renderbuffer_load_range instead.");
+        *out_offset = 0;
+        return true;
+    }
+    return freelist_allocate_block(&buffer->buffer_freelist, size, out_offset);
+}
+
+b8 renderer_renderbuffer_free(RENDER_BUFFER* buffer, u64 size, u64 offset) {
+    if (!buffer || !size) {
+        PRINT_ERROR("renderer_renderbuffer_free requires valid buffer and a nonzero size.");
+        return false;
+    }
+
+    if (buffer->freelist_memory_requirement == 0) {
+        PRINT_WARNING("renderer_renderbuffer_free called on a buffer not using freelists. Nothing was done.");
+        return true;
+    }
+    return freelist_free_block(&buffer->buffer_freelist, size, offset);
+}
+
+b8 renderer_renderbuffer_load_range(RENDER_BUFFER* buffer, u64 offset, u64 size, const void* data) {
+    return state_ptr->backend.renderbuffer_load_range(buffer, offset, size, data);
+}
+
+b8 renderer_renderbuffer_copy_range(RENDER_BUFFER* source, u64 source_offset, RENDER_BUFFER* dest, u64 dest_offset, u64 size) {
+    return state_ptr->backend.renderbuffer_copy_range(source, source_offset, dest, dest_offset, size);
+}
+
+b8 renderer_renderbuffer_draw(RENDER_BUFFER* buffer, u64 offset, u32 element_count, b8 bind_only) {
+    return state_ptr->backend.renderbuffer_draw(buffer, offset, element_count, bind_only);
+}

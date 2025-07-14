@@ -37,5 +37,5 @@ void webgpu_image_copy_from_buffer(
     );
 
 
-void webgpu_image_destroy(WEBGPU_IMAGE* image);
+void webgpu_image_destroy(WEBGPU_IMAGE* image, u8 channel_count, E_TEXTURE_TYPE type);
 

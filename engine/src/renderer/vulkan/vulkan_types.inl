@@ -14,7 +14,6 @@
         YASSERT(expr == VK_SUCCESS); \
     }
 typedef struct VULKAN_BUFFER {
-    u64 total_size;
     VkBuffer handle;
     VkBufferUsageFlagBits usage;
     b8 is_locked;
@@ -23,13 +22,6 @@ typedef struct VULKAN_BUFFER {
     VkMemoryRequirements memory_requirements;
     i32 memory_index;
     u32 memory_property_flags;
-    /** @brief The amount of memory required for the freelist. */
-    u64 freelist_memory_requirement;
-    /** @brief The memory block used by the internal freelist. */
-    void* freelist_block;
-    /** @brief A freelist to track allocations. */
-    FREELIST buffer_freelist;
-    b8 has_freelist;
 } VULKAN_BUFFER;
 typedef struct VULKAN_SWAPCHAIN_SUPPORT_INFO {
     VkSurfaceCapabilitiesKHR capabilities;
@@ -313,7 +305,7 @@ typedef struct VULKAN_SHADER {
     /** @brief Global descriptor sets, one per frame. */
     VkDescriptorSet global_descriptor_sets[3];
     /** @brief The uniform buffer used by this shader. */
-    VULKAN_BUFFER uniform_buffer;
+    RENDER_BUFFER uniform_buffer;
 
     /** @brief The pipeline associated with this shader. */
     VULKAN_PIPELINE pipeline;
@@ -367,8 +359,8 @@ typedef struct VULKAN_CONTEXT {
     /** @brief Registered renderpasses. */
     RENDERPASS registered_passes[VULKAN_MAX_REGISTERED_RENDERPASSES];
 
-    VULKAN_BUFFER object_vertex_buffer;
-    VULKAN_BUFFER object_index_buffer;
+    RENDER_BUFFER object_vertex_buffer;
+    RENDER_BUFFER object_index_buffer;
 
     // darray
     VULKAN_COMMAND_BUFFER* graphics_command_buffers;

@@ -21,31 +21,31 @@ void webgpu_image_create(
     out_image->height = height;
     
     // Creation info.
-    WGPUTextureDescriptor textureDesc;
-    textureDesc.nextInChain = NULL;
-    textureDesc.label = (WGPUStringView){name, sizeof(name)-1};
-    textureDesc.size.width = width;
-    textureDesc.size.height = height;
-    textureDesc.format = format;
-    textureDesc.usage = usage;
+    WGPUTextureDescriptor texture_desc;
+    texture_desc.nextInChain = NULL;
+    texture_desc.label = (WGPUStringView){name, sizeof(name)-1};
+    texture_desc.size.width = width;
+    texture_desc.size.height = height;
+    texture_desc.format = format;
+    texture_desc.usage = usage;
     switch (type) {
         default:
         case TEXTURE_TYPE_2D:
-            textureDesc.dimension = WGPUTextureDimension_2D;
-            textureDesc.size.depthOrArrayLayers = 1;
+            texture_desc.dimension = WGPUTextureDimension_2D;
+            texture_desc.size.depthOrArrayLayers = 1;
             break;
         case TEXTURE_TYPE_CUBE:  // Intentional, there is no cube image type.
-            textureDesc.dimension = WGPUTextureDimension_2D;
-            textureDesc.size.depthOrArrayLayers = 6;
+            texture_desc.dimension = WGPUTextureDimension_2D;
+            texture_desc.size.depthOrArrayLayers = 6;
             break;
     }
     
-    textureDesc.mipLevelCount = 4;
-    textureDesc.sampleCount = 1;
-    textureDesc.viewFormatCount = 1;
-    textureDesc.viewFormats = &format;
+    texture_desc.mipLevelCount = 4;
+    texture_desc.sampleCount = 1;
+    texture_desc.viewFormatCount = 1;
+    texture_desc.viewFormats = &format;
     
-    out_image->handle = wgpuDeviceCreateTexture(context->device, &textureDesc);
+    out_image->handle = wgpuDeviceCreateTexture(context->device, &texture_desc);
 
     // Create view
     if (create_view) {
@@ -62,27 +62,27 @@ void webgpu_image_view_create(
     WEBGPU_IMAGE* image,
     WGPUTextureAspect aspect_flags) {
 
-    WGPUTextureViewDescriptor textureViewDesc;
-    textureViewDesc.aspect = aspect_flags;
-    textureViewDesc.label = (WGPUStringView){name, sizeof(name)-1};
+    WGPUTextureViewDescriptor texture_view_desc;
+    texture_view_desc.aspect = aspect_flags;
+    texture_view_desc.label = (WGPUStringView){name, sizeof(name)-1};
     // TODO: Make configurable
-    textureViewDesc.baseArrayLayer = 0;
-    textureViewDesc.baseMipLevel = 0;
-    textureViewDesc.mipLevelCount = 1;
+    texture_view_desc.baseArrayLayer = 0;
+    texture_view_desc.baseMipLevel = 0;
+    texture_view_desc.mipLevelCount = 1;
     switch (type) {
         default:
         case TEXTURE_TYPE_2D:
-            textureViewDesc.arrayLayerCount = 1;
-            textureViewDesc.dimension = WGPUTextureViewDimension_2D;
+            texture_view_desc.arrayLayerCount = 1;
+            texture_view_desc.dimension = WGPUTextureViewDimension_2D;
             break;
         case TEXTURE_TYPE_CUBE:
-            textureViewDesc.arrayLayerCount = 6;
-            textureViewDesc.dimension = WGPUTextureViewDimension_Cube;
+            texture_view_desc.arrayLayerCount = 6;
+            texture_view_desc.dimension = WGPUTextureViewDimension_Cube;
             break;
     }
-    textureViewDesc.format = format;
-    textureViewDesc.usage = usage;
-    image->view = wgpuTextureCreateView(image->handle, &textureViewDesc);
+    texture_view_desc.format = format;
+    texture_view_desc.usage = usage;
+    image->view = wgpuTextureCreateView(image->handle, &texture_view_desc);
 }
 
 void webgpu_image_copy_from_buffer(
@@ -114,8 +114,7 @@ void webgpu_image_copy_from_buffer(
     destination.origin.y = 0; // equivalent of the offset argument of Queue::writeBuffer
     destination.origin.z = 0; // equivalent of the offset argument of Queue::writeBuffer
     destination.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
-
-
+    
     switch (type)
     {
         default:
@@ -130,14 +129,17 @@ void webgpu_image_copy_from_buffer(
             }
             break;
     }
+    yallocate_report(required_buffer_size, MEMORY_TAG_GPU_LOCAL);
 }
 
-void webgpu_image_destroy(WEBGPU_IMAGE* image) {
+void webgpu_image_destroy(WEBGPU_IMAGE* image, u8 channel_count, E_TEXTURE_TYPE type) {
     if (image->view) {
         wgpuTextureViewRelease(image->view);
         image->view = 0;
     }
     if (image->handle) {
+        const u32 buffer_size = image->width * image->height * channel_count * (type == TEXTURE_TYPE_CUBE ? 6 : 1);
+        yfree_report(buffer_size, MEMORY_TAG_GPU_LOCAL);
         wgpuTextureDestroy(image->handle);
         wgpuTextureRelease(image->handle);
         image->handle = 0;

@@ -26,7 +26,7 @@ typedef struct RENDER_VIEW_SKYBOX_INTERNAL_DATA {
 
 b8 render_view_skybox_on_create(struct RENDER_VIEW* self) {
     if (self) {
-        self->internal_data = yallocate(sizeof(RENDER_VIEW_SKYBOX_INTERNAL_DATA), MEMORY_TAG_RENDERER);
+        self->internal_data = yallocate_aligned(sizeof(RENDER_VIEW_SKYBOX_INTERNAL_DATA), 8, MEMORY_TAG_RENDERER);
         RENDER_VIEW_SKYBOX_INTERNAL_DATA* data = self->internal_data;
 
         // Get either the custom shader override or the defined default.

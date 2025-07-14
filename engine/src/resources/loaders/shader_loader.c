@@ -28,7 +28,7 @@ b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, void* para
 
     out_resource->full_path = string_duplicate(full_file_path);
 
-    SHADER_CONFIG* resource_data = yallocate(sizeof(SHADER_CONFIG), MEMORY_TAG_RESOURCE);
+    SHADER_CONFIG* resource_data = yallocate_aligned(sizeof(SHADER_CONFIG), 8, MEMORY_TAG_RESOURCE);
     // Set some defaults, create arrays.
     resource_data->attribute_count = 0;
     resource_data->attributes = darray_create(SHADER_ATTRIBUTE_CONFIG);

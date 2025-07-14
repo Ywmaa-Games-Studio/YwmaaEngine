@@ -58,3 +58,16 @@ TEXTURE* webgpu_renderer_depth_attachment_get(void);
 u8 webgpu_renderer_window_attachment_index_get(void);
 
 b8 webgpu_renderer_is_multithreaded(void);
+
+b8 webgpu_buffer_create_internal(RENDER_BUFFER* buffer);
+void webgpu_buffer_destroy_internal(RENDER_BUFFER* buffer);
+b8 webgpu_buffer_resize(RENDER_BUFFER* buffer, u64 new_size);
+b8 webgpu_buffer_bind(RENDER_BUFFER* buffer, u64 offset);
+b8 webgpu_buffer_unbind(RENDER_BUFFER* buffer);
+void* webgpu_buffer_map_memory(RENDER_BUFFER* buffer, u64 offset, u64 size);
+void webgpu_buffer_unmap_memory(RENDER_BUFFER* buffer, u64 offset, u64 size);
+b8 webgpu_buffer_flush(RENDER_BUFFER* buffer, u64 offset, u64 size);
+b8 webgpu_buffer_read(RENDER_BUFFER* buffer, u64 offset, u64 size, void** out_memory);
+b8 webgpu_buffer_load_range(RENDER_BUFFER* buffer, u64 offset, u64 size, const void* data);
+b8 webgpu_buffer_copy_range(RENDER_BUFFER* source, u64 source_offset, RENDER_BUFFER* dest, u64 dest_offset, u64 size);
+b8 webgpu_buffer_draw(RENDER_BUFFER* buffer, u64 offset, u32 element_count, b8 bind_only);

@@ -701,6 +701,14 @@ typedef struct MESH_PACKET_DATA {
     Mesh** meshes;
 } MESH_PACKET_DATA;
 
+struct UI_TEXT;
+typedef struct UI_PACKET_DATA {
+    MESH_PACKET_DATA mesh_data;
+    // TODO: temp
+    u32 text_count;
+    struct UI_TEXT** texts;
+} UI_PACKET_DATA;
+
 typedef struct SKYBOX_PACKET_DATA {
     Skybox* sb;
 } SKYBOX_PACKET_DATA;

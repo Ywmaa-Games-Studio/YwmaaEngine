@@ -11,7 +11,7 @@ void linear_allocator_create(u64 total_size, void* memory, LINEAR_ALLOCATOR* out
         if (memory) {
             out_allocator->memory = memory;
         } else {
-            out_allocator->memory = platform_allocate(total_size, false);
+            out_allocator->memory = platform_allocate(total_size, true);
             yallocate_report(total_size, MEMORY_TAG_LINEAR_ALLOCATOR);
             //out_allocator->memory = yallocate(total_size, MEMORY_TAG_LINEAR_ALLOCATOR);
         }
@@ -22,7 +22,7 @@ void linear_allocator_destroy(LINEAR_ALLOCATOR* allocator) {
         allocator->allocated = 0;
         if (allocator->owns_memory && allocator->memory) {
             //yfree(allocator->memory);
-            platform_free(allocator->memory, false);
+            platform_free(allocator->memory, true);
             yfree_report(allocator->total_size, MEMORY_TAG_LINEAR_ALLOCATOR);
         } 
         allocator->memory = 0;

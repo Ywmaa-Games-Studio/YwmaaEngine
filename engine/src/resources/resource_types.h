@@ -10,8 +10,27 @@ typedef enum E_RESOURCE_TYPE {
     RESOURCE_TYPE_MATERIAL,
     RESOURCE_TYPE_SHADER,
     RESOURCE_TYPE_MESH,
+    RESOURCE_TYPE_BITMAP_FONT,
+    RESOURCE_TYPE_SYSTEM_FONT,
     RESOURCE_TYPE_CUSTOM
 } E_RESOURCE_TYPE;
+
+/** @brief A magic number indicating the file as a ywmaa engine binary file. */
+#define RESOURCE_MAGIC 0xcafef00d
+
+/**
+ * @brief The header data for binary resource types.
+ */
+typedef struct RESOURCE_HEADER {
+    /** @brief A magic number indicating the file as a ywmaa engine binary file. */
+    u32 magic_number;
+    /** @brief The resource type. Maps to the enum resource_type. */
+    u8 resource_type;
+    /** @brief The format version this resource uses. */
+    u8 version;
+    /** @brief Reserved for future header data.. */
+    u16 reserved;
+} RESOURCE_HEADER;
 
 typedef struct RESOURCE {
     u32 loader_id;
@@ -122,6 +141,69 @@ typedef struct TEXTURE_MAP {
     /** @brief A pointer to internal, render API-specific data. Typically the internal sampler. */
     void* internal_data;
 } TEXTURE_MAP;
+
+typedef struct FONT_GLYPH {
+    i32 codepoint;
+    u16 x;
+    u16 y;
+    u16 width;
+    u16 height;
+    i16 x_offset;
+    i16 y_offset;
+    i16 x_advance;
+    u8 page_id;
+} FONT_GLYPH;
+
+typedef struct FONT_KERNING {
+    i32 codepoint_0;
+    i32 codepoint_1;
+    i16 amount;
+} FONT_KERNING;
+
+typedef enum E_FONT_TYPE {
+    FONT_TYPE_BITMAP,
+    FONT_TYPE_SYSTEM
+} E_FONT_TYPE;
+
+typedef struct FONT_DATA {
+    E_FONT_TYPE type;
+    char face[256];
+    u32 size;
+    i32 line_height;
+    i32 baseline;
+    i32 atlas_size_x;
+    i32 atlas_size_y;
+    TEXTURE_MAP atlas;
+    u32 glyph_count;
+    FONT_GLYPH* glyphs;
+    u32 kerning_count;
+    FONT_KERNING* kernings;
+    f32 tab_x_advance;
+    u32 internal_data_size;
+    void* internal_data;
+} FONT_DATA;
+
+typedef struct BITMAP_FONT_PAGE {
+    i8 id;
+    char file[256];
+} BITMAP_FONT_PAGE;
+
+typedef struct BITMAP_FONT_RESOURCE_DATA {
+    FONT_DATA data;
+    u32 page_count;
+    BITMAP_FONT_PAGE* pages;
+} BITMAP_FONT_RESOURCE_DATA;
+
+typedef struct SYSTEM_FONT_FACE {
+    char name[256];
+} SYSTEM_FONT_FACE;
+
+typedef struct SYSTEM_FONT_RESOURCE_DATA {
+    // darray
+    SYSTEM_FONT_FACE* fonts;
+    u64 binary_size;
+    void* font_binary;
+} SYSTEM_FONT_RESOURCE_DATA;
 
 #define MATERIAL_NAME_MAX_LENGTH 256
 typedef struct MATERIAL_CONFIG {

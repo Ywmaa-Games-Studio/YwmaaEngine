@@ -13,6 +13,7 @@
 typedef struct WEBGPU_BUFFER {
     WGPUBuffer handle;
     void* mapped_buffer_block;
+    u8 map_state; // WGPUBufferMapState
 } WEBGPU_BUFFER;
 typedef struct WEBGPU_IMAGE {
     WGPUTexture handle;

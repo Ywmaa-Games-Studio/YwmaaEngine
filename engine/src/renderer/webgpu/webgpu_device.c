@@ -86,7 +86,9 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     //context->swapchain_format = wgpuSurfaceGetPreferredFormat(context->surface, context->adapter); This changed to the code below
     WGPUSurfaceCapabilities capabilities;
     wgpuSurfaceGetCapabilities( context->surface, context->adapter, &capabilities );
-    context->swapchain_format = capabilities.formats[0];
+    //context->swapchain_format = capabilities.formats[0];
+    // currently use linear format
+    context->swapchain_format = WGPUTextureFormat_RGBA8Unorm;
     wgpuSurfaceCapabilitiesFreeMembers( capabilities );
     //END Device creation
 
@@ -102,11 +104,18 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     return context->device != NULL;
 }
 void webgpu_device_destroy(WEBGPU_CONTEXT* context){
-    PRINT_DEBUG("Destroying WebGPU Queue...");
-    wgpuQueueRelease(context->queue);
-
-    PRINT_DEBUG("Destroying WebGPU Device...");
-    wgpuDeviceRelease(context->device);
+    if (!context) {
+        PRINT_ERROR("webgpu_device_destroy called with NULL context");
+        return;
+    }
+    if (context->queue) {
+        PRINT_DEBUG("Destroying WebGPU Queue...");
+        wgpuQueueRelease(context->queue);
+    }
+    if (context->device) {
+        PRINT_DEBUG("Destroying WebGPU Device...");
+        wgpuDeviceRelease(context->device);
+    }
 }
 
 /**

@@ -1340,9 +1340,15 @@ void webgpu_renderpass_create(RENDERPASS* out_renderpass, f32 depth, u32 stencil
 void webgpu_renderpass_destroy(RENDERPASS* pass) {
     if (pass && pass->internal_data) {
         WEBGPU_RENDERPASS* internal_data = pass->internal_data;
+        WGPURenderPassColorAttachment* color_attachment = (WGPURenderPassColorAttachment*)(internal_data->descriptor.colorAttachments);
+        if (color_attachment) {
+            yfree(color_attachment);
+        }
+        WGPURenderPassDepthStencilAttachment* depth_stencil_attachment = (WGPURenderPassDepthStencilAttachment*)(internal_data->descriptor.depthStencilAttachment);
+        if (depth_stencil_attachment){
+            yfree(depth_stencil_attachment);
+        }
         wgpuRenderPassEncoderRelease(internal_data->handle);
-        yfree((void*)internal_data->descriptor.colorAttachments);
-        yfree((void*)internal_data->descriptor.depthStencilAttachment);
         yfree(internal_data);
         pass->internal_data = 0;
     }
@@ -1417,7 +1423,7 @@ b8 webgpu_renderer_is_multithreaded(void) {
 // Indicates if the provided buffer has host-visible memory.
 b8 webgpu_buffer_is_host_visible(WEBGPU_BUFFER* buffer) {
     WGPUBufferUsage usage = wgpuBufferGetUsage(buffer->handle);
-    return (usage & (WGPUBufferUsage_MapRead | WGPUBufferUsage_MapWrite) || wgpuBufferGetMapState(buffer->handle) != WGPUBufferMapState_Unmapped);
+    return (usage & (WGPUBufferUsage_MapRead | WGPUBufferUsage_MapWrite));
 }
 
 b8 webgpu_buffer_create_internal(RENDER_BUFFER* buffer) {
@@ -1435,13 +1441,13 @@ b8 webgpu_buffer_create_internal(RENDER_BUFFER* buffer) {
     buffer_desc.mappedAtCreation = false;
     switch (buffer->type) {
         case RENDERBUFFER_TYPE_VERTEX:
-            buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex;
+            buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Vertex;
             break;
         case RENDERBUFFER_TYPE_INDEX:
-            buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index;
+            buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Index;
             break;
         case RENDERBUFFER_TYPE_UNIFORM: {
-            buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Uniform;
+            buffer_desc.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_CopySrc | WGPUBufferUsage_Uniform;
         } break;
         case RENDERBUFFER_TYPE_STAGING:
             buffer_desc.usage = WGPUBufferUsage_CopySrc | WGPUBufferUsage_MapWrite;
@@ -1504,21 +1510,34 @@ b8 webgpu_buffer_resize(RENDER_BUFFER* buffer, u64 new_size) {
     WGPUBuffer new_buffer;
     new_buffer = wgpuDeviceCreateBuffer(context.device, &buffer_desc);
 
-    // Copy over the data.
-    wgpuCommandEncoderCopyBufferToBuffer(context.encoder,
-        internal_buffer->handle,
-        0,
-        new_buffer,
-        0,
-        buffer->total_size);
-
-    // Make sure anything potentially using these is finished.
     wgpuDevicePoll(context.device, true, NULL);
 
+    // Copy over the data.
+    if (context.encoder){
+        WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(context.device, NULL);
+
+        wgpuCommandEncoderCopyBufferToBuffer(encoder,
+            internal_buffer->handle,
+            0,
+            new_buffer,
+            0,
+            buffer->total_size);
+
+        WGPUCommandBuffer cmd_buffer = wgpuCommandEncoderFinish(encoder, NULL);
+        wgpuQueueSubmit(context.queue, 1, &cmd_buffer);
+
+        wgpuCommandBufferRelease(cmd_buffer);
+        wgpuCommandEncoderRelease(encoder);
+    } else {
+        // If we don't have an encoder, we cannot copy the data.
+        PRINT_WARNING("webgpu_buffer_resize requires a valid command encoder to copy data.");
+        //return false;
+    }
+
     // Report free of the old, allocate of the new.
-    yfree_report(wgpuBufferGetSize(internal_buffer->handle), MEMORY_TAG_GPU_LOCAL);
-    yallocate_report(wgpuBufferGetSize(new_buffer), MEMORY_TAG_GPU_LOCAL);
-    
+    yfree_report(buffer->total_size, MEMORY_TAG_GPU_LOCAL);
+    yallocate_report(new_size, MEMORY_TAG_GPU_LOCAL);
+
     // Destroy the old
     if (internal_buffer->handle) {
         wgpuBufferDestroy(internal_buffer->handle);
@@ -1529,6 +1548,7 @@ b8 webgpu_buffer_resize(RENDER_BUFFER* buffer, u64 new_size) {
 
     // Set new properties
     internal_buffer->handle = new_buffer;
+    buffer->total_size = new_size;
 
     return true;
 }
@@ -1553,14 +1573,12 @@ b8 webgpu_buffer_unbind(RENDER_BUFFER* buffer) {
     return true;
 }
 
-//b8 map_completed = false;
 void on_buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
     WEBGPU_BUFFER* internal_buffer = userdata1;
     if (status != WGPUMapAsyncStatus_Success){
         PRINT_ERROR("Failed to map buffer, error: %s", message.data);
     }
     internal_buffer->mapped_buffer_block = wgpuBufferGetMappedRange(internal_buffer->handle, 0, wgpuBufferGetSize(internal_buffer->handle));
-    //map_completed = true;
 }
 
 void* webgpu_buffer_map_memory(RENDER_BUFFER* buffer, u64 offset, u64 size) {
@@ -1618,19 +1636,25 @@ b8 webgpu_buffer_read(RENDER_BUFFER* buffer, u64 offset, u64 size, void** out_me
         webgpu_buffer_copy_range(buffer, offset, &read, 0, size);
 
         // Map/copy/unmap
-        webgpu_buffer_map_memory(&read, 0, size);
+        WGPUBufferMapCallbackInfo info = {0};
+        info.callback = on_buffer_map_callback;
+        info.userdata1 = read_internal;
+        wgpuBufferMapAsync(read_internal->handle, WGPUMapMode_Read, offset, wgpuBufferGetSize(read_internal->handle), info);
         wgpuDevicePoll(context.device, true, NULL);
         ycopy_memory(*out_memory, read_internal->mapped_buffer_block, size);
-        webgpu_buffer_unmap_memory(&read, 0, size);
+        webgpu_buffer_unmap_memory(&read, 0, 0);
 
         // Clean up the read buffer.
         renderer_renderbuffer_destroy(&read);
     } else {
         // If no staging buffer is needed, map/copy/unmap.
-        webgpu_buffer_map_memory(buffer, 0, size);
+        WGPUBufferMapCallbackInfo info = {0};
+        info.callback = on_buffer_map_callback;
+        info.userdata1 = internal_buffer;
+        wgpuBufferMapAsync(internal_buffer->handle, WGPUMapMode_Read, offset, wgpuBufferGetSize(internal_buffer->handle), info);
         wgpuDevicePoll(context.device, true, NULL);
         ycopy_memory(*out_memory, internal_buffer->mapped_buffer_block, size);
-        webgpu_buffer_unmap_memory(buffer, 0, size);
+        webgpu_buffer_unmap_memory(buffer, 0, 0);
     }
 
     return true;

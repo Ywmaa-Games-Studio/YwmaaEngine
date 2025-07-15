@@ -23,6 +23,7 @@
 #include "systems/camera_system.h"
 #include "systems/render_view_system.h"
 #include "systems/job_system.h"
+#include "systems/font_system.h"
 
 // TODO: temp
 #include "math/ymath.h"
@@ -30,6 +31,8 @@
 #include "math/geometry_utils.h"
 #include "data_structures/darray.h"
 #include "resources/mesh.h"
+
+#include "resources/ui_text.h"
 // TODO: end temp
 
 typedef struct APPLICATION_STATE {
@@ -81,6 +84,9 @@ typedef struct APPLICATION_STATE {
     u64 camera_system_memory_requirement;
     void* camera_system_state;
 
+    u64 font_system_memory_requirement;
+    void* font_system_state;
+
     // TODO: temp
     Skybox sb;
 
@@ -92,6 +98,8 @@ typedef struct APPLICATION_STATE {
     b8 models_loaded;
 
     Mesh ui_meshes[10];
+    UI_TEXT test_text;
+    UI_TEXT test_sys_text;
     // TODO: end temp
 } APPLICATION_STATE;
 
@@ -262,6 +270,30 @@ b8 application_create(GAME* game_instance) {
     geometry_system_init(&app_state->geometry_system_memory_requirement, 0, geometry_sys_config);
     app_state->geometry_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->geometry_system_memory_requirement);
 
+    FONT_SYSTEM_CONFIG font_sys_config;
+    font_sys_config.auto_release = false;
+    font_sys_config.default_bitmap_font_count = 1;
+
+    BITMAP_FONT_CONFIG bmp_font_config = {0};
+    // UbuntuMono21px NotoSans21px
+    bmp_font_config.name = "Ubuntu Mono 21px";
+    bmp_font_config.resource_name = "UbuntuMono21px";
+    bmp_font_config.size = 21;
+    font_sys_config.bitmap_font_configs = &bmp_font_config;
+
+    SYSTEM_FONT_CONFIG sys_font_config;
+    sys_font_config.default_size = 20;
+    sys_font_config.name = "Noto Sans";
+    sys_font_config.resource_name = "NotoSansCJK";
+
+    font_sys_config.default_system_font_count = 1;
+    font_sys_config.system_font_configs = &sys_font_config;
+
+    font_sys_config.max_bitmap_font_count = 64;
+    font_sys_config.max_system_font_count = 64;
+    font_system_init(&app_state->font_system_memory_requirement, 0, &font_sys_config);
+    app_state->font_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->font_system_memory_requirement);
+
     CAMERA_SYSTEM_CONFIG camera_sys_config;
     camera_sys_config.max_camera_count = 64;
     camera_system_init(&app_state->camera_system_memory_requirement, 0, camera_sys_config);
@@ -357,6 +389,12 @@ b8 application_create(GAME* game_instance) {
         return false;
     }
 
+    // Font system.
+    if (!font_system_init(&app_state->font_system_memory_requirement, app_state->font_system_state, &font_sys_config)) {
+        PRINT_ERROR("Failed to initialize font system. Application cannot continue.");
+        return false;
+    }
+
     // Camera
     if (!camera_system_init(&app_state->camera_system_memory_requirement, app_state->camera_system_state, camera_sys_config)) {
         PRINT_ERROR("Failed to initialize camera system. Application cannot continue.");
@@ -415,6 +453,19 @@ b8 application_create(GAME* game_instance) {
     }
     
     // TODO: temp 
+
+    // Create test ui text objects
+    if (!ui_text_create(UI_TEXT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "Some test text 123,\n\tyo!", &app_state->test_text)) {
+        PRINT_ERROR("Failed to load basic ui bitmap text.");
+        return false;
+    }
+    ui_text_set_position(&app_state->test_text, Vector3_create(50, 100, 0));
+
+    if(!ui_text_create(UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Some system text 123, \n\tyo!\n\n\tこんにちは 한", &app_state->test_sys_text)) {
+        PRINT_ERROR("Failed to load basic ui system text.");
+        return false;
+    }
+    ui_text_set_position(&app_state->test_sys_text, Vector3_create(50, 200, 0));
 
     // Skybox
     TEXTURE_MAP* cube_map = &app_state->sb.cubemap;
@@ -657,7 +708,20 @@ b8 application_run(void) {
             }
 
             // ui
-            MESH_PACKET_DATA ui_mesh_data = {0};
+            // Update the bitmap text with camera position. NOTE: just using the default camera for now.
+            Camera* world_camera = camera_system_get_default();
+            Vector3 pos = camera_position_get(world_camera);
+            Vector3 rot = camera_rotation_euler_get(world_camera);
+
+            char text_buffer[256];
+            string_format(
+                text_buffer,
+                "Camera Pos: [%.3f, %.3f, %.3f]\nCamera Rot: [%.3f, %.3f, %.3f]",
+                pos.x, pos.y, pos.z,
+                rad_to_deg(rot.x), rad_to_deg(rot.y), rad_to_deg(rot.z));
+            ui_text_set_text(&app_state->test_text, text_buffer);
+
+            UI_PACKET_DATA ui_packet = {0};
 
             u32 ui_mesh_count = 0;
             Mesh* ui_meshes[10];
@@ -670,10 +734,14 @@ b8 application_run(void) {
                 }
             }
 
-            ui_mesh_data.mesh_count = ui_mesh_count;
-            ui_mesh_data.meshes = ui_meshes;
-
-            if (!render_view_system_build_packet(render_view_system_get("ui"), &ui_mesh_data, &packet.views[2])) {
+            ui_packet.mesh_data.mesh_count = ui_mesh_count;
+            ui_packet.mesh_data.meshes = ui_meshes;
+            ui_packet.text_count = 2;
+            UI_TEXT* texts[2];
+            texts[0] = &app_state->test_text;
+            texts[1] = &app_state->test_sys_text;
+            ui_packet.texts = texts;
+            if (!render_view_system_build_packet(render_view_system_get("ui"), &ui_packet, &packet.views[2])) {
                 PRINT_ERROR("Failed to build packet for view 'ui'.");
                 return false;
             }
@@ -718,6 +786,14 @@ b8 application_run(void) {
 
     app_state->is_running = false;
 
+    // TODO: Temp
+    // TODO: implement skybox destroy.
+    renderer_texture_map_release_resources(&app_state->sb.cubemap);
+    // Destroy ui texts
+    ui_text_destroy(&app_state->test_text);
+    ui_text_destroy(&app_state->test_sys_text);
+    // TODO: end temp
+
     // Shutdown event system.
     event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, application_on_event);
     event_unregister(EVENT_CODE_KEY_PRESSED, 0, application_on_key);
@@ -728,6 +804,8 @@ b8 application_run(void) {
 
     input_system_shutdown(app_state->input_system_state);
 
+    font_system_shutdown(app_state->font_system_state);
+
     geometry_system_shutdown(app_state->geometry_system_state);
 
     material_system_shutdown(app_state->material_system_state);
@@ -735,11 +813,6 @@ b8 application_run(void) {
     texture_system_shutdown(app_state->texture_system_state);
 
     shader_system_shutdown(app_state->shader_system_state);
-
-    // TODO: Temp
-    // TODO: implement skybox destroy.
-    renderer_texture_map_release_resources(&app_state->sb.cubemap);
-    // TODO: end temp
 
     renderer_system_shutdown(app_state->renderer_system_state);
 

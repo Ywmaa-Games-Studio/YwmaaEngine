@@ -594,14 +594,14 @@ YINLINE Vector4 Vector4_from_Vector3(Vector3 vector, f32 w) {
 }
 
 /**
- * @brief Creates and returns a 3-component vector with all components set to 0.0f.
+ * @brief Creates and returns a 4-component vector with all components set to 0.0f.
  */
 YINLINE Vector4 Vector4_zero(void) {
     return (Vector4){0.0f, 0.0f, 0.0f, 0.0f};
 }
 
 /**
- * @brief Creates and returns a 3-component vector with all components set to 1.0f.
+ * @brief Creates and returns a 4-component vector with all components set to 1.0f.
  */
 YINLINE Vector4 Vector4_one(void) {
     return (Vector4){1.0f, 1.0f, 1.0f, 1.0f};

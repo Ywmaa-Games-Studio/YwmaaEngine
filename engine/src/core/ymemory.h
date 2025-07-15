@@ -44,6 +44,9 @@ typedef enum E_MEMORY_TAG {
     // Representation of GPU-local/vram
     MEMORY_TAG_GPU_LOCAL,
 
+    MEMORY_TAG_BITMAP_FONT,
+    MEMORY_TAG_SYSTEM_FONT,
+
     MEMORY_TAG_MAX_TAGS
 } E_MEMORY_TAG;
 

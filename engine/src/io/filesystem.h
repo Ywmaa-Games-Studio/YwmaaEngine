@@ -15,6 +15,21 @@ typedef enum E_FILE_MODES {
 } E_FILE_MODES;
 
 /**
+ * @brief If func returns false, closes the provided file handle and logs an error.
+ * Also returns false, so the calling function must return a boolean. Calling file
+ * must #include "core/logger.h".
+ * @param func The function whose result is a boolean.
+ * @param handle The file handle to be closed on a false function result.
+ * @returns False if the provided function fails.
+ */
+#define CLOSE_IF_FAILED(func, handle)     \
+    if (!func) {                          \
+        PRINT_ERROR("File operation failed."); \
+        filesystem_close(handle);         \
+        return false;                     \
+    }
+
+/**
  * Checks if a file with the given path exists.
  * @param path The path of the file to be checked.
  * @returns True if exists; otherwise false.

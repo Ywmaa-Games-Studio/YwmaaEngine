@@ -272,14 +272,21 @@ b8 application_create(GAME* game_instance) {
 
     FONT_SYSTEM_CONFIG font_sys_config;
     font_sys_config.auto_release = false;
-    font_sys_config.default_bitmap_font_count = 1;
+    font_sys_config.default_bitmap_font_count = 3;
 
-    BITMAP_FONT_CONFIG bmp_font_config = {0};
+    BITMAP_FONT_CONFIG bmp_font_config[3] = {0};
+    bmp_font_config[0].name = "JetBrainsMono";
+    bmp_font_config[0].resource_name = "JetBrainsMono";
+    bmp_font_config[0].size = 22;
     // UbuntuMono21px NotoSans21px
-    bmp_font_config.name = "Ubuntu Mono 21px";
-    bmp_font_config.resource_name = "UbuntuMono21px";
-    bmp_font_config.size = 21;
-    font_sys_config.bitmap_font_configs = &bmp_font_config;
+    bmp_font_config[1].name = "Ubuntu Mono 21px";
+    bmp_font_config[1].resource_name = "UbuntuMono21px";
+    bmp_font_config[1].size = 21;
+
+    bmp_font_config[2].name = "NotoSansArabic";
+    bmp_font_config[2].resource_name = "NotoSansArabic";
+    bmp_font_config[2].size = 22;
+    font_sys_config.bitmap_font_configs = bmp_font_config;
 
     SYSTEM_FONT_CONFIG sys_font_config;
     sys_font_config.default_size = 20;
@@ -461,7 +468,7 @@ b8 application_create(GAME* game_instance) {
     }
     ui_text_set_position(&app_state->test_text, Vector3_create(50, 100, 0));
 
-    if(!ui_text_create(UI_TEXT_TYPE_SYSTEM, "Noto Sans CJK JP", 31, "Some system text 123, \n\tyo!\n\n\tこんにちは 한", &app_state->test_sys_text)) {
+    if(!ui_text_create(UI_TEXT_TYPE_BITMAP, "JetBrainsMono", 22, "و الشويه كلاااااام و كلام و الكلام العربى فى سطر لا جديد ههههه", &app_state->test_sys_text)) {
         PRINT_ERROR("Failed to load basic ui system text.");
         return false;
     }

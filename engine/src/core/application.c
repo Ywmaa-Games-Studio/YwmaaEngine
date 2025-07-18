@@ -285,7 +285,7 @@ b8 application_create(GAME* game_instance) {
 
     bmp_font_config[2].name = "NotoSansArabic";
     bmp_font_config[2].resource_name = "NotoSansArabic";
-    bmp_font_config[2].size = 22;
+    bmp_font_config[2].size = 40;
     font_sys_config.bitmap_font_configs = bmp_font_config;
 
     SYSTEM_FONT_CONFIG sys_font_config;

@@ -19,6 +19,14 @@
 #define ARABIC_RANGE_START 0x0621
 #define ARABIC_RANGE_END 0x064A
 
+// Tashkeel ranges
+#define ARABIC_TASHKEEL_A_START 0x0610
+#define ARABIC_TASHKEEL_A_END 0x061A
+#define ARABIC_TASHKEEL_B_START 0x064B
+#define ARABIC_TASHKEEL_B_END 0x065F
+#define ARABIC_TASHKEEL_C_START 0x06DF
+#define ARABIC_TASHKEEL_C_END 0x06E8
+
 //Lam & Aleph have some cases, let's keep their codepoints accessible in easy way
 #define ARABIC_UNICODE_LETTER_LAM 0x0644
 #define ARABIC_UNICODE_LETTER_ALEPH 0x0627
@@ -90,9 +98,19 @@ static all_forms G_ARABIC_PRESENTATION_FORMS[] =
 
 //empty entires [26 : 30] is to compensate while traversing the array, otherwise the order of letters is messed up.
 
+//Check if the given codepoint is for a Diacritics or sign,
+//Unfortunatly the ranges are scattered for the different signs
+static inline b8 is_diacritics_or_sign(u32 codepoint)
+{
+	return
+		(codepoint >= ARABIC_TASHKEEL_C_START && codepoint <= ARABIC_TASHKEEL_C_END) ||
+		(codepoint >= ARABIC_TASHKEEL_B_START && codepoint <= ARABIC_TASHKEEL_B_END) ||
+		(codepoint >= ARABIC_TASHKEEL_A_START && codepoint <= ARABIC_TASHKEEL_A_END);
+}
+
 static inline b8 is_character_in_arabic_codepoint_range(u32 codepoint)
 {
-	return codepoint >= ARABIC_RANGE_START && codepoint <= ARABIC_RANGE_END;
+	return (codepoint >= ARABIC_RANGE_START && codepoint <= ARABIC_RANGE_END);
 }
 
 //Check if a given codepoint is a Lam-Aleph type.
@@ -115,16 +133,6 @@ static inline b8 is_linking_type(u32 codepoint)
 {
 	return is_character_in_arabic_codepoint_range(codepoint) && G_ARABIC_PRESENTATION_FORMS[codepoint - ARABIC_RANGE_START][0][ARABIC_UNICODE_LETTER_FORM_MIDDLE] != 0;
 }
-
-//Check if the given codepoint is for a Diacritics or sign,
-//Unfortunatly the ranges are scattered for the different signs
-/* static inline b8 is_diacritics_or_sign(u32 codepoint)
-{
-	return
-		(codepoint >= ARABIC_TASHKEEL_A_START && codepoint <= ARABIC_TASHKEEL_A_END) ||
-		(codepoint >= ARABIC_TASHKEEL_B_START && codepoint <= ARABIC_TASHKEEL_B_END) ||
-		(codepoint >= ARABIC_TASHKEEL_C_START && codepoint <= ARABIC_TASHKEEL_C_END);
-} */
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wbitwise-instead-of-logical"
 #pragma clang diagnostic ignored "-Wunused-function"

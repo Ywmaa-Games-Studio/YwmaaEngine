@@ -219,6 +219,7 @@ void regenerate_geometry(UI_TEXT* text) {
         }
 
         b8 is_arabic = is_character_in_arabic_codepoint_range(codepoint);
+        b8 is_arabic_diacritics = is_diacritics_or_sign(codepoint);
         // Get the offset of the next character. If there is no advance, move forward one,
         // otherwise use advance as-is.
         if (is_arabic) {        
@@ -228,9 +229,16 @@ void regenerate_geometry(UI_TEXT* text) {
             u8 advance_next = 0;
             if (!bytes_to_codepoint(text->text, offset, &next_codepoint, &advance_next)) {
                 PRINT_WARNING("Invalid UTF-8 found in string, using unknown codepoint of -1");
-                codepoint = -1;
+                next_codepoint = -1;
             } else {
-                // arabic kerning
+                while (is_diacritics_or_sign(next_codepoint))
+                {
+                    offset += advance_next;
+                    if (!bytes_to_codepoint(text->text, offset, &next_codepoint, &advance_next)){
+                        PRINT_WARNING("Invalid UTF-8 found in string, using unknown codepoint of -1");
+                        next_codepoint = -1;
+                    }
+                }
                 u32 arabic_codepoint = get_presentation_form_for_char(codepoint_prev, next_codepoint, codepoint);
                 codepoint_prev = codepoint;
                 codepoint = arabic_codepoint;
@@ -239,10 +247,11 @@ void regenerate_geometry(UI_TEXT* text) {
                     c += advance - 1;  // Subtracting 1 because the loop always increments once for single-byte anyway.
                     continue;
                 }
-                PRINT_DEBUG("arabic for prev_codepoint %i and codepoint %i and next codepoint %i", codepoint_prev, codepoint, next_codepoint);
             }
         } else {
-            codepoint_prev = codepoint;
+            if (!is_arabic_diacritics) {
+                codepoint_prev = codepoint;
+            }
         }
 
         FONT_GLYPH* g = 0;
@@ -265,7 +274,9 @@ void regenerate_geometry(UI_TEXT* text) {
         }
 
         if (g) {
-            text_width += g->x_advance;
+            if (!is_arabic_diacritics) {
+                text_width += g->x_advance;
+            }
         } else {
             PRINT_ERROR("Unable to find unknown codepoint. Skipping.");
             continue;
@@ -309,18 +320,26 @@ void regenerate_geometry(UI_TEXT* text) {
             codepoint = -1;
         }
         b8 is_arabic = is_character_in_arabic_codepoint_range(codepoint);
+        b8 is_arabic_diacritics = is_diacritics_or_sign(codepoint);
         // Get the offset of the next character. If there is no advance, move forward one,
         // otherwise use advance as-is.
-        if (is_arabic) {        
+        if (is_arabic) {
             u32 offset = c + advance;  //(advance < 1 ? 1 : advance);
             // Get the next codepoint.
             i32 next_codepoint = 0;
             u8 advance_next = 0;
             if (!bytes_to_codepoint(text->text, offset, &next_codepoint, &advance_next)) {
                 PRINT_WARNING("Invalid UTF-8 found in string, using unknown codepoint of -1");
-                codepoint = -1;
+                next_codepoint = -1;
             } else {
-                // arabic kerning
+                while (is_diacritics_or_sign(next_codepoint))
+                {
+                    offset += advance_next;
+                    if (!bytes_to_codepoint(text->text, offset, &next_codepoint, &advance_next)){
+                        PRINT_WARNING("Invalid UTF-8 found in string, using unknown codepoint of -1");
+                        next_codepoint = -1;
+                    }
+                }
                 u32 arabic_codepoint = get_presentation_form_for_char(codepoint_prev, next_codepoint, codepoint);
                 codepoint_prev = codepoint;
                 codepoint = arabic_codepoint;
@@ -333,17 +352,14 @@ void regenerate_geometry(UI_TEXT* text) {
                     continue;
                 }
             }
-            // for debugging
-/*             PRINT_DEBUG("arabic for prev_codepoint %i and codepoint %i and next codepoint %i", codepoint_prev, codepoint, next_codepoint);
-            char utf8_encode_result[4];
+/*             char utf8_encode_result[4];
             utf8_encode_result[3] = '\0';
             utf8_encode(codepoint, utf8_encode_result);
-            char utf8_next[4];
-            utf8_next[3] = '\0';
-            utf8_encode(next_codepoint, utf8_next);
-            PRINT_DEBUG("arabic codepoint %i, utf8 result: %s, utf8 next %s, arabic? %i offset %i", codepoint, utf8_encode_result, utf8_next, is_arabic, offset); */
+            PRINT_DEBUG("arabic codepoint %i utf8 result: %s arabic? %i character index %i full utf8 length %i", codepoint, utf8_encode_result, is_arabic, uc, text_length_utf8); */
         } else {
-            codepoint_prev = codepoint;
+            if (!is_arabic_diacritics) {
+                codepoint_prev = codepoint;
+            }
         }
 
         FONT_GLYPH* g = 0;
@@ -376,10 +392,16 @@ void regenerate_geometry(UI_TEXT* text) {
             f32 tminy = (f32)g->y / text->data->atlas_size_y;
             f32 tmaxy = (f32)(g->y + g->height) / text->data->atlas_size_y;
 
-            if (is_arabic) {
+            if (is_arabic || is_arabic_diacritics) {
+                if (is_arabic_diacritics) {
+                    x -= g->x_advance;
+                }
                 // For Arabic, we need to flip the x-axis.
-                minx = (text_width - x) + g->x_offset;//  + g->x_offset
+                minx = (text_width - x) + g->x_offset;
                 maxx = minx + g->width;
+                if (is_arabic_diacritics) {
+                    x += g->x_advance;
+                }
             }
             // Flip the y axis for system text
             if (text->type == UI_TEXT_TYPE_SYSTEM) {

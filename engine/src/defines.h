@@ -129,6 +129,9 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #endif
 #endif
 
+// max
+#define YMAX(a, b) ((a) > (b) ? (a) : (b))
+
 #define YCLAMP(value, min, max) ((value <= min) ? min : (value >= max) ? max \
                                                                       : value);
 

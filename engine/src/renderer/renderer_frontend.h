@@ -380,3 +380,10 @@ b8 renderer_renderbuffer_copy_range(RENDER_BUFFER* source, u64 source_offset, RE
  * @return True on success; otherwise false.
  */
 b8 renderer_renderbuffer_draw(RENDER_BUFFER* buffer, u64 offset, u32 element_count, b8 bind_only);
+
+/**
+ * get framebuffer size
+ * 
+ */
+u32 renderer_get_framebuffer_width(void);
+u32 renderer_get_framebuffer_height(void);

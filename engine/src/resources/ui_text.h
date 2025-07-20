@@ -26,6 +26,8 @@ typedef struct UI_TEXT {
     RENDER_BUFFER vertex_buffer;
     RENDER_BUFFER index_buffer;
     char* text;
+    u32 text_width;
+    u32 lines;
     Transform transform;
     u32 instance_id;
     u64 render_frame_number;
@@ -33,6 +35,9 @@ typedef struct UI_TEXT {
 
 b8 ui_text_create(E_UI_TEXT_TYPE type, const char* font_name, u16 font_size, const char* text_content, UI_TEXT* out_text);
 void ui_text_destroy(UI_TEXT* text);
+
+u32 ui_text_get_text_height(const char* text, const FONT_DATA* font_data);
+u32 ui_text_get_text_width(const char* text, const FONT_DATA* font_data);
 
 void ui_text_set_position(UI_TEXT* u_text, Vector3 position);
 void ui_text_set_text(UI_TEXT* u_text, const char* text);

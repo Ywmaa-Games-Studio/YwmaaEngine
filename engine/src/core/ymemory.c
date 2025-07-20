@@ -58,7 +58,8 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "WEBGPU     ",
     "GPU_LOCAL  ",
     "BITMAP_FONT",
-    "SYSTEM_FONT"};
+    "SYSTEM_FONT",
+    "UI (CLAY)  "};
 
 typedef struct MEMORY_SYSTEM_STATE {
     MEMORY_SYSTEM_CONFIG config;

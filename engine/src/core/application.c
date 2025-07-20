@@ -24,15 +24,13 @@
 #include "systems/render_view_system.h"
 #include "systems/job_system.h"
 #include "systems/font_system.h"
-
+#include "systems/ui_system.h"
 // TODO: temp
 #include "math/ymath.h"
 #include "math/transform.h"
 #include "math/geometry_utils.h"
 #include "data_structures/darray.h"
 #include "resources/mesh.h"
-
-#include "resources/ui_text.h"
 // TODO: end temp
 
 typedef struct APPLICATION_STATE {
@@ -66,6 +64,9 @@ typedef struct APPLICATION_STATE {
     u64 shader_system_memory_requirement;
     void* shader_system_state;
 
+    u64 ui_system_memory_requirement;
+    void* ui_system_state;
+
     u64 renderer_system_memory_requirement;
     void* renderer_system_state;
 
@@ -96,10 +97,6 @@ typedef struct APPLICATION_STATE {
     Mesh* helmet_mesh;
     Mesh* duck_mesh;
     b8 models_loaded;
-
-    Mesh ui_meshes[10];
-    UI_TEXT test_text;
-    UI_TEXT test_sys_text;
     // TODO: end temp
 } APPLICATION_STATE;
 
@@ -311,6 +308,13 @@ b8 application_create(GAME* game_instance) {
     render_view_system_init(&app_state->renderer_view_system_memory_requirement, 0, render_view_sys_config);
     app_state->renderer_view_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_view_system_memory_requirement);
     
+    // UI System
+    UI_SYSTEM_CONFIG ui_sys_config = {0};
+    ui_sys_config.max_text_count = 32;
+    ui_sys_config.max_ui_count = 32;
+    ui_system_init(&app_state->ui_system_memory_requirement, 0, ui_sys_config);
+    app_state->ui_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->ui_system_memory_requirement);
+
     // Shader system
     SHADER_SYSTEM_CONFIG shader_sys_config;
     shader_sys_config.max_shader_count = 1024;
@@ -458,21 +462,13 @@ b8 application_create(GAME* game_instance) {
         PRINT_ERROR("Failed to create view. Aborting application.");
         return false;
     }
+
     
     // TODO: temp 
-
-    // Create test ui text objects
-    if (!ui_text_create(UI_TEXT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "Some test text 123,\n\tyo!", &app_state->test_text)) {
-        PRINT_ERROR("Failed to load basic ui bitmap text.");
+    if (!ui_system_init(&app_state->ui_system_memory_requirement, app_state->ui_system_state, ui_sys_config)) {
+        PRINT_ERROR("Failed to initialize UI system. Aborting application.");
         return false;
     }
-    ui_text_set_position(&app_state->test_text, Vector3_create(50, 100, 0));
-
-    if(!ui_text_create(UI_TEXT_TYPE_BITMAP, "JetBrainsMono", 22, "و الشويه كلاااااام و كلام و الكلام العربى فى سطر لا جديد ههههه", &app_state->test_sys_text)) {
-        PRINT_ERROR("Failed to load basic ui system text.");
-        return false;
-    }
-    ui_text_set_position(&app_state->test_sys_text, Vector3_create(50, 200, 0));
 
     // Skybox
     TEXTURE_MAP* cube_map = &app_state->sb.cubemap;
@@ -500,7 +496,6 @@ b8 application_create(GAME* game_instance) {
     // Invalidate all meshes.
     for (u32 i = 0; i < 10; ++i) {
         app_state->meshes[i].generation = INVALID_ID_U8;
-        app_state->ui_meshes[i].generation = INVALID_ID_U8;
     }
 
     u8 mesh_count = 0;
@@ -564,50 +559,6 @@ b8 application_create(GAME* game_instance) {
     app_state->duck_mesh->transform = transform_from_position_rotation_scale((Vector3){0.0f, 15.0f, 0.0f}, Quaternion_identity(), (Vector3){0.025f, 0.025f, 0.025f});
     mesh_count++;
     // TODO: end temp 
-
-    // Load up some test UI geometry.
-    GEOMETRY_CONFIG ui_config;
-    ui_config.vertex_size = sizeof(Vertex2D);
-    ui_config.vertex_count = 4;
-    ui_config.index_size = sizeof(u32);
-    ui_config.index_count = 6;
-    string_ncopy(ui_config.material_name, "test_ui_material", MATERIAL_NAME_MAX_LENGTH);
-    string_ncopy(ui_config.name, "test_ui_geometry", GEOMETRY_NAME_MAX_LENGTH);
-
-    const f32 w = 128.0f;
-    const f32 h = 128.0f;
-    Vertex2D uiverts [4];
-    uiverts[0].position.x = 0.0f;  // 0    3
-    uiverts[0].position.y = 0.0f;  //
-    uiverts[0].texcoord.x = 0.0f;  //
-    uiverts[0].texcoord.y = 0.0f;  // 2    1
-
-    uiverts[1].position.y = h;
-    uiverts[1].position.x = w;
-    uiverts[1].texcoord.x = 1.0f;
-    uiverts[1].texcoord.y = 1.0f;
-
-    uiverts[2].position.x = 0.0f;
-    uiverts[2].position.y = h;
-    uiverts[2].texcoord.x = 0.0f;
-    uiverts[2].texcoord.y = 1.0f;
-
-    uiverts[3].position.x = w;
-    uiverts[3].position.y = 0.0;
-    uiverts[3].texcoord.x = 1.0f;
-    uiverts[3].texcoord.y = 0.0f;
-    ui_config.vertices = uiverts;
-    
-    // Indices - counter-clockwise
-    u32 uiindices[6] = {2, 1, 0, 3, 0, 1};
-    ui_config.indices = uiindices;
-
-    // Get UI geometry from config.
-    app_state->ui_meshes[0].geometry_count = 1;
-    app_state->ui_meshes[0].geometries = yallocate_aligned(sizeof(GEOMETRY*), 8, MEMORY_TAG_ARRAY);
-    app_state->ui_meshes[0].geometries[0] = geometry_system_acquire_from_config(ui_config, true);
-    app_state->ui_meshes[0].transform = transform_create();
-    app_state->ui_meshes[0].generation = 0;
 
     // Initialize the game.
     if (!app_state->game_instance->init(app_state->game_instance)) {
@@ -716,7 +667,7 @@ b8 application_run(void) {
 
             // ui
             // Update the bitmap text with camera position. NOTE: just using the default camera for now.
-            Camera* world_camera = camera_system_get_default();
+/*             Camera* world_camera = camera_system_get_default();
             Vector3 pos = camera_position_get(world_camera);
             Vector3 rot = camera_rotation_euler_get(world_camera);
 
@@ -726,28 +677,9 @@ b8 application_run(void) {
                 "Camera Pos: [%.3f, %.3f, %.3f]\nCamera Rot: [%.3f, %.3f, %.3f]",
                 pos.x, pos.y, pos.z,
                 rad_to_deg(rot.x), rad_to_deg(rot.y), rad_to_deg(rot.z));
-            ui_text_set_text(&app_state->test_text, text_buffer);
+            ui_text_set_text(&app_state->test_text, text_buffer); */
 
-            UI_PACKET_DATA ui_packet = {0};
-
-            u32 ui_mesh_count = 0;
-            Mesh* ui_meshes[10];
-
-            // TODO: flexible size array
-            for (u32 i = 0; i < 10; ++i) {
-                if (app_state->ui_meshes[i].generation != INVALID_ID_U8) {
-                    ui_meshes[ui_mesh_count] = &app_state->ui_meshes[i];
-                    ui_mesh_count++;
-                }
-            }
-
-            ui_packet.mesh_data.mesh_count = ui_mesh_count;
-            ui_packet.mesh_data.meshes = ui_meshes;
-            ui_packet.text_count = 2;
-            UI_TEXT* texts[2];
-            texts[0] = &app_state->test_text;
-            texts[1] = &app_state->test_sys_text;
-            ui_packet.texts = texts;
+            UI_PACKET_DATA ui_packet = ui_system_render_commands(NULL, delta);
             if (!render_view_system_build_packet(render_view_system_get("ui"), &ui_packet, &packet.views[2])) {
                 PRINT_ERROR("Failed to build packet for view 'ui'.");
                 return false;
@@ -796,9 +728,6 @@ b8 application_run(void) {
     // TODO: Temp
     // TODO: implement skybox destroy.
     renderer_texture_map_release_resources(&app_state->sb.cubemap);
-    // Destroy ui texts
-    ui_text_destroy(&app_state->test_text);
-    ui_text_destroy(&app_state->test_sys_text);
     // TODO: end temp
 
     // Shutdown event system.
@@ -808,6 +737,8 @@ b8 application_run(void) {
     // TODO: temp
     event_unregister(EVENT_CODE_DEBUG0, 0, event_on_debug_event);
     // TODO: end temp
+    
+    ui_system_shutdown();
 
     input_system_shutdown(app_state->input_system_state);
 

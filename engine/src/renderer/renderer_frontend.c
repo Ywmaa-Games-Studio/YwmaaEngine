@@ -556,3 +556,17 @@ b8 renderer_renderbuffer_copy_range(RENDER_BUFFER* source, u64 source_offset, RE
 b8 renderer_renderbuffer_draw(RENDER_BUFFER* buffer, u64 offset, u32 element_count, b8 bind_only) {
     return state_ptr->backend.renderbuffer_draw(buffer, offset, element_count, bind_only);
 }
+u32 renderer_get_framebuffer_width(void){
+    if (state_ptr) {
+        return state_ptr->framebuffer_width;
+    }
+    PRINT_ERROR("renderer_get_framebuffer_width called without a valid renderer backend.");
+    return 0;
+}
+u32 renderer_get_framebuffer_height(void){
+    if (state_ptr) {
+        return state_ptr->framebuffer_height;
+    }
+    PRINT_ERROR("renderer_get_framebuffer_height called without a valid renderer backend.");
+    return 0;
+}

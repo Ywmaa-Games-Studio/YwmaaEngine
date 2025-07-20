@@ -204,7 +204,8 @@ void destroy_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY* g) {
 
     // Release the material.
     if (g->material && string_length(g->material->name) > 0) {
-        material_system_release(g->material->name);
+        // TODO: Should we release the material here?
+        //material_system_release(g->material->name);
         g->material = 0;
     }
 }

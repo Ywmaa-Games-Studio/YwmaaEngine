@@ -30,8 +30,8 @@ typedef enum E_KEYS {
     DEFINE_KEY(MODECHANGE, 0x1F),
 
     DEFINE_KEY(SPACE, 0x20),
-    DEFINE_KEY(PRIOR, 0x21),
-    DEFINE_KEY(NEXT, 0x22),
+    DEFINE_KEY(PAGEUP, 0x21),
+    DEFINE_KEY(PAGEDOWN, 0x22),
     DEFINE_KEY(END, 0x23),
     DEFINE_KEY(HOME, 0x24),
     DEFINE_KEY(LEFT, 0x25),
@@ -41,7 +41,7 @@ typedef enum E_KEYS {
     DEFINE_KEY(SELECT, 0x29),
     DEFINE_KEY(PRINT, 0x2A),
     DEFINE_KEY(EXECUTE, 0x2B),
-    DEFINE_KEY(SNAPSHOT, 0x2C),
+    DEFINE_KEY(PRINTSCREEN, 0x2C),
     DEFINE_KEY(INSERT, 0x2D),
     DEFINE_KEY(DELETE, 0x2E),
     DEFINE_KEY(HELP, 0x2F),
@@ -84,8 +84,8 @@ typedef enum E_KEYS {
     DEFINE_KEY(Y, 0x59),
     DEFINE_KEY(Z, 0x5A),
 
-    DEFINE_KEY(LWIN, 0x5B),
-    DEFINE_KEY(RWIN, 0x5C),
+    DEFINE_KEY(LSUPER, 0x5B),
+    DEFINE_KEY(RSUPER, 0x5C),
     DEFINE_KEY(APPS, 0x5D),
 
     DEFINE_KEY(SLEEP, 0x5F),
@@ -143,13 +143,20 @@ typedef enum E_KEYS {
     DEFINE_KEY(LALT, 0xA4),
     DEFINE_KEY(RALT, 0xA5),
 
-    DEFINE_KEY(SEMICOLON, 0xBA),
-    DEFINE_KEY(PLUS, 0xBB),
+    DEFINE_KEY(SEMICOLON, 0x3B),
+    DEFINE_KEY(APOSTROPHE, 0xDE),
+    DEFINE_KEY(QUOTE, 0xDE),
+    DEFINE_KEY(EQUAL, 0xBB),
     DEFINE_KEY(COMMA, 0xBC),
     DEFINE_KEY(MINUS, 0xBD),
     DEFINE_KEY(PERIOD, 0xBE),
     DEFINE_KEY(SLASH, 0xBF),
     DEFINE_KEY(GRAVE, 0xC0),
+
+    DEFINE_KEY(LBRACKET, 0xDB),
+    DEFINE_KEY(PIPE, 0xDC),
+    DEFINE_KEY(BACKSLASH, 0xDC),
+    DEFINE_KEY(RBRACKET, 0xDD),
 
     KEYS_MAX_KEYS
 } E_KEYS;
@@ -188,3 +195,11 @@ YAPI void input_get_previous_mouse_position(i32* x, i32* y);
 void input_process_button(E_BUTTONS button, b8 pressed);
 void input_process_mouse_move(i16 x, i16 y);
 void input_process_mouse_wheel(i8 z_delta);
+
+/**
+ * @brief Returns a string representation of the provided key. Ex. "tab" for the tab key.
+ *
+ * @param key
+ * @return const char*
+ */
+YAPI const char* input_keycode_str(E_KEYS key);

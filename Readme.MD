@@ -69,6 +69,11 @@ Install these via package manager:
 
 You can also check the required dependecies for linux in shell.nix
 
+### Mac OS
+ - `zig 0.14` the compiler
+ - There shouldn't be other required dependencies, if it fails please report.
+ - Note: Unfortunately it isn't possible to cross-compile from linux/windows to Mac OS for now.
+
 #### Nix OS
 
 use the provided shell.nix

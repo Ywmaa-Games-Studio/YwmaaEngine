@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l1951AMle>
+ *   <l2102AMle>
  * Auto updated?
  *   Yes
  *
@@ -806,9 +806,9 @@ E_KEYS translate_keycode(u32 x_keycode) {
         case XK_space:
             return KEY_SPACE;
         case XK_Prior:
-            return KEY_PRIOR;
+            return KEY_PAGEUP;
         case XK_Next:
-            return KEY_NEXT;
+            return KEY_PAGEDOWN;
         case XK_End:
             return KEY_END;
         case XK_Home:
@@ -836,9 +836,9 @@ E_KEYS translate_keycode(u32 x_keycode) {
             return KEY_HELP;
 
         case XK_Super_L:
-            return KEY_LWIN;
+            return KEY_LSUPER;
         case XK_Super_R:
-            return KEY_RWIN;
+            return KEY_RSUPER;
             // case XK_apps: return KEY_APPS; // not supported
 
             // case XK_sleep: return KEY_SLEEP; //not supported
@@ -948,7 +948,7 @@ E_KEYS translate_keycode(u32 x_keycode) {
         case XK_semicolon:
             return KEY_SEMICOLON;
         case XK_plus:
-            return KEY_PLUS;
+            return KEY_EQUAL;
         case XK_comma:
             return KEY_COMMA;
         case XK_minus:
@@ -1174,8 +1174,8 @@ E_KEYS translate_keysym(uint32_t key) {
         case 58: return KEY_CAPITAL;
         case 1: return KEY_ESCAPE;
         case 57: return KEY_SPACE;
-        case 104: return KEY_PRIOR;
-        case 109: return KEY_NEXT;
+        case 104: return KEY_PAGEUP;
+        case 109: return KEY_PAGEDOWN;
         case 107: return KEY_END;
         case 102: return KEY_HOME;
         case 105: return KEY_LEFT;
@@ -1257,11 +1257,11 @@ E_KEYS translate_keysym(uint32_t key) {
         case 97: return KEY_RCONTROL;
         case 56: return KEY_LALT;
         case 100: return KEY_RALT;
-        case 125: return KEY_LWIN;
+        case 125: return KEY_LSUPER;
         //case 125: return KEY_RWIN;
         
         case 39: return KEY_SEMICOLON;
-        case 13: return KEY_PLUS;
+        case 13: return KEY_EQUAL;
         case 51: return KEY_COMMA;
         case 12: return KEY_MINUS;
         case 52: return KEY_PERIOD;

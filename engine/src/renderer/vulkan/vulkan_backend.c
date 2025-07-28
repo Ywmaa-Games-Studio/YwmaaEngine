@@ -984,10 +984,11 @@ b8 vulkan_setup_extensions(VkInstanceCreateInfo* create_info){
     const char** required_extensions = darray_create(const char*);
     darray_push(required_extensions, &VK_KHR_SURFACE_EXTENSION_NAME);  // Generic surface extension
     platform_get_required_extension_names(&required_extensions);       // Platform-specific extension(s)
+    u32 required_extension_count = 0;
 #if defined(_DEBUG)
     darray_push(required_extensions, &VK_EXT_DEBUG_UTILS_EXTENSION_NAME);  // debug utilities
 #endif
-    u32 required_extension_count = darray_length(required_extensions);
+    required_extension_count = darray_length(required_extensions);
 #if defined(_DEBUG)
     PRINT_DEBUG("Required extensions:");
     for (u32 i = 0; i < required_extension_count; ++i) {
@@ -1070,6 +1071,10 @@ b8 vulkan_setup_validation_layers(VkInstanceCreateInfo* create_info){
 
     create_info->enabledLayerCount = required_validation_layer_count;
     create_info->ppEnabledLayerNames = required_validation_layer_names;
+
+#if YPLATFORM_APPLE == 1
+    create_info->flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
 
     // Clean up
     //darray_destroy(required_validation_layer_names);

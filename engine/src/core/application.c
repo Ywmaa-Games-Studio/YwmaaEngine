@@ -1,9 +1,10 @@
 #include "application.h"
 #include "game_types.h"
 
-#include "logger.h"
+#include "version.h"
 
 #include "platform/platform.h"
+#include "core/logger.h"
 #include "core/ymemory.h"
 #include "core/event.h"
 #include "input/input.h"
@@ -168,6 +169,9 @@ b8 application_create(GAME* game_instance) {
         PRINT_ERROR("application_create called more than once.");
         return false;
     }
+
+    // Report engine version
+    PRINT_INFO("Ywmaa Engine v. %s", YVERSION);
 
     // Memory system must be the first thing to be stood up.
     MEMORY_SYSTEM_CONFIG memory_system_config = {0};
@@ -867,7 +871,7 @@ b8 application_on_key(u16 code, void* sender, void* listener_instance, EVENT_CON
             // Example on checking for a key
             PRINT_DEBUG("Explicit - A key pressed!");
         } else {
-            PRINT_DEBUG("'%c' key pressed in window.", key_code);
+            PRINT_DEBUG("'%s' key pressed in window.", input_keycode_str(key_code));
         }
     } else if (code == EVENT_CODE_KEY_RELEASED) {
         u16 key_code = context.data.u16[0];
@@ -875,7 +879,7 @@ b8 application_on_key(u16 code, void* sender, void* listener_instance, EVENT_CON
             // Example on checking for a key
             PRINT_DEBUG("Explicit - B key released!");
         } else {
-            PRINT_DEBUG("'%c' key released in window.", key_code);
+            PRINT_DEBUG("'%s' key released in window.", input_keycode_str(key_code));
         }
     }
     return false;

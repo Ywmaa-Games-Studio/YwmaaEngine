@@ -16,11 +16,40 @@ const std = @import("std");
 const builtin = @import("builtin");
 const android = @import("android");
 
+fn generate_version_string(allocator: std.mem.Allocator, major: i32, minor: i32) ![]u8 {
+    // Get current time as timespec
+    const now: i64 = std.time.milliTimestamp();
+
+    // Convert milliseconds to seconds and nanoseconds
+    const seconds = @divTrunc(now, 1000);
+
+    return std.fmt.allocPrint(allocator, "{d}.{d} {d}", .{ major, minor, seconds });
+}
+
 pub fn build(b: *std.Build) !void {
     const exe_name: []const u8 = "testbed";
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const android_targets = android.standardTargets(b, target);
+
+    const major = 0;
+    const minor = 1;
+
+    const version_str = generate_version_string(b.allocator, major, minor) catch unreachable;
+
+    // Write to version.h
+    const out_path = "engine/src/version.h";
+    const file = try std.fs.cwd().createFile(out_path, .{ .truncate = true });
+    defer file.close();
+    try file.writer().print(
+        \\#pragma once
+        \\
+        \\#define YVERSION "{s}"
+        \\
+    , .{version_str});
+
+    // Print it in the build output
+    std.log.info("Generated version: {s}", .{version_str});
 
     // If building with Android, initialize the tools / build
     const android_apk: ?*android.APK = blk: {
@@ -86,7 +115,7 @@ pub fn build(b: *std.Build) !void {
         var walker = try dir.walk(b.allocator);
         defer walker.deinit();
 
-        const allowed_exts = [_][]const u8{".c"};
+        const allowed_exts = [_][]const u8{ ".c", ".m" };
         while (try walker.next()) |entry| {
             const ext = std.fs.path.extension(entry.basename);
             const include_file = for (allowed_exts) |e| {
@@ -98,6 +127,11 @@ pub fn build(b: *std.Build) !void {
                 libengine.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "engine/src", entry.path })), .flags = engine_flags.items });
             }
         }
+    }
+    if (target.result.os.tag == .macos) {
+        libengine.linkFramework("Foundation");
+        libengine.linkFramework("Cocoa");
+        libengine.linkFramework("QuartzCore");
     }
 
     //In The Future I Should replace this with compiling WGPU from source to be able to statically link WGPU
@@ -221,6 +255,7 @@ pub fn build(b: *std.Build) !void {
             //OsDependent
             switch (target.result.os.tag) {
                 .linux => "engine/thirdparty/glslang/glslang/OSDependent/Unix/ossource.cpp",
+                .macos => "engine/thirdparty/glslang/glslang/OSDependent/Unix/ossource.cpp",
                 .windows => "engine/thirdparty/glslang/glslang/OSDependent/Windows/ossource.cpp",
                 else => return error.UnsupportedOs,
             },

@@ -5,7 +5,7 @@
 #include "core/ymemory.h"
 
 #include "systems/resource_system.h"
-#include "shader_compiler.h"
+#include "vulkan_shader_compiler.h"
 
 b8 create_shader_module(
     VULKAN_CONTEXT* context,

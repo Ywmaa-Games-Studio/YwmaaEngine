@@ -2,6 +2,34 @@
 #include "core/logger.h"
 #include "core/asserts.h"
 
+// const backend strings for debug
+
+static const char* backend_type_to_string(WGPUBackendType backend_type) {
+    switch (backend_type) {
+        case WGPUBackendType_Null: return "Null";
+        case WGPUBackendType_WebGPU: return "WebGPU";
+        case WGPUBackendType_D3D11: return "D3D11";
+        case WGPUBackendType_D3D12: return "D3D12";
+        case WGPUBackendType_Metal: return "Metal";
+        case WGPUBackendType_Vulkan: return "Vulkan";
+        case WGPUBackendType_OpenGL: return "OpenGL";
+        case WGPUBackendType_OpenGLES: return "OpenGLES";
+        default: return "Unknown";
+    }
+}
+
+// const adapter type strings for debug
+static const char* adapter_type_to_string(WGPUAdapterType adapter_type) {
+    switch (adapter_type) {
+        case WGPUAdapterType_DiscreteGPU: return "Discrete GPU";
+        case WGPUAdapterType_IntegratedGPU: return "Integrated GPU";
+        case WGPUAdapterType_CPU: return "CPU";
+        case WGPUAdapterType_Unknown: return "Unknown";
+        default: return "Unknown";
+    }
+}
+
+
 b8 webgpu_device_create(WEBGPU_CONTEXT* context){
 
     //START Device creation
@@ -10,36 +38,44 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
 
     WGPURequestAdapterOptions adapter_opts = {0};
     //adapter_opts.backendType = WGPUBackendType_OpenGL;
+    // TODO: make this configurable
+    adapter_opts.powerPreference = WGPUPowerPreference_HighPerformance;
+    adapter_opts.featureLevel = WGPUFeatureLevel_Core;
+    //adapter_opts.forceFallbackAdapter = true;
     adapter_opts.nextInChain = NULL;
     adapter_opts.compatibleSurface = context->surface;
     context->adapter = request_adapter_sync(context->instance, &adapter_opts);
 
     PRINT_INFO("Got adapter: %i", context->adapter);
 
-#ifdef _DEBUG
     WGPUAdapterInfo properties = {0};
     properties.nextInChain = NULL;
     wgpuAdapterGetInfo(context->adapter, &properties);
-    
     PRINT_INFO("Adapter properties:");
-    PRINT_INFO(" - vendorID: %i", properties.vendorID);
+#ifdef _DEBUG
+    PRINT_INFO(" - Vendor ID: %i", properties.vendorID);
+#endif
     if (properties.vendor.data) {
-        PRINT_INFO(" - vendorName: %s", properties.vendor.data);
+        PRINT_INFO(" - Vendor Name: %s", properties.vendor.data);
     }
     if (properties.architecture.data) {
-        PRINT_INFO(" - architecture: %s", properties.architecture.data);
+        PRINT_INFO(" - Architecture: %s", properties.architecture.data);
     }
-    PRINT_INFO(" - deviceID: %i", properties.deviceID);
+#ifdef _DEBUG
+    PRINT_INFO(" - Device ID: %i", properties.deviceID);
+#endif
     if (properties.device.data) {
-        PRINT_INFO(" - name: %s", properties.device.data);
+        PRINT_INFO(" - Name: %s", properties.device.data);
     }
     if (properties.description.data) {
-        PRINT_INFO(" - driverDescription: %s", properties.description.data);
+        PRINT_INFO(" - Driver Description: %s", properties.description.data);
     }
-    PRINT_INFO(" - adapterType: 0x%i", properties.adapterType);
-    PRINT_INFO(" - backendType: 0x%i", properties.backendType);
+    PRINT_INFO(" - Adapter Type: %s", adapter_type_to_string(properties.adapterType) );
+    PRINT_INFO(" - Backend Type: %s",  backend_type_to_string(properties.backendType) );
 
-#endif
+    
+    
+
 
 /*     WGPUNativeLimits required_limits_extras = get_required_limits(context);
     required_limits_extras.chain.sType = WGPUSType_NativeLimits; */

@@ -8,8 +8,9 @@
 *.user
 .direnv/
 
-#Zig Compiler folders
+# Zig Compiler folders
 .zig-cache/*
 zig-out/*
 
-*.spv
+# Generated files
+engine/src/version.h

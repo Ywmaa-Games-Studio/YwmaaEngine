@@ -6,13 +6,14 @@
 #include "math/ymath.h"
 #include "math/transform.h"
 #include "data_structures/darray.h"
+#include "systems/resource_system.h"
 #include "systems/material_system.h"
+#include "systems/render_view_system.h"
 #include "systems/shader_system.h"
 #include "renderer/renderer_frontend.h"
 #include "resources/ui_text.h"
 
 typedef struct RENDER_VIEW_UI_INTERNAL_DATA {
-    u32 shader_id;
     SHADER* shader;
     f32 near_clip;
     f32 far_clip;
@@ -24,14 +25,44 @@ typedef struct RENDER_VIEW_UI_INTERNAL_DATA {
     // u32 render_mode;
 } RENDER_VIEW_UI_INTERNAL_DATA;
 
+static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
+    RENDER_VIEW* self = (RENDER_VIEW*)listener_inst;
+    if (!self) {
+        return false;
+    }
+
+    switch (code) {
+        case EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED:
+            render_view_system_regenerate_render_targets(self);
+            // This needs to be consumed by other views, so consider it _not_ handled.
+            return false;
+    }
+
+    return false;
+}
+
 b8 render_view_ui_on_create(struct RENDER_VIEW* self) {
     if (self) {
         self->internal_data = yallocate_aligned(sizeof(RENDER_VIEW_UI_INTERNAL_DATA), 8, MEMORY_TAG_RENDERER);
         RENDER_VIEW_UI_INTERNAL_DATA* data = self->internal_data;
 
         // Get either the custom shader override or the defined default.
-        data->shader_id = shader_system_get_id(self->custom_shader_name ? self->custom_shader_name : "shader.builtin.ui");
-        data->shader = shader_system_get_by_id(data->shader_id);
+        const char* shader_name = "shader.builtin.ui";
+        RESOURCE config_resource;
+        if (!resource_system_load(shader_name, RESOURCE_TYPE_SHADER, 0, &config_resource)) {
+            PRINT_ERROR("Failed to load builtin UI shader.");
+            return false;
+        }
+        SHADER_CONFIG* config = (SHADER_CONFIG*)config_resource.data;
+        // NOTE: Assuming the first pass since that's all this view has.
+        if (!shader_system_create(&self->passes[0], config, renderer_get_backend_api())) {
+            PRINT_ERROR("Failed to load builtin UI shader.");
+            return false;
+        }
+        resource_system_unload(&config_resource);
+
+        // Get either the custom shader override or the defined default.
+        data->shader = shader_system_get(self->custom_shader_name ? self->custom_shader_name : shader_name);
         data->diffuse_map_location = shader_system_uniform_index(data->shader, "diffuse_texture");
         data->diffuse_color_location = shader_system_uniform_index(data->shader, "diffuse_color");
         data->model_location = shader_system_uniform_index(data->shader, "model");
@@ -43,6 +74,11 @@ b8 render_view_ui_on_create(struct RENDER_VIEW* self) {
         data->projection_matrix = Matrice4_orthographic(0.0f, 1280.0f, 720.0f, 0.0f, data->near_clip, data->far_clip);
         data->view_matrix = Matrice4_identity();
 
+        if (!event_register(EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED, self, render_view_on_event)) {
+            PRINT_ERROR("Unable to listen for refresh required event, creation failed.");
+            return false;
+        }
+
         return true;
     }
     PRINT_ERROR("render_view_ui_on_create - Requires a valid pointer to a view.");
@@ -51,6 +87,9 @@ b8 render_view_ui_on_create(struct RENDER_VIEW* self) {
 
 void render_view_ui_on_destroy(struct RENDER_VIEW* self) {
     if (self && self->internal_data) {
+        // Unregister from the event.
+        event_unregister(EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED, self, render_view_on_event);
+
         yfree(self->internal_data);
         self->internal_data = 0;
     }
@@ -66,10 +105,10 @@ void render_view_ui_on_resize(struct RENDER_VIEW* self, u32 width, u32 height) {
         data->projection_matrix = Matrice4_orthographic(0.0f, (f32)self->width, (f32)self->height, 0.0f, data->near_clip, data->far_clip);
 
         for (u32 i = 0; i < self->renderpass_count; ++i) {
-            self->passes[i]->render_area.x = 0;
-            self->passes[i]->render_area.y = 0;
-            self->passes[i]->render_area.z = width;
-            self->passes[i]->render_area.w = height;
+            self->passes[i].render_area.x = 0;
+            self->passes[i].render_area.y = 0;
+            self->passes[i].render_area.z = width;
+            self->passes[i].render_area.w = height;
         }
     }
 }
@@ -115,10 +154,10 @@ void render_view_ui_on_destroy_packet(const struct RENDER_VIEW* self, struct REN
 
 b8 render_view_ui_on_render(const struct RENDER_VIEW* self, const struct RENDER_VIEW_PACKET* packet, u64 frame_number, u64 render_target_index) {
     RENDER_VIEW_UI_INTERNAL_DATA* data = self->internal_data;
-    u32 shader_id = data->shader_id;
+    u32 shader_id = data->shader->id;
 
     for (u32 p = 0; p < self->renderpass_count; ++p) {
-        RENDERPASS* pass = self->passes[p];
+        RENDERPASS* pass = &self->passes[p];
         if (!renderer_renderpass_begin(pass, &pass->targets[render_target_index])) {
             PRINT_ERROR("render_view_ui_on_render pass index %u failed to start.", p);
             return false;

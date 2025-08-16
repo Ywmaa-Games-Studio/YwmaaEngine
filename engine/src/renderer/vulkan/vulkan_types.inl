@@ -82,9 +82,6 @@ typedef struct VULKAN_RENDERPASS {
     f32 depth;
     u32 stencil;
 
-    b8 has_prev_pass;
-    b8 has_next_pass;
-
     VULKAN_RENDER_PASS_STATE state;
 } VULKAN_RENDERPASS;
 
@@ -93,11 +90,11 @@ typedef struct VULKAN_SWAPCHAIN {
     u8 max_frames_in_flight;
     VkSwapchainKHR handle;
     u32 image_count;
-    /** @brief An array of pointers to render targets, which contain swapchain images. */
-    TEXTURE** render_textures;
+    /** @brief An array of render targets, which contain swapchain images. */
+    TEXTURE* render_textures;
 
-    /** @brief The depth texture. */
-    TEXTURE* depth_texture;
+    /** @brief An array of depth textures, one per frame. */
+    TEXTURE* depth_textures;
 
     /** 
      * @brief Render targets used for on-screen rendering, one per frame. 
@@ -277,6 +274,42 @@ typedef struct VULKAN_SHADER_INSTANCE_STATE {
 } VULKAN_SHADER_INSTANCE_STATE;
 
 /**
+ * @brief A configuration structure for Vulkan pipelines.
+ */
+typedef struct VULKAN_PIPELINE_CONFIG {
+    /** @brief A pointer to the renderpass to associate with the pipeline. */
+    VULKAN_RENDERPASS* renderpass;
+    /** @brief The stride of the vertex data to be used (ex: sizeof(vertex_3d)) */
+    u32 stride;
+    /** @brief The number of attributes. */
+    u32 attribute_count;
+    /** @brief An array of attributes. */
+    VkVertexInputAttributeDescription* attributes;
+    /** @brief The number of descriptor set layouts. */
+    u32 descriptor_set_layout_count;
+    /** @brief An array of descriptor set layouts. */
+    VkDescriptorSetLayout* descriptor_set_layouts;
+    /** @brief The number of stages (vertex, fragment, etc). */
+    u32 stage_count;
+    /** @brief An VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BITarray of stages. */
+    VkPipelineShaderStageCreateInfo* stages;
+    /** @brief The initial viewport configuration. */
+    VkViewport viewport;
+    /** @brief The initial scissor configuration. */
+    VkRect2D scissor;
+    /** @brief The face cull mode. */
+    E_FACE_CULL_MODE cull_mode;
+    /** @brief Indicates if this pipeline should use wireframe mode. */
+    b8 is_wireframe;
+    /** @brief The shader flags used for creating the pipeline. */
+    u32 shader_flags;
+    /** @brief The number of push constant data ranges. */
+    u32 push_constant_range_count;
+    /** @brief An array of push constant data ranges. */
+    range* push_constant_ranges;
+} VULKAN_PIPELINE_CONFIG;
+
+/**
  * @brief Represents a generic Vulkan shader. This uses a set of inputs
  * and parameters, as well as the shader programs contained in SPIR-V
  * files to construct a shader for use in rendering.
@@ -327,8 +360,6 @@ typedef struct VULKAN_SHADER {
 
 } VULKAN_SHADER;
 
-#define VULKAN_MAX_REGISTERED_RENDERPASSES 31
-
 typedef struct VULKAN_CONTEXT {
     f32 frame_delta_time;
 
@@ -346,18 +377,18 @@ typedef struct VULKAN_CONTEXT {
     // when updated.
     u64 framebuffer_size_last_generation;
 
+    /** @brief The viewport rectangle. */
+    Vector4 viewport_rect;
+
+    /** @brief The scissor rectangle. */
+    Vector4 scissor_rect;
+
     VkInstance instance;
     VkAllocationCallbacks* allocator;
     VkSurfaceKHR surface;
     VULKAN_DEVICE device;
 
     VULKAN_SWAPCHAIN swapchain;
-
-    void* renderpass_table_block;
-    HASHTABLE renderpass_table;
-
-    /** @brief Registered renderpasses. */
-    RENDERPASS registered_passes[VULKAN_MAX_REGISTERED_RENDERPASSES];
 
     RENDER_BUFFER object_vertex_buffer;
     RENDER_BUFFER object_index_buffer;
@@ -393,11 +424,6 @@ typedef struct VULKAN_CONTEXT {
 
     i32 (*find_memory_index)(u32 type_filter, u32 property_flags);
 
-    /**
-     * @brief A pointer to a function to be called when the backend requires
-     * rendertargets to be refreshed/regenerated.
-     */
-    void (*on_rendertarget_refresh_required)(void);
 #if defined(_DEBUG)
     VkDebugUtilsMessengerEXT debug_messenger;
 #endif

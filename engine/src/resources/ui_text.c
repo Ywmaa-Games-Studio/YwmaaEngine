@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "core/ymemory.h"
 #include "core/ystring.h"
+#include "core/identifier.h"
 #include "math/ymath.h"
 #include "math/transform.h"
 #include "renderer/renderer_types.inl"
@@ -48,7 +49,7 @@ b8 ui_text_create(E_UI_TEXT_TYPE type, const char* font_name, u16 font_size, con
     }
 
     // Acquire resources for font texture map.
-    SHADER* ui_shader = shader_system_get(BUILTIN_SHADER_NAME_UI);  // TODO: text SHADER.
+    SHADER* ui_shader = shader_system_get("shader.builtin.ui");  // TODO: text SHADER.
     TEXTURE_MAP* font_maps[1] = {&out_text->data->atlas};
     if (!renderer_shader_acquire_instance_resources(ui_shader, font_maps, &out_text->instance_id)) {
         PRINT_ERROR("Unable to acquire SHADER resources for font texture map.");
@@ -85,11 +86,17 @@ b8 ui_text_create(E_UI_TEXT_TYPE type, const char* font_name, u16 font_size, con
     // Generate geometry.
     regenerate_geometry(out_text);
 
+    // Get a unique identifier for the text object.
+    out_text->unique_id = identifier_aquire_new_id(out_text);
+
     return true;
 }
 
 void ui_text_destroy(UI_TEXT* text) {
     if (text) {
+        // Release the unique identifier.
+        identifier_release_id(text->unique_id);
+
         if (text->text) {
             yfree(text->text);
             text->text = 0;
@@ -100,7 +107,7 @@ void ui_text_destroy(UI_TEXT* text) {
         renderer_renderbuffer_destroy(&text->index_buffer);
 
         // Release resources for font texture map.
-        SHADER* ui_shader = shader_system_get(BUILTIN_SHADER_NAME_UI);  // TODO: text SHADER.
+        SHADER* ui_shader = shader_system_get("shader.builtin.ui");  // TODO: text SHADER.
         if (!renderer_shader_release_instance_resources(ui_shader, text->instance_id)) {
             PRINT_ERROR("Unable to release SHADER resources for font texture map.");
         }

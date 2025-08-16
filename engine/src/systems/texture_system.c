@@ -186,7 +186,7 @@ void texture_system_release(const char* name) {
     }
 }
 
-TEXTURE* texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, b8 is_writeable, b8 register_texture, void* internal_data) {
+void texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, b8 is_writeable, b8 register_texture, void* internal_data, TEXTURE* out_texture) {
     u32 id = INVALID_ID;
     TEXTURE* t = 0;
     if (register_texture) {
@@ -194,14 +194,18 @@ TEXTURE* texture_system_wrap_internal(const char* name, u32 width, u32 height, u
         // resources are created and managed somewhere within the renderer internals.
         if (!process_texture_reference(name, TEXTURE_TYPE_2D, 1, false, true, &id)) {
             PRINT_ERROR("texture_system_wrap_internal failed to obtain a new texture id.");
-            return 0;
+            return;
         }
         t = &state_ptr->registered_textures[id];
     } else {
-        t = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_TEXTURE);
-#ifdef DEBUG_LOG
-        PRINT_TRACE("texture_system_wrap_internal created texture '%s', but not registering, resulting in an allocation. It is up to the caller to free this memory.", name);
-#endif
+        if (out_texture) {
+            t = out_texture;
+        } else {
+            t = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_TEXTURE);
+            #ifdef DEBUG_LOG
+            // PRINT_TRACE("texture_system_wrap_internal created texture '%s', but not registering, resulting in an allocation. It is up to the caller to free this memory.", name);
+            #endif
+        }
     }
 
     t->id = id;
@@ -215,7 +219,6 @@ TEXTURE* texture_system_wrap_internal(const char* name, u32 width, u32 height, u
     t->flags |= is_writeable ? TEXTURE_FLAG_IS_WRITEABLE : 0;
     t->flags |= TEXTURE_FLAG_IS_WRAPPED;
     t->internal_data = internal_data;
-    return t;
 }
 
 b8 texture_system_set_internal(TEXTURE* t, void* internal_data) {

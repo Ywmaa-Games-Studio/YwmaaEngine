@@ -106,7 +106,7 @@ void shader_system_shutdown(void* state) {
     state_ptr = 0;
 }
 
-b8 shader_system_create(const SHADER_CONFIG* config, E_RENDERER_BACKEND_API backend_api) {
+b8 shader_system_create(RENDERPASS* pass, const SHADER_CONFIG* config, E_RENDERER_BACKEND_API backend_api) {
     u32 id = new_shader_id();
     SHADER* out_shader = &state_ptr->shaders[id];
     yzero_memory(out_shader, sizeof(SHADER));
@@ -150,10 +150,13 @@ b8 shader_system_create(const SHADER_CONFIG* config, E_RENDERER_BACKEND_API back
     out_shader->push_constant_stride = 128;
     out_shader->push_constant_size = 0;
 
-    RENDERPASS* pass = renderer_renderpass_get(config->renderpass_name);
-    if (!pass) {
-        PRINT_ERROR("Unable to find renderpass '%s'", config->renderpass_name);
-        return false;
+    // Process flags.
+    out_shader->flags = 0;
+    if (config->depth_test) {
+        out_shader->flags |= SHADER_FLAG_DEPTH_TEST;
+    }
+    if (config->depth_write) {
+        out_shader->flags |= SHADER_FLAG_DEPTH_WRITE;
     }
 
     switch (backend_api)

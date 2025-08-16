@@ -221,7 +221,7 @@ MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config) {
             // Get the uniform indices.
             SHADER* s = shader_system_get_by_id(m->shader_id);
             // Save off the locations for known types for quick lookups.
-            if (state_ptr->material_shader_id == INVALID_ID && strings_equal(config.shader_name, BUILTIN_SHADER_NAME_MATERIAL)) {
+            if (state_ptr->material_shader_id == INVALID_ID && strings_equal(config.shader_name, "shader.builtin.material")) {
                 state_ptr->material_shader_id = s->id;
                 state_ptr->material_locations.projection = shader_system_uniform_index(s, "projection");
                 state_ptr->material_locations.view = shader_system_uniform_index(s, "view");
@@ -234,7 +234,7 @@ MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config) {
                 state_ptr->material_locations.shiness = shader_system_uniform_index(s, "shiness");
                 state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
                 state_ptr->material_locations.render_mode = shader_system_uniform_index(s, "mode");
-            } else if (state_ptr->ui_shader_id == INVALID_ID && strings_equal(config.shader_name, BUILTIN_SHADER_NAME_UI)) {
+            } else if (state_ptr->ui_shader_id == INVALID_ID && strings_equal(config.shader_name, "shader.builtin.ui")) {
                 state_ptr->ui_shader_id = s->id;
                 state_ptr->ui_locations.projection = shader_system_uniform_index(s, "projection");
                 state_ptr->ui_locations.view = shader_system_uniform_index(s, "view");
@@ -542,7 +542,7 @@ b8 create_default_material(MATERIAL_SYSTEM_STATE* state) {
 
     TEXTURE_MAP* maps[3] = {&state->default_material.diffuse_map, &state->default_material.specular_map, &state->default_material.normal_map};
 
-    SHADER* s = shader_system_get(BUILTIN_SHADER_NAME_MATERIAL);
+    SHADER* s = shader_system_get("shader.builtin.material");
     if (!renderer_shader_acquire_instance_resources(s, maps, &state->default_material.internal_id)) {
         PRINT_ERROR("Failed to acquire renderer resources for default texture. Application cannot continue.");
         return false;

@@ -73,3 +73,5 @@ b8 render_view_system_build_packet(const RENDER_VIEW* view, void* data, struct R
  * @return True on success; otherwise false.
  */
 b8 render_view_system_on_render(const RENDER_VIEW* view, const RENDER_VIEW_PACKET* packet, u64 frame_number, u64 render_target_index);
+
+void render_view_system_regenerate_render_targets(RENDER_VIEW* view);

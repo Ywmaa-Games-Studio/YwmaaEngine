@@ -5,8 +5,8 @@ renderpass=renderpass.builtin.world
 stages=vertex,fragment
 vulkan_stagefiles=shaders/builtin.shader.vertex.glsl,shaders/builtin.shader.fragment.glsl
 webgpu_stagefiles=shaders/shader.wgsl,shaders/shader.wgsl
-use_instance=1
-use_local=1
+depth_test=1
+depth_write=1
 
 # Attributes: type,name
 attribute=vec3,in_position

@@ -74,6 +74,8 @@ typedef enum E_TEXTURE_FLAG {
     TEXTURE_FLAG_IS_WRITEABLE = 0x2,
     /** @brief Indicates if the texture was created via wrapping vs traditional creation. */
     TEXTURE_FLAG_IS_WRAPPED = 0x4,
+    /** @brief Indicates the texture is a depth texture. */
+    TEXTURE_FLAG_DEPTH = 0x8
 } E_TEXTURE_FLAG;
 
 /** @brief Holds bit flags for textures.. */
@@ -256,6 +258,7 @@ typedef struct GEOMETRY {
 } GEOMETRY;
 
 typedef struct Mesh {
+    u32 unique_id;
     u8 generation;
     u16 geometry_count;
     GEOMETRY** geometries;
@@ -374,9 +377,6 @@ typedef struct SHADER_CONFIG {
     /** @brief The collection of uniforms. Darray. */
     SHADER_UNIFORM_CONFIG* uniforms;
 
-    /** @brief The name of the renderpass used by this shader. */
-    char* renderpass_name;
-
     /** @brief The number of stages present in the shader. */
     u8 stage_count;
     /** @brief The collection of stages. Darray. */
@@ -386,4 +386,13 @@ typedef struct SHADER_CONFIG {
     /** @brief The collection of stage file names to be loaded (one per stage). Must align with stages array. Darray. */
     char** vulkan_stage_filenames;
     char** webgpu_stage_filenames;
+
+    // TODO: Convert these bools to flags.
+    /** @brief Indicates if depth testing should be done. */
+    b8 depth_test;
+    /**
+     * @brief Indicates if the results of depth testing should be written to the depth buffer.
+     * NOTE: This is ignored if depth_test is false.
+     */
+    b8 depth_write;
 } SHADER_CONFIG;

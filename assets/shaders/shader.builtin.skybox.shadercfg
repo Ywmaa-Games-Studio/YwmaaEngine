@@ -5,8 +5,8 @@ renderpass=renderpass.builtin.skybox
 stages=vertex,fragment
 vulkan_stagefiles=shaders/builtin.skyboxshader.vertex.glsl,shaders/builtin.skyboxshader.fragment.glsl
 webgpu_stagefiles=shaders/skybox_shader.wgsl,shaders/skybox_shader.wgsl
-use_instance=1
-use_local=0
+depth_test=0
+depth_write=0
 cull_mode=front
 
 # Attributes: type,name

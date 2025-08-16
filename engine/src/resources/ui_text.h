@@ -20,6 +20,7 @@ typedef enum E_UI_TEXT_TYPE {
 } E_TEXT_DIRECTION; */
 
 typedef struct UI_TEXT {
+    u32 unique_id;
     E_UI_TEXT_TYPE type;
     //E_TEXT_DIRECTION direction;
     struct FONT_DATA* data;

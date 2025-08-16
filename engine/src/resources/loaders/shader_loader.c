@@ -41,7 +41,6 @@ b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, void* para
     resource_data->stage_names = darray_create(char*);
     resource_data->vulkan_stage_filenames = darray_create(char*);
     resource_data->webgpu_stage_filenames = darray_create(char*);
-    resource_data->renderpass_name = 0;
 
     resource_data->name = 0;
 
@@ -89,7 +88,8 @@ b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, void* para
         } else if (strings_equali(trimmed_var_name, "name")) {
             resource_data->name = string_duplicate(trimmed_value);
         } else if (strings_equali(trimmed_var_name, "renderpass")) {
-            resource_data->renderpass_name = string_duplicate(trimmed_value);
+            // resource_data->renderpass_name = string_duplicate(trimmed_value);
+            // Ignore this now.
         } else if (strings_equali(trimmed_var_name, "stages")) {
             // Parse the stages
             char** stage_names = darray_create(char*);
@@ -144,6 +144,10 @@ b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, void* para
                 resource_data->cull_mode = FACE_CULL_MODE_NONE;
             }
             // Any other value will use the default of BACK.
+        } else if (strings_equali(trimmed_var_name, "depth_test")) {
+            string_to_bool(trimmed_value, &resource_data->depth_test);
+        } else if (strings_equali(trimmed_var_name, "depth_write")) {
+            string_to_bool(trimmed_value, &resource_data->depth_write); 
         } else if (strings_equali(trimmed_var_name, "attribute")) {
             // Parse attribute.
             char** fields = darray_create(char*);
@@ -324,7 +328,6 @@ void shader_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
     }
     darray_destroy(data->uniforms);
 
-    yfree(data->renderpass_name);
     yfree(data->name);
     yzero_memory(data, sizeof(SHADER_CONFIG));
 

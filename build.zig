@@ -20,7 +20,7 @@ fn generate_version_string(allocator: std.mem.Allocator, major: i32, minor: i32)
     // Get current time as timespec
     const now: i64 = std.time.milliTimestamp();
 
-    // Convert milliseconds to seconds and nanoseconds
+    // Convert milliseconds to seconds
     const seconds = @divTrunc(now, 1000);
 
     return std.fmt.allocPrint(allocator, "{d}.{d} {d}", .{ major, minor, seconds });

@@ -63,6 +63,14 @@ typedef struct SHADER_ATTRIBUTE {
     u32 size;
 } SHADER_ATTRIBUTE;
 
+typedef enum E_SHADER_FLAGS {
+    SHADER_FLAG_NONE = 0x0,
+    SHADER_FLAG_DEPTH_TEST = 0x1,
+    SHADER_FLAG_DEPTH_WRITE = 0x2
+} E_SHADER_FLAGS;
+
+typedef u32 shader_flag_bits;
+
 /**
  * @brief Represents a shader on the frontend.
  */
@@ -71,6 +79,8 @@ typedef struct SHADER {
     u32 id;
 
     char* name;
+
+    shader_flag_bits flags;
 
     /**
      * @brief The amount of bytes that are required for UBO alignment.
@@ -166,10 +176,11 @@ void shader_system_shutdown(void* state);
 /**
  * @brief Creates a new shader with the given config.
  * 
+ * @param pass A pointer to the renderpass to be used with this shader.
  * @param config The configuration to be used when creating the shader.
  * @return True on success; otherwise false.
  */
-YAPI b8 shader_system_create(const SHADER_CONFIG* config, E_RENDERER_BACKEND_API backend_api);
+YAPI b8 shader_system_create(RENDERPASS* pass, const SHADER_CONFIG* config, E_RENDERER_BACKEND_API backend_api);
 
 /**
  * @brief Gets the identifier of a shader by name.

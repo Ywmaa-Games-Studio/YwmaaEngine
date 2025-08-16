@@ -104,7 +104,7 @@ void webgpu_image_copy_from_buffer(
     size.depthOrArrayLayers = 1;
 
     const u32 required_buffer_size = image->width * image->height * bytes_per_pixel * (type == TEXTURE_TYPE_CUBE ? 6 : 1);
-
+    
     // Arguments telling which part of the texture we upload to
     // (together with the last argument of writeTexture)
     WGPUTexelCopyTextureInfo destination;
@@ -114,7 +114,6 @@ void webgpu_image_copy_from_buffer(
     destination.origin.y = 0; // equivalent of the offset argument of Queue::writeBuffer
     destination.origin.z = 0; // equivalent of the offset argument of Queue::writeBuffer
     destination.aspect = WGPUTextureAspect_All; // only relevant for depth/Stencil textures
-    
     switch (type)
     {
         default:
@@ -130,6 +129,124 @@ void webgpu_image_copy_from_buffer(
             break;
     }
     yallocate_report(required_buffer_size, MEMORY_TAG_GPU_LOCAL);
+}
+
+void webgpu_image_copy_to_buffer(
+    WEBGPU_CONTEXT* context,
+    E_TEXTURE_TYPE type,
+    WEBGPU_IMAGE* image,
+    u8 bytes_per_pixel,
+    WGPUBuffer buffer,
+    WGPUCommandEncoder* command_encoder) {
+    
+    WGPUTexelCopyTextureInfo source = (WGPUTexelCopyTextureInfo){
+            .texture = image->handle,
+            .mipLevel = 0,
+            .origin = {0, 0, 0},
+            .aspect = WGPUTextureAspect_All
+    };
+
+    WGPUTexelCopyBufferInfo destination = (WGPUTexelCopyBufferInfo){
+            .buffer = buffer,
+            .layout = {
+                .offset = 0,
+                .bytesPerRow = image->width * bytes_per_pixel,
+                .rowsPerImage = image->height
+            }
+    };
+
+
+    WGPUExtent3D size = (WGPUExtent3D){
+            .width = image->width,
+            .height = image->height,
+            .depthOrArrayLayers = 1
+    };
+
+    switch (type)
+    {
+        default:
+        case TEXTURE_TYPE_2D:
+            wgpuCommandEncoderCopyTextureToBuffer(
+                *command_encoder,
+                &source,
+                &destination,
+                &size
+            );
+            break;
+        case TEXTURE_TYPE_CUBE:
+            for (uint32_t layer = 0; layer < 6; ++layer) {
+                source.origin.z = layer;
+                destination.layout.offset = layer * (image->width * image->height * bytes_per_pixel);
+                wgpuCommandEncoderCopyTextureToBuffer(
+                    *command_encoder,
+                    &source,
+                    &destination,
+                    &size
+                );
+            }
+            break;
+    }
+
+}
+
+
+void webgpu_image_copy_pixel_to_buffer(
+    WEBGPU_CONTEXT* context,
+    E_TEXTURE_TYPE type,
+    WEBGPU_IMAGE* image,
+    u8 bytes_per_pixel,
+    WGPUBuffer buffer,
+    u32 x,
+    u32 y,
+    WGPUCommandEncoder* command_encoder) {
+    
+    WGPUTexelCopyTextureInfo source = (WGPUTexelCopyTextureInfo){
+            .texture = image->handle,
+            .mipLevel = 0,
+            .origin = {x, y, 0},
+            .aspect = WGPUTextureAspect_All
+    };
+
+    WGPUTexelCopyBufferInfo destination = (WGPUTexelCopyBufferInfo){
+            .buffer = buffer,
+            .layout = {
+                .offset = 0,
+                .bytesPerRow = 0,
+                .rowsPerImage = 0
+            }
+    };
+
+
+    WGPUExtent3D size = (WGPUExtent3D){
+            .width = 1,
+            .height = 1,
+            .depthOrArrayLayers = 1
+    };
+
+    switch (type)
+    {
+        default:
+        case TEXTURE_TYPE_2D:
+            wgpuCommandEncoderCopyTextureToBuffer(
+                *command_encoder,
+                &source,
+                &destination,
+                &size
+            );
+            break;
+        case TEXTURE_TYPE_CUBE:
+            for (uint32_t layer = 0; layer < 6; ++layer) {
+                source.origin.z = layer;
+                destination.layout.offset = layer * (image->width * image->height * bytes_per_pixel);
+                wgpuCommandEncoderCopyTextureToBuffer(
+                    *command_encoder,
+                    &source,
+                    &destination,
+                    &size
+                );
+            }
+            break;
+    }
 }
 
 void webgpu_image_destroy(WEBGPU_IMAGE* image, u8 channel_count, E_TEXTURE_TYPE type) {

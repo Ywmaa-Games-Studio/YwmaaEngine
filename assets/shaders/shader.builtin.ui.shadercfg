@@ -5,8 +5,8 @@ renderpass=renderpass.builtin.ui
 stages=vertex,fragment
 vulkan_stagefiles=shaders/builtin.UIshader.vertex.glsl,shaders/builtin.UIshader.fragment.glsl
 webgpu_stagefiles=shaders/ui_shader.wgsl,shaders/ui_shader.wgsl
-use_instance=1
-use_local=1
+depth_test=0
+depth_write=0
 
 # Attributes: type,name
 attribute=vec2,in_position

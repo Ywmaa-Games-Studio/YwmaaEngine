@@ -13,7 +13,10 @@ void webgpu_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u1
 
 b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time);
 b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time);
-
+void webgpu_renderer_viewport_set(Vector4 rect);
+void webgpu_renderer_viewport_reset(void);
+void webgpu_renderer_scissor_set(Vector4 rect);
+void webgpu_renderer_scissor_reset(void);
 b8 webgpu_renderer_renderpass_begin(RENDERPASS* pass, RENDER_TARGET* target);
 b8 webgpu_renderer_renderpass_end(RENDERPASS* pass);
 RENDERPASS* webgpu_renderer_renderpass_get(const char* name);
@@ -25,7 +28,8 @@ void webgpu_renderer_texture_destroy(TEXTURE* texture);
 void webgpu_renderer_texture_create_writeable(TEXTURE* t);
 void webgpu_renderer_texture_resize(TEXTURE* t, u32 new_width, u32 new_height);
 void webgpu_renderer_texture_write_data(TEXTURE* t, u32 offset, u32 size, const u8* pixels);
-
+void webgpu_renderer_texture_read_data(TEXTURE* t, u32 offset, u32 size, void** out_memory);
+void webgpu_renderer_texture_read_pixel(TEXTURE* t, u32 x, u32 y, u8** out_rgba);
 
 b8 webgpu_renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
 void webgpu_renderer_destroy_geometry(GEOMETRY* geometry);
@@ -47,15 +51,16 @@ b8 webgpu_shader_after_renderpass(struct SHADER *shader);
 b8 webgpu_renderer_texture_map_acquire_resources(TEXTURE_MAP* map);
 void webgpu_renderer_texture_map_release_resources(TEXTURE_MAP* map);
 
-void webgpu_renderpass_create(RENDERPASS* out_renderpass, f32 depth, u32 stencil, b8 has_prev_pass, b8 has_next_pass);
+b8 webgpu_renderpass_create(const RENDERPASS_CONFIG* config, RENDERPASS* out_renderpass);
 void webgpu_renderpass_destroy(RENDERPASS* pass);
 
-void webgpu_renderer_render_target_create(u8 attachment_count, TEXTURE** attachments, RENDERPASS* pass, u32 width, u32 height, RENDER_TARGET* out_target);
+b8 webgpu_renderer_render_target_create(u8 attachment_count, RENDER_TARGET_ATTACHMENT* attachments, RENDERPASS* pass, u32 width, u32 height, RENDER_TARGET* out_target);
 void webgpu_renderer_render_target_destroy(RENDER_TARGET* target, b8 free_internal_memory);
 
 TEXTURE* webgpu_renderer_window_attachment_get(u8 index);
-TEXTURE* webgpu_renderer_depth_attachment_get(void);
+TEXTURE* webgpu_renderer_depth_attachment_get(u8 index);
 u8 webgpu_renderer_window_attachment_index_get(void);
+u8 webgpu_renderer_window_attachment_count_get(void);
 
 b8 webgpu_renderer_is_multithreaded(void);
 

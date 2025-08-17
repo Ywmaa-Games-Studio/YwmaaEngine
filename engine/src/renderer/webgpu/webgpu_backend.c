@@ -1390,11 +1390,11 @@ void webgpu_renderpass_destroy(RENDERPASS* pass) {
         WEBGPU_RENDERPASS* internal_data = pass->internal_data;
         WGPURenderPassColorAttachment* color_attachment = (WGPURenderPassColorAttachment*)(internal_data->descriptor.colorAttachments);
         if (color_attachment) {
-            yfree(color_attachment);
+            darray_destroy(color_attachment);
         }
         WGPURenderPassDepthStencilAttachment* depth_stencil_attachment = (WGPURenderPassDepthStencilAttachment*)(internal_data->descriptor.depthStencilAttachment);
         if (depth_stencil_attachment){
-            yfree(depth_stencil_attachment);
+            darray_destroy(depth_stencil_attachment);
         }
         wgpuRenderPassEncoderRelease(internal_data->handle);
         yfree(internal_data);
@@ -1417,16 +1417,7 @@ void webgpu_renderer_render_target_destroy(RENDER_TARGET* target, b8 free_intern
                 if (target->attachments[i].texture) {
                     // Release the texture view.
                     WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)target->attachments[i].texture->internal_data;
-                    if (image && image->view) {
-                        wgpuTextureViewRelease(image->view);
-                        image->view = 0;
-                    }
-                    if (image->handle) {
-                        // Release the texture handle.
-                        wgpuTextureDestroy(image->handle);
-                        wgpuTextureRelease(image->handle);
-                        image->handle = 0;
-                    }
+                    webgpu_image_destroy(image, target->attachments[i].texture->channel_count, target->attachments[i].texture->type);
                 }
             }
             yfree(target->attachments);
@@ -1478,7 +1469,6 @@ b8 webgpu_buffer_create_internal(RENDER_BUFFER* buffer) {
     WEBGPU_BUFFER internal_buffer;
     WGPUBufferDescriptor buffer_desc = {0};
     buffer_desc.nextInChain = NULL;
-    buffer_desc.label = (WGPUStringView){"Buffer", sizeof("Buffer")-1};
     buffer_desc.usage = 0;
     buffer_desc.size = buffer->total_size;
     buffer_desc.mappedAtCreation = false;
@@ -1505,6 +1495,10 @@ b8 webgpu_buffer_create_internal(RENDER_BUFFER* buffer) {
             PRINT_ERROR("Unsupported buffer type: %i", buffer->type);
             return false;
     }
+    char buffer_label[128];
+    yzero_memory(buffer_label, sizeof(buffer_label));
+    string_format(buffer_label, "Buffer size: %llu, type: %i", buffer->total_size, buffer->type);
+    buffer_desc.label = (WGPUStringView){buffer_label, sizeof(buffer_label)};
     internal_buffer.handle = wgpuDeviceCreateBuffer(context.device, &buffer_desc);
     // Report memory as in-use.
     yallocate_report(wgpuBufferGetSize(internal_buffer.handle), MEMORY_TAG_GPU_LOCAL);
@@ -1835,6 +1829,7 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
     context.recreating_swapchain = true;
 
     wgpuDevicePoll(context.device, true, NULL);
+
     webgpu_recreate_swapchain(&context, backend, context.framebuffer_width, context.framebuffer_height);
 
     // Image
@@ -1872,15 +1867,12 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
         texture_system_resize(context.render_texture, context.framebuffer_width, context.framebuffer_height, false);
     }
 
-    const u64 candidate_count = 3;
-    WGPUTextureFormat candidates[candidate_count] = {
-        WGPUTextureFormat_Depth32Float,
-        WGPUTextureFormat_Depth32FloatStencil8,
-        WGPUTextureFormat_Depth24Plus};
-    u8 sizes[candidate_count] = {
-        4,
-        4,
-        3};
+    // Depth resources
+    if (!webgpu_device_detect_depth_format(&context, false)) {
+        context.depth_format = WGPUTextureFormat_Undefined;
+        PRINT_ERROR("Failed to find a supported format!");
+    }
+
     if (!context.depth_texture) {
         context.depth_texture = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_RENDERER);
     }
@@ -1891,7 +1883,7 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
         TEXTURE_TYPE_2D,
         context.framebuffer_width,
         context.framebuffer_height,
-        candidates[2],
+        context.depth_format,
         WGPUTextureUsage_RenderAttachment,
         true,
         WGPUTextureAspect_DepthOnly,
@@ -1902,7 +1894,7 @@ b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
         "__ywmaaengine_default_depth_texture__",
         context.framebuffer_width,
         context.framebuffer_height,
-        sizes[2], // 4 channels for depth
+        context.depth_channel_count,
         false,
         true,
         false,
@@ -2040,10 +2032,18 @@ void webgpu_renderer_texture_create_writeable(TEXTURE* t) {
     t->internal_data = (WEBGPU_IMAGE*)yallocate_aligned(sizeof(WEBGPU_IMAGE), 8, MEMORY_TAG_TEXTURE);
     WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)t->internal_data;
 
-    WGPUTextureUsage image_usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment;
-    WGPUTextureAspect image_aspect = WGPUTextureAspect_All;
-    WGPUTextureFormat image_format = webgpu_channel_count_to_format(t->channel_count, WGPUTextureFormat_RGBA8Unorm);
-    
+    WGPUTextureUsage image_usage;
+    WGPUTextureAspect image_aspect;
+    WGPUTextureFormat image_format;
+    if (t->flags & TEXTURE_FLAG_DEPTH) {
+        image_usage = WGPUTextureUsage_RenderAttachment;
+        image_aspect = WGPUTextureAspect_DepthOnly;
+        image_format = context.depth_format;
+    } else {
+        image_usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc | WGPUTextureUsage_RenderAttachment;
+        image_aspect = WGPUTextureAspect_All;
+        image_format = webgpu_channel_count_to_format(t->channel_count, WGPUTextureFormat_RGBA8Unorm);
+    }
     // NOTE: Lots of assumptions here, different texture types will require
     // different options here.
     webgpu_image_create(
@@ -2072,16 +2072,14 @@ void webgpu_renderer_texture_read_data(TEXTURE* t, u32 offset, u32 size, void** 
         PRINT_ERROR("Failed to create staging buffer for texture read.");
         return;
     }
-    renderer_renderbuffer_bind(&staging, 0);
 
     // Copy the data to the buffer.
-    webgpu_image_copy_to_buffer(&context, t->type, image, t->channel_count, ((WEBGPU_BUFFER*)staging.internal_data)->handle, &context.encoder);
+    webgpu_image_copy_to_buffer(t->type, image, t->channel_count, ((WEBGPU_BUFFER*)staging.internal_data)->handle, &context.encoder);
 
     if (!webgpu_buffer_read(&staging, offset, size, out_memory)) {
         PRINT_ERROR("webgpu_buffer_read failed.");
     }
 
-    renderer_renderbuffer_unbind(&staging);
     renderer_renderbuffer_destroy(&staging);
 }
 
@@ -2092,23 +2090,29 @@ void webgpu_renderer_texture_read_pixel(TEXTURE* t, u32 x, u32 y, u8** out_rgba)
 
     // TODO: creating a buffer every time isn't great. Could optimize this by creating a buffer once
     // and just reusing it.
-
     // Create a staging buffer and load data into it.
     RENDER_BUFFER staging;
-    if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_READ, sizeof(u8) * 4, false, &staging)) {
+    if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_READ, 256, false, &staging)) {
         PRINT_ERROR("Failed to create staging buffer for texture pixel read.");
         return;
     }
-    renderer_renderbuffer_bind(&staging, 0);
+
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(context.device, NULL);
 
     // Copy the data to the buffer.
-    webgpu_image_copy_pixel_to_buffer(&context, t->type, image, t->channel_count, ((WEBGPU_BUFFER*)staging.internal_data)->handle, x, y, &context.encoder);
+    webgpu_image_copy_pixel_to_buffer(t->type, image, t->channel_count, ((WEBGPU_BUFFER*)staging.internal_data)->handle, x, y, &encoder);
+
+    WGPUCommandBuffer cmd_buffer = wgpuCommandEncoderFinish(encoder, NULL);
+    wgpuQueueSubmit(context.queue, 1, &cmd_buffer);
+
+    wgpuCommandBufferRelease(cmd_buffer);
+    wgpuCommandEncoderRelease(encoder);
+
 
     if (!webgpu_buffer_read(&staging, 0, sizeof(u8) * 4, (void**)out_rgba)) {
         PRINT_ERROR("webgpu_buffer_read failed.");
     }
 
-    renderer_renderbuffer_unbind(&staging);
     renderer_renderbuffer_destroy(&staging);
 }
 

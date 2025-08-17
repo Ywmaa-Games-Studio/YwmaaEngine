@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l2102AMle>
+ *   <l2297AMle>
  * Auto updated?
  *   Yes
  *
@@ -116,7 +116,9 @@ b8 platform_pump_messages(void) {
 // Platform-specific function that returns required extension names based on the active backend
 void platform_get_required_extension_names(const char*** names_darray) {
     // Return appropriate extensions based on active backend
+#ifdef WAYLAND_ENABLED
     darray_push(*names_darray, &"VK_KHR_wayland_surface");
+#endif
     darray_push(*names_darray, &"VK_KHR_xcb_surface");  // VK_KHR_xlib_surface?
 }
 

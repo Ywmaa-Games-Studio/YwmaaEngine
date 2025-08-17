@@ -132,7 +132,6 @@ void webgpu_image_copy_from_buffer(
 }
 
 void webgpu_image_copy_to_buffer(
-    WEBGPU_CONTEXT* context,
     E_TEXTURE_TYPE type,
     WEBGPU_IMAGE* image,
     u8 bytes_per_pixel,
@@ -191,7 +190,6 @@ void webgpu_image_copy_to_buffer(
 
 
 void webgpu_image_copy_pixel_to_buffer(
-    WEBGPU_CONTEXT* context,
     E_TEXTURE_TYPE type,
     WEBGPU_IMAGE* image,
     u8 bytes_per_pixel,
@@ -211,8 +209,8 @@ void webgpu_image_copy_pixel_to_buffer(
             .buffer = buffer,
             .layout = {
                 .offset = 0,
-                .bytesPerRow = 0,
-                .rowsPerImage = 0
+                .bytesPerRow = 256, // Only one pixel
+                .rowsPerImage = 1 // Only one pixel
             }
     };
 
@@ -237,7 +235,7 @@ void webgpu_image_copy_pixel_to_buffer(
         case TEXTURE_TYPE_CUBE:
             for (uint32_t layer = 0; layer < 6; ++layer) {
                 source.origin.z = layer;
-                destination.layout.offset = layer * (image->width * image->height * bytes_per_pixel);
+                destination.layout.offset = layer * (256);
                 wgpuCommandEncoderCopyTextureToBuffer(
                     *command_encoder,
                     &source,
@@ -250,6 +248,11 @@ void webgpu_image_copy_pixel_to_buffer(
 }
 
 void webgpu_image_destroy(WEBGPU_IMAGE* image, u8 channel_count, E_TEXTURE_TYPE type) {
+    if (!image) {
+        PRINT_ERROR("webgpu_image_destroy: image is NULL.");
+        return;
+    }
+
     if (image->view) {
         wgpuTextureViewRelease(image->view);
         image->view = 0;

@@ -336,6 +336,11 @@ b8 renderer_renderpass_create(const RENDERPASS_CONFIG* config, RENDERPASS* out_r
 }
 
 void renderer_renderpass_destroy(RENDERPASS* pass) {
+    // Destroy its rendertargets.
+    for (u32 i = 0; i < pass->render_target_count; ++i) {
+        renderer_render_target_destroy(&pass->targets[i], true);
+    }
+    
     state_ptr->backend.renderpass_destroy(pass);
 }
 

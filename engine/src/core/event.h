@@ -90,8 +90,8 @@ typedef enum E_SYSTEM_EVENT_CODE {
 
     // Mouse moved.
     /* Context usage:
-     * u16 x = data.data.u16[0];
-     * u16 y = data.data.u16[1];
+     * u16 x = data.data.i16[0];
+     * u16 y = data.data.i16[1];
      */
     EVENT_CODE_MOUSE_MOVED = 0x06,
 

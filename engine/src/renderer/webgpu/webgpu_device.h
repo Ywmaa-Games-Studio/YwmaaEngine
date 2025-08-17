@@ -14,3 +14,4 @@ void on_device_error(WGPUErrorType type, char const* message, void* /* pUserData
 void on_queue_work_done(WGPUQueueWorkDoneStatus status, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2);
 
 WGPUNativeLimits get_required_limits(WEBGPU_CONTEXT* context);
+b8 webgpu_device_detect_depth_format(WEBGPU_CONTEXT* context, b8 need_stencil);

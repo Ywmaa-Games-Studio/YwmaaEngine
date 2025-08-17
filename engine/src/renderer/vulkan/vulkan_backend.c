@@ -2014,10 +2014,10 @@ b8 vulkan_renderer_shader_acquire_instance_resources(SHADER* s, TEXTURE_MAP** ma
     }
 
     VULKAN_SHADER_INSTANCE_STATE* instance_state = &internal->instance_states[*out_instance_id];
-    u8 sampler_binding_index = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].sampler_binding_index;
-    u32 instance_texture_count = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].bindings[sampler_binding_index].descriptorCount;
     // Only setup if the shader actually requires it.
     if (s->instance_texture_count > 0) {
+        u8 sampler_binding_index = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].sampler_binding_index;
+        u32 instance_texture_count = internal->config.descriptor_sets[DESC_SET_INDEX_INSTANCE].bindings[sampler_binding_index].descriptorCount;
         // Wipe out the memory for the entire array, even if it isn't all used.
         instance_state->instance_texture_maps = yallocate_aligned(sizeof(TEXTURE_MAP*) * s->instance_texture_count, 8, MEMORY_TAG_ARRAY);
         TEXTURE* default_texture = texture_system_get_default_texture();

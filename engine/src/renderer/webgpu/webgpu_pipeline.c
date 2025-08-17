@@ -106,7 +106,7 @@ b8 webgpu_pipeline_create(
         depthStencilState.nextInChain = NULL;
         depthStencilState.depthCompare = WGPUCompareFunction_Less;
         depthStencilState.depthWriteEnabled = (config->shader_flags & SHADER_FLAG_DEPTH_WRITE) ? true : false;
-        depthStencilState.format = WGPUTextureFormat_Depth24Plus;
+        depthStencilState.format = context->depth_format;
         // Deactivate the stencil alltogether
         depthStencilState.stencilReadMask = 0;
         depthStencilState.stencilWriteMask = 0;

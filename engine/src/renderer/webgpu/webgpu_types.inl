@@ -246,6 +246,9 @@ typedef struct WEBGPU_CONTEXT {
     WGPUAdapter adapter;
     WGPUDevice device;
     WGPULimits device_supported_limits;
+    WGPUTextureFormat depth_format;
+    /** @brief The chosen depth format's number of channels.*/
+    u8 depth_channel_count;
     WGPUSurface surface;
     WGPUQueue queue;
     WGPUCommandEncoder encoder;

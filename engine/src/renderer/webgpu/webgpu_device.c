@@ -73,10 +73,6 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     PRINT_INFO(" - Adapter Type: %s", adapter_type_to_string(properties.adapterType) );
     PRINT_INFO(" - Backend Type: %s",  backend_type_to_string(properties.backendType) );
 
-    
-    
-
-
 /*     WGPUNativeLimits required_limits_extras = get_required_limits(context);
     required_limits_extras.chain.sType = WGPUSType_NativeLimits; */
 
@@ -152,6 +148,47 @@ void webgpu_device_destroy(WEBGPU_CONTEXT* context){
         PRINT_DEBUG("Destroying WebGPU Device...");
         wgpuDeviceRelease(context->device);
     }
+}
+b8 webgpu_device_detect_depth_format(WEBGPU_CONTEXT* context, b8 need_stencil) {
+/*     const u64 candidate_count = 3;
+    WGPUTextureFormat candidates[candidate_count] = {
+        WGPUTextureFormat_Depth32Float,
+        WGPUTextureFormat_Depth32FloatStencil8,
+        WGPUTextureFormat_Depth24Plus};
+    u8 sizes[candidate_count] = {
+        4,
+        4,
+        3}; */
+
+    if (need_stencil) {
+        // Check if the device actually HAS the optional feature enabled.
+        // (Remember: you must have requested it at device-creation time.)
+        b8 hasD32S8 = wgpuDeviceHasFeature(
+            context->device, WGPUFeatureName_Depth32FloatStencil8
+        );
+
+        if (hasD32S8) {
+            context->depth_format = WGPUTextureFormat_Depth32FloatStencil8;
+            context->depth_channel_count = 4; // 32-bit depth + 8-bit stencil
+            return true;
+        } else {
+            // Guaranteed portable fallback.
+            context->depth_format = WGPUTextureFormat_Depth24PlusStencil8;
+            context->depth_channel_count = 3; // 24-bit depth + 8-bit stencil
+            return true;
+        }
+    } else {
+        // Both of these are widely supported; Depth24Plus is the most portable.
+        // Prefer 32-bit depth if you want the extra precision.
+        context->depth_format = WGPUTextureFormat_Depth32Float; // try this first
+        context->depth_channel_count = 4; // 32-bit depth
+        // If you *really* want the most portable path, uncomment:
+        // *outFormat = WGPUTextureFormat_Depth24Plus;
+        // *out_channel_count = 3; // 24-bit depth
+        return true;
+    }
+
+    return false; // No suitable depth format found
 }
 
 /**

@@ -625,6 +625,8 @@ typedef enum E_RENDER_VIEW_KNOWN_TYPE {
     RENDERER_VIEW_KNOWN_TYPE_UI = 0x02,
     /** @brief A view which only renders skybox objects. */
     RENDERER_VIEW_KNOWN_TYPE_SKYBOX = 0x03,
+    /** @brief A view which only renders ui and world objects to be picked. */
+    RENDERER_VIEW_KNOWN_TYPE_PICK = 0x04,
 } E_RENDER_VIEW_KNOWN_TYPE;
 
 /** @brief Known view matrix sources. */
@@ -798,6 +800,16 @@ typedef struct UI_PACKET_DATA {
     u32 text_count;
     struct UI_TEXT** texts;
 } UI_PACKET_DATA;
+
+typedef struct PICK_PACKET_DATA {
+    MESH_PACKET_DATA world_mesh_data;
+    u32 world_geometry_count;
+    MESH_PACKET_DATA ui_mesh_data;
+    u32 ui_geometry_count;
+    // TODO: temp
+    u32 text_count;
+    struct UI_TEXT** texts;
+} PICK_PACKET_DATA;
 
 typedef struct SKYBOX_PACKET_DATA {
     Skybox* sb;

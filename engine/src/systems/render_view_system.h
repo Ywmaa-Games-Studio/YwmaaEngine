@@ -57,11 +57,12 @@ RENDER_VIEW* render_view_system_get(const char* name);
  * @brief Builds a render view packet using the provided view and meshes.
  *
  * @param view A pointer to the view to use.
+ * @param frame_allocator An allocator used this frame to build a packet.
  * @param data Freeform data used to build the packet.
  * @param out_packet A pointer to hold the generated packet.
  * @return True on success; otherwise false.
  */
-b8 render_view_system_build_packet(const RENDER_VIEW* view, void* data, struct RENDER_VIEW_PACKET* out_packet);
+b8 render_view_system_build_packet(const RENDER_VIEW* view, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet);
 
 /**
  * @brief Uses the given view and packet to render the contents therein.

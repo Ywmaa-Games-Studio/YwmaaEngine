@@ -265,14 +265,6 @@ typedef struct Mesh {
     Transform transform;
 } Mesh;
 
-typedef struct Skybox {
-    TEXTURE_MAP cubemap;
-    GEOMETRY* g;
-    u32 instance_id;
-    /** @brief Synced to the renderer's current frame number when the material has been applied that frame. */
-    u64 render_frame_number;
-} Skybox;
-
 /** @brief Shader stages available in the system. */
 typedef enum E_SHADER_STAGE {
     SHADER_STAGE_VERTEX = 0x00000001,

@@ -5,6 +5,7 @@
 #include "core/event.h"
 #include "math/ymath.h"
 #include "math/transform.h"
+#include "memory/linear_allocator.h"
 #include "data_structures/darray.h"
 #include "systems/resource_system.h"
 #include "systems/material_system.h"
@@ -113,7 +114,7 @@ void render_view_ui_on_resize(struct RENDER_VIEW* self, u32 width, u32 height) {
     }
 }
 
-b8 render_view_ui_on_build_packet(const struct RENDER_VIEW* self, void* data, struct RENDER_VIEW_PACKET* out_packet) {
+b8 render_view_ui_on_build_packet(const struct RENDER_VIEW* self, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet) {
     if (!self || !data || !out_packet) {
         PRINT_WARNING("render_view_ui_on_build_packet requires valid pointer to view, packet, and data.");
         return false;
@@ -130,7 +131,8 @@ b8 render_view_ui_on_build_packet(const struct RENDER_VIEW* self, void* data, st
     out_packet->view_matrix = internal_data->view_matrix;
 
     // TODO: temp set extended data to the test text objects for now.
-    out_packet->extended_data = data;
+    out_packet->extended_data = linear_allocator_allocate(frame_allocator, sizeof(UI_PACKET_DATA));
+    ycopy_memory(out_packet->extended_data, packet_data, sizeof(UI_PACKET_DATA));
 
     // Obtain all geometries from the current scene.
     // Iterate all meshes and add them to the packet's geometries collection

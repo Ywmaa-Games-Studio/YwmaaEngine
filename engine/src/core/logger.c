@@ -39,14 +39,6 @@ b8 init_logging(u64* memory_requirement, void* state) {
         return false;
     }
 
-    // TODO: Remove this
-    PRINT_ERROR("A test message: %f", 3.14f);
-    PRINT_WARNING("A test message: %f", 3.14f);
-    PRINT_INFO("A test message: %f", 3.14f);
-    PRINT_DEBUG("A test message: %f", 3.14f);
-    PRINT_TRACE("A test message: %f", 3.14f);
-
-    // TODO: create log file.
     return true;
 }
 

@@ -7,6 +7,7 @@
 #include "core/uuid.h"
 #include "math/ymath.h"
 #include "math/transform.h"
+#include "memory/linear_allocator.h"
 #include "data_structures/darray.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
@@ -242,7 +243,7 @@ void render_view_pick_on_resize(struct RENDER_VIEW* self, u32 width, u32 height)
     }
 }
 
-b8 render_view_pick_on_build_packet(const struct RENDER_VIEW* self, void* data, struct RENDER_VIEW_PACKET* out_packet) {
+b8 render_view_pick_on_build_packet(const struct RENDER_VIEW* self, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet) {
     if (!self || !data || !out_packet) {
         PRINT_WARNING("render_view_pick_on_build_packet requires valid pointer to view, packet, and data.");
         return false;
@@ -261,7 +262,7 @@ b8 render_view_pick_on_build_packet(const struct RENDER_VIEW* self, void* data, 
     // Set the pick packet data to extended data.
     packet_data->world_geometry_count = 0;
     packet_data->ui_geometry_count = 0;
-    out_packet->extended_data = data;
+    out_packet->extended_data = linear_allocator_allocate(frame_allocator, sizeof(PICK_PACKET_DATA));
 
     i32 highest_instance_id = 0;
     // Iterate all meshes in world data.
@@ -317,6 +318,9 @@ b8 render_view_pick_on_build_packet(const struct RENDER_VIEW* self, void* data, 
             acquire_shader_instances(self);
         }
     }
+
+    // Copy over the packet data.
+    ycopy_memory(out_packet->extended_data, packet_data, sizeof(PICK_PACKET_DATA));
 
     return true;
 }

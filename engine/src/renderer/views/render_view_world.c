@@ -5,6 +5,7 @@
 #include "core/event.h"
 #include "math/ymath.h"
 #include "math/transform.h"
+#include "memory/linear_allocator.h"
 #include "data_structures/darray.h"
 #include "systems/resource_system.h"
 #include "systems/material_system.h"
@@ -166,7 +167,7 @@ void render_view_world_on_resize(struct RENDER_VIEW* self, u32 width, u32 height
     }
 }
 
-b8 render_view_world_on_build_packet(const struct RENDER_VIEW* self, void* data, struct RENDER_VIEW_PACKET* out_packet) {
+b8 render_view_world_on_build_packet(const struct RENDER_VIEW* self, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet) {
     if (!self || !data || !out_packet) {
         PRINT_WARNING("render_view_world_on_build_packet requires valid pointer to view, packet, and data.");
         return false;

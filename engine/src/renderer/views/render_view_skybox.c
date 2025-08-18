@@ -1,3 +1,4 @@
+#pragma clang optimize off
 #include "render_view_skybox.h"
 
 #include "core/logger.h"
@@ -5,6 +6,7 @@
 #include "core/event.h"
 #include "math/ymath.h"
 #include "math/transform.h"
+#include "resources/skybox.h"
 #include "data_structures/darray.h"
 #include "systems/resource_system.h"
 #include "systems/material_system.h"
@@ -116,7 +118,7 @@ void render_view_skybox_on_resize(struct RENDER_VIEW* self, u32 width, u32 heigh
     }
 }
 
-b8 render_view_skybox_on_build_packet(const struct RENDER_VIEW* self, void* data, struct RENDER_VIEW_PACKET* out_packet) {
+b8 render_view_skybox_on_build_packet(const struct RENDER_VIEW* self, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet) {
     if (!self || !data || !out_packet) {
         PRINT_WARNING("render_view_skybox_on_build_packet requires valid pointer to view, packet, and data.");
         return false;

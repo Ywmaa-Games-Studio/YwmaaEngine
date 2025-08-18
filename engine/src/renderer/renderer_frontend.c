@@ -97,7 +97,6 @@ void renderer_on_resized(u16 width, u16 height) {
 
 b8 renderer_draw_frame(RENDER_PACKET* packet) {
     state_ptr->backend.frame_number++;
-
     // Make sure the window is not currently being resized by waiting a designated
     // number of frames after the last resize operation before performing the backend updates.
     if (state_ptr->resizing) {
@@ -126,7 +125,6 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
         u8 attachment_index = state_ptr->backend.window_attachment_index_get();
         // Render each view.
         for (u32 i = 0; i < packet->view_count; ++i) {
-
             if (!render_view_system_on_render(packet->views[i].view, &packet->views[i], state_ptr->backend.frame_number, attachment_index)) {
                 PRINT_ERROR("Error rendering view index %i.", i);
                 return false;

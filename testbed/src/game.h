@@ -15,6 +15,8 @@ typedef struct GAME_STATE {
 
     u16 width, height;
 
+    Frustum camera_frustum;
+
     // TODO: temp
     Skybox sb;
 

@@ -148,7 +148,7 @@ YINLINE Vector2 Vector2_sub(Vector2 vector_0, Vector2 vector_1) {
  * @param vector_1 The second vector.
  * @return The resulting vector. 
  */
-YINLINE Vector2 Vector2_mul(Vector2 vector_0, Vector2 vector_1) {
+YINLINE Vector2 Vector2_multiply(Vector2 vector_0, Vector2 vector_1) {
     return (Vector2){
         vector_0.x * vector_1.x,
         vector_0.y * vector_1.y};
@@ -373,7 +373,7 @@ YINLINE Vector3 Vector3_sub(Vector3 vector_0, Vector3 vector_1) {
  * @param vector_1 The second vector.
  * @return The resulting vector. 
  */
-YINLINE Vector3 Vector3_mul(Vector3 vector_0, Vector3 vector_1) {
+YINLINE Vector3 Vector3_multiply(Vector3 vector_0, Vector3 vector_1) {
     return (Vector3){
         vector_0.x * vector_1.x,
         vector_0.y * vector_1.y,
@@ -387,7 +387,7 @@ YINLINE Vector3 Vector3_mul(Vector3 vector_0, Vector3 vector_1) {
  * @param scalar The scalar value.
  * @return A copy of the resulting vector.
  */
-YINLINE Vector3 Vector3_mul_scalar(Vector3 vector_0, f32 scalar) {
+YINLINE Vector3 Vector3_multiply_scalar(Vector3 vector_0, f32 scalar) {
     return (Vector3){
         vector_0.x * scalar,
         vector_0.y * scalar,
@@ -644,7 +644,7 @@ YINLINE Vector4 Vector4_sub(Vector4 vector_0, Vector4 vector_1) {
  * @param vector_1 The second vector.
  * @return The resulting vector. 
  */
-YINLINE Vector4 Vector4_mul(Vector4 vector_0, Vector4 vector_1) {
+YINLINE Vector4 Vector4_multiply(Vector4 vector_0, Vector4 vector_1) {
     Vector4 result;
     for (u64 i = 0; i < 4; ++i) {
         result.elements[i] = vector_0.elements[i] * vector_1.elements[i];
@@ -794,7 +794,7 @@ YINLINE Matrice4 Matrice4_identity(void) {
  * @param matrix_1 The second matrix to be multiplied.
  * @return The result of the matrix multiplication.
  */
-YINLINE Matrice4 Matrice4_mul(Matrice4 matrix_0, Matrice4 matrix_1) {
+YINLINE Matrice4 Matrice4_multiply(Matrice4 matrix_0, Matrice4 matrix_1) {
     Matrice4 out_matrix = Matrice4_identity();
 
     const f32* m1_ptr = matrix_0.data;
@@ -819,10 +819,10 @@ YINLINE Matrice4 Matrice4_mul(Matrice4 matrix_0, Matrice4 matrix_1) {
  * @brief Creates and returns an orthographic projection matrix. Typically used to
  * render flat or 2D scenes.
  * 
- * @param left The left side of the view frustum.
- * @param right The right side of the view frustum.
- * @param bottom The bottom side of the view frustum.
- * @param top The top side of the view frustum.
+ * @param left The left side of the view Frustum.
+ * @param right The right side of the view Frustum.
+ * @param bottom The bottom side of the view Frustum.
+ * @param top The top side of the view Frustum.
  * @param near_clip The near clipping plane distance.
  * @param far_clip The far clipping plane distance.
  * @return A new orthographic projection matrix. 
@@ -1067,8 +1067,8 @@ YINLINE Matrice4 Matrice4_euler_xyz(f32 x_radians, f32 y_radians, f32 z_radians)
     Matrice4 rx = Matrice4_euler_x(x_radians);
     Matrice4 ry = Matrice4_euler_y(y_radians);
     Matrice4 rz = Matrice4_euler_z(z_radians);
-    Matrice4 out_matrix = Matrice4_mul(rx, ry);
-    out_matrix = Matrice4_mul(out_matrix, rz);
+    Matrice4 out_matrix = Matrice4_multiply(rx, ry);
+    out_matrix = Matrice4_multiply(out_matrix, rz);
     return out_matrix;
 }
 
@@ -1162,6 +1162,64 @@ YINLINE Vector3 Matrice4_right(Matrice4 matrix) {
     return right;
 }
 
+/**
+ * @brief Performs m * v
+ *
+ * @param m The matrix to be multiplied.
+ * @param v The vector to multiply by.
+ * @return The transformed vector.
+ */
+YINLINE Vector3 Matrice4_multiply_Vector3(Matrice4 m, Vector3 v) {
+    return (Vector3){
+        v.x * m.data[0] + v.y * m.data[1] + v.z * m.data[2] + m.data[3],
+        v.x * m.data[4] + v.y * m.data[5] + v.z * m.data[6] + m.data[7],
+        v.x * m.data[8] + v.y * m.data[9] + v.z * m.data[10] + m.data[11]};
+}
+
+/**
+ * @brief Performs v * m
+ *
+ * @param v The vector to bemultiplied.
+ * @param m The matrix to be multiply by.
+ * @return The transformed vector.
+ */
+YINLINE Vector3 Vector3_multiply_Matrice4(Vector3 v, Matrice4 m) {
+    return (Vector3){
+        v.x * m.data[0] + v.y * m.data[4] + v.z * m.data[8] + m.data[12],
+        v.x * m.data[1] + v.y * m.data[5] + v.z * m.data[9] + m.data[13],
+        v.x * m.data[2] + v.y * m.data[6] + v.z * m.data[10] + m.data[14]};
+}
+
+/**
+ * @brief Performs m * v
+ *
+ * @param m The matrix to be multiplied.
+ * @param v The vector to multiply by.
+ * @return The transformed vector.
+ */
+YINLINE Vector4 Matrice4_multiply_Vector4(Matrice4 m, Vector4 v) {
+    return (Vector4){
+        v.x * m.data[0] + v.y * m.data[1] + v.z * m.data[2] + v.w * m.data[3],
+        v.x * m.data[4] + v.y * m.data[5] + v.z * m.data[6] + v.w * m.data[7],
+        v.x * m.data[8] + v.y * m.data[9] + v.z * m.data[10] + v.w * m.data[11],
+        v.x * m.data[12] + v.y * m.data[13] + v.z * m.data[14] + v.w * m.data[15]};
+}
+
+/**
+ * @brief Performs v * m
+ *
+ * @param v The vector to bemultiplied.
+ * @param m The matrix to be multiply by.
+ * @return The transformed vector.
+ */
+YINLINE Vector4 Vector4_multiply_Matrice4(Vector4 v, Matrice4 m) {
+    return (Vector4){
+        v.x * m.data[0] + v.y * m.data[4] + v.z * m.data[8] + v.w * m.data[12],
+        v.x * m.data[1] + v.y * m.data[5] + v.z * m.data[9] + v.w * m.data[13],
+        v.x * m.data[2] + v.y * m.data[6] + v.z * m.data[10] + v.w * m.data[14],
+        v.x * m.data[3] + v.y * m.data[7] + v.z * m.data[11] + v.w * m.data[15]};
+}
+
 // ------------------------------------------
 // Quaternion
 // ------------------------------------------
@@ -1199,7 +1257,7 @@ YINLINE Quaternion Quaternion_inverse(Quaternion q) {
     return Quaternion_normalize(Quaternion_conjugate(q));
 }
 
-YINLINE Quaternion Quaternion_mul(Quaternion q_0, Quaternion q_1) {
+YINLINE Quaternion Quaternion_multiply(Quaternion q_0, Quaternion q_1) {
     Quaternion out_Quaternionernion;
 
     out_Quaternionernion.x = q_0.x * q_1.w +
@@ -1432,3 +1490,70 @@ YINLINE void Vector3_to_rgb_u32(Vector3 v, u32* out_r, u32* out_g, u32* out_b) {
     *out_g = v.g * 255;
     *out_b = v.b * 255;
 }
+
+YAPI Plane3D plane_3d_create(Vector3 p1, Vector3 norm);
+
+/**
+ * @brief Creates and returns a Frustum based on the provided position, direction vectors, aspect, field of view,
+ * and near/far clipping planes (typically obtained from a camera). This is typically used for Frustum culling.
+ *
+ * @param position A constant pointer to the position to be used.
+ * @param forward A constant pointer to the forward vector to be used.
+ * @param right A constant pointer to the right vector to be used.
+ * @param up A constant pointer to the up vector to be used.
+ * @param aspect The aspect ratio.
+ * @param fov The vertical field of view.
+ * @param near The near clipping plane distance.
+ * @param far The far clipping plane distance.
+ * @return A shiny new Frustum.
+ */
+YAPI Frustum frustum_create(const Vector3* position, const Vector3* forward, const Vector3* right, const Vector3* up, f32 aspect, f32 fov, f32 near, f32 far);
+
+/**
+ * @brief Obtains the signed distance between the plane p and the provided postion.
+ *
+ * @param p A constant pointer to a plane.
+ * @param position A constant pointer to a position.
+ * @return The signed distance from the point to the plane.
+ */
+YAPI f32 plane_signed_distance(const Plane3D* p, const Vector3* position);
+
+/**
+ * @brief Indicates if plane p intersects a sphere constructed via center and radius.
+ *
+ * @param p A constant pointer to a plane.
+ * @param center A constant pointer to a position representing the center of a sphere.
+ * @param radius The radius of the sphere.
+ * @return True if the sphere intersects the plane; otherwise false.
+ */
+YAPI b8 plane_intersects_sphere(const Plane3D* p, const Vector3* center, f32 radius);
+
+/**
+ * @brief Indicates if the Frustum intersects (or contains) a sphere constructed via center and radius.
+ *
+ * @param f A constant pointer to a Frustum.
+ * @param center A constant pointer to a position representing the center of a sphere.
+ * @param radius The radius of the sphere.
+ * @return True if the sphere is intersected by or contained within the Frustum f; otherwise false.
+ */
+YAPI b8 frustum_intersects_sphere(const Frustum* f, const Vector3* center, f32 radius);
+
+/**
+ * @brief Indicates if plane p intersects an axis-aligned bounding box constructed via center and extents.
+ * 
+ * @param p A constant pointer to a plane.
+ * @param center A constant pointer to a position representing the center of an axis-aligned bounding box.
+ * @param extents The half-extents of an axis-aligned bounding box.
+ * @return True if the axis-aligned bounding box intersects the plane; otherwise false. 
+ */
+YAPI b8 plane_intersects_aabb(const Plane3D* p, const Vector3* center, const Vector3* extents);
+
+/**
+ * @brief Indicates if Frustum f intersects an axis-aligned bounding box constructed via center and extents.
+ * 
+ * @param f A constant pointer to a Frustum.
+ * @param center A constant pointer to a position representing the center of an axis-aligned bounding box.
+ * @param extents The half-extents of an axis-aligned bounding box.
+ * @return True if the axis-aligned bounding box is intersected by or contained within the Frustum f; otherwise false.  
+ */
+YAPI b8 frustum_intersects_aabb(const Frustum* f, const Vector3* center, const Vector3* extents);

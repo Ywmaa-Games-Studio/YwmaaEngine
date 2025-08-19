@@ -8,7 +8,7 @@
  * @param owner The owner of the identifier.
  * @return The new identifier.
  */
-u32 identifier_aquire_new_id(void* owner);
+YAPI u32 identifier_aquire_new_id(void* owner);
 
 /**
  * @brief Releases the given identifier, which can then be used
@@ -16,4 +16,4 @@ u32 identifier_aquire_new_id(void* owner);
  *
  * @param id The identifier to be released.
  */
-void identifier_release_id(u32 id);
+YAPI void identifier_release_id(u32 id);

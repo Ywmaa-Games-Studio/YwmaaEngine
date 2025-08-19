@@ -802,7 +802,8 @@ typedef struct UI_PACKET_DATA {
 } UI_PACKET_DATA;
 
 typedef struct PICK_PACKET_DATA {
-    MESH_PACKET_DATA world_mesh_data;
+    // Copy of frame data darray ptr
+    GEOMETRY_RENDER_DATA* world_mesh_data;
     u32 world_geometry_count;
     MESH_PACKET_DATA ui_mesh_data;
     u32 ui_geometry_count;

@@ -104,3 +104,13 @@ typedef struct Transform {
     /** @brief A pointer to a parent transform if one is assigned. Can also be null. */
     struct Transform* parent;
 } Transform;
+
+typedef struct Plane3D {
+    Vector3 normal;
+    f32 distance;
+} Plane3D;
+
+typedef struct Frustum {
+    // Top, bottom, right, left, far, near
+    Plane3D sides[6];
+} Frustum;

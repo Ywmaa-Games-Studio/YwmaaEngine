@@ -57,3 +57,63 @@ f32 fyrandom(void) {
 f32 fyrandom_in_range(f32 min, f32 max) {
     return min + ((float)yrandom() / ((f32)RAND_MAX / (max - min)));
 }
+
+Plane3D plane_3d_create(Vector3 p1, Vector3 norm) {
+    Plane3D p;
+    p.normal = Vector3_normalized(norm);
+    p.distance = Vector3_dot(p.normal, p1);
+    return p;
+}
+
+Frustum frustum_create(const Vector3* position, const Vector3* forward, const Vector3* right, const Vector3* up, f32 aspect, f32 fov, f32 near, f32 far) {
+    Frustum f;
+
+    f32 half_v = far * tanf(fov * 0.5f);
+    f32 half_h = half_v * aspect;
+    Vector3 fwd = *forward;
+    Vector3 forward_far = Vector3_multiply_scalar(fwd, far);
+
+    // Top, bottom, right, left, far, near
+    f.sides[0] = plane_3d_create(Vector3_add(Vector3_multiply_scalar(fwd, near), *position), fwd);
+    f.sides[1] = plane_3d_create(Vector3_add(*position, forward_far), Vector3_multiply_scalar(fwd, -1.0f));
+    f.sides[2] = plane_3d_create(*position, Vector3_cross(*up, Vector3_add(forward_far, Vector3_multiply_scalar(*right, half_h))));
+    f.sides[3] = plane_3d_create(*position, Vector3_cross(Vector3_sub(forward_far, Vector3_multiply_scalar(*right, half_h)), *up));
+    f.sides[4] = plane_3d_create(*position, Vector3_cross(*right, Vector3_sub(forward_far, Vector3_multiply_scalar(*up, half_v))));
+    f.sides[5] = plane_3d_create(*position, Vector3_cross(Vector3_add(forward_far, Vector3_multiply_scalar(*up, half_v)), *right));
+
+    return f;
+}
+
+f32 plane_signed_distance(const Plane3D* p, const Vector3* position) {
+    return Vector3_dot(p->normal, *position) - p->distance;
+}
+
+b8 plane_intersects_sphere(const Plane3D* p, const Vector3* center, f32 radius) {
+    return plane_signed_distance(p, center) > -radius;
+}
+
+b8 frustum_intersects_sphere(const Frustum* f, const Vector3* center, f32 radius) {
+    for (u8 i = 0; i < 6; ++i) {
+        if (!plane_intersects_sphere(&f->sides[i], center, radius)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+b8 plane_intersects_aabb(const Plane3D* p, const Vector3* center, const Vector3* extents) {
+    f32 r = extents->x * yabs(p->normal.x) +
+            extents->y * yabs(p->normal.y) +
+            extents->z * yabs(p->normal.z);
+
+    return -r <= plane_signed_distance(p, center);
+}
+
+b8 frustum_intersects_aabb(const Frustum* f, const Vector3* center, const Vector3* extents) {
+    for (u8 i = 0; i < 6; ++i) {
+        if (!plane_intersects_aabb(&f->sides[i], center, extents)) {
+            return false;
+        }
+    }
+    return true;
+}

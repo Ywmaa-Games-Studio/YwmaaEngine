@@ -333,6 +333,8 @@ b8 game_init(GAME* game_instance) {
     event_register(EVENT_CODE_KEY_PRESSED, game_instance, game_on_key);
     event_register(EVENT_CODE_KEY_RELEASED, game_instance, game_on_key);
 
+    yzero_memory(&game_instance->frame_data, sizeof(GAME_FRAME_DATA));
+
     return true;
 }
 
@@ -356,8 +358,18 @@ void game_shutdown(GAME* game_instance) {
 }
 
 b8 game_update(GAME* game_instance, f32 delta_time) {
+    // Ensure this is cleaned up to avoid leaking memory.
+    // TODO: Need a version of this that uses the frame allocator.
+    if (game_instance->frame_data.world_geometries) {
+        darray_destroy(game_instance->frame_data.world_geometries);
+        game_instance->frame_data.world_geometries = 0;
+    }
+
     // Reset the frame allocator
     linear_allocator_free_all(&game_instance->frame_allocator);
+
+    // Clear frame data
+    yzero_memory(&game_instance->frame_data, sizeof(GAME_FRAME_DATA));
 
     static u64 alloc_count = 0;
     u64 prev_alloc_count = alloc_count;
@@ -486,13 +498,86 @@ b8 game_update(GAME* game_instance, f32 delta_time) {
     f64 fps, frame_time;
     metrics_frame(&fps, &frame_time);
 
+    // Update the frustum
+    Vector3 forward = camera_forward(state->world_camera);
+    Vector3 right = camera_right(state->world_camera);
+    Vector3 up = camera_up(state->world_camera);
+    // TODO: get camera fov, aspect, etc.
+    state->camera_frustum = frustum_create(&state->world_camera->position, &forward, &right, &up, (f32)state->width / state->height, deg_to_rad(45.0f), 0.1f, 1000.0f);
+
+    // NOTE: starting at a reasonable default to avoid too many reallocs.
+    game_instance->frame_data.world_geometries = darray_reserve(GEOMETRY_RENDER_DATA, 512);
+    u32 draw_count = 0;
+    for (u32 i = 0; i < 10; ++i) {
+        Mesh* m = &state->meshes[i];
+        if (m->generation != INVALID_ID_U8) {
+            Matrice4 model = transform_get_world(&m->transform);
+
+            for (u32 j = 0; j < m->geometry_count; ++j) {
+                GEOMETRY* g = m->geometries[j];
+
+                // // Bounding sphere calculation.
+                // {
+                //     // Translate/scale the extents.
+                //     Vector3 extents_min = Vector3_multiply_Matrice4(g->extents.min, model);
+                //     Vector3 extents_max = Vector3_multiply_Matrice4(g->extents.max, model);
+
+                //     f32 min = KMIN(KMIN(extents_min.x, extents_min.y), extents_min.z);
+                //     f32 max = KMAX(KMAX(extents_max.x, extents_max.y), extents_max.z);
+                //     f32 diff = yabs(max - min);
+                //     f32 radius = diff * 0.5f;
+
+                //     // Translate/scale the center.
+                //     Vector3 center = Vector3_multiply_Matrice4(g->center, model);
+
+                //     if (frustum_intersects_sphere(&state->camera_frustum, &center, radius)) {
+                //         // Add it to the list to be rendered.
+                //         geometry_render_data data = {0};
+                //         data.model = model;
+                //         data.geometry = g;
+                //         data.unique_id = m->unique_id;
+                //         darray_push(game_inst->frame_data.world_geometries, data);
+
+                //         draw_count++;
+                //     }
+                // }
+
+                // AABB calculation
+                {
+                    // Translate/scale the extents.
+                    // Vector3 extents_min = Vector3_multiply_Matrice4(g->extents.min, model);
+                    Vector3 extents_max = Vector3_multiply_Matrice4(g->extents.max, model);
+
+                    // Translate/scale the center.
+                    Vector3 center = Vector3_multiply_Matrice4(g->center, model);
+                    Vector3 half_extents = {
+                        yabs(extents_max.x - center.x),
+                        yabs(extents_max.y - center.y),
+                        yabs(extents_max.z - center.z),
+                    };
+
+                    if (frustum_intersects_aabb(&state->camera_frustum, &center, &half_extents)) {
+                        // Add it to the list to be rendered.
+                        GEOMETRY_RENDER_DATA data = {0};
+                        data.model = model;
+                        data.geometry = g;
+                        data.unique_id = m->unique_id;
+                        darray_push(game_instance->frame_data.world_geometries, data);
+
+                        draw_count++;
+                    }
+                }
+            }
+        }
+    }
+
     char text_buffer[256];
     string_format(
         text_buffer,
         "\
 FPS: %5.1f(%4.1fms)        Pos=[%7.3f %7.3f %7.3f] Rot=[%7.3f, %7.3f, %7.3f]\n\
 Mouse: X=%-5d Y=%-5d   L=%s R=%s   NDC: X=%.6f, Y=%.6f\n\
-Hovered: %s%u",
+Drawn: %-5u Hovered: %s%u",
         fps,
         frame_time,
         pos.x, pos.y, pos.z,
@@ -502,6 +587,7 @@ Hovered: %s%u",
         right_down ? "Y" : "N",
         mouse_x_ndc,
         mouse_y_ndc,
+        draw_count,
         state->hovered_object_id == INVALID_ID ? "none" : "",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
     ui_text_set_text(&state->test_text, text_buffer);
@@ -519,30 +605,16 @@ b8 game_render(GAME* game_instance, struct RENDER_PACKET* packet, f32 delta_time
     packet->views = linear_allocator_allocate(&game_instance->frame_allocator, sizeof(RENDER_VIEW_PACKET) * packet->view_count);
 
     // Skybox
-    SKYBOX_PACKET_DATA* skybox_data = linear_allocator_allocate(&game_instance->frame_allocator, sizeof(SKYBOX_PACKET_DATA));
-    skybox_data->sb = &state->sb;
-    if (!render_view_system_build_packet(render_view_system_get("skybox"), &game_instance->frame_allocator, skybox_data, &packet->views[0])) {
+    SKYBOX_PACKET_DATA skybox_data = {0};
+    skybox_data.sb = &state->sb;
+    if (!render_view_system_build_packet(render_view_system_get("skybox"), &game_instance->frame_allocator, &skybox_data, &packet->views[0])) {
         PRINT_ERROR("Failed to build packet for view 'skybox'.");
         return false;
     }
 
     // World
-    MESH_PACKET_DATA world_mesh_data = {0};
-
-    u32 mesh_count = 0;
-    u32 max_meshes = 10;
-    Mesh** meshes = linear_allocator_allocate(&game_instance->frame_allocator, sizeof(Mesh*) * max_meshes);
-    for (u32 i = 0; i < max_meshes; ++i) {
-        if (state->meshes[i].generation != INVALID_ID_U8) {
-            meshes[mesh_count] = &state->meshes[i];
-            mesh_count++;
-        }
-    }
-    world_mesh_data.mesh_count = mesh_count;
-    world_mesh_data.meshes = meshes;
-
     // TODO: performs a lookup on every frame.
-    if (!render_view_system_build_packet(render_view_system_get("world"), &game_instance->frame_allocator, &world_mesh_data, &packet->views[1])) {
+    if (!render_view_system_build_packet(render_view_system_get("world"), &game_instance->frame_allocator, game_instance->frame_data.world_geometries, &packet->views[1])) {
         PRINT_ERROR("Failed to build packet for view 'world_opaque'.");
         return false;
     }
@@ -576,7 +648,7 @@ b8 game_render(GAME* game_instance, struct RENDER_PACKET* packet, f32 delta_time
     // Pick uses both world and ui packet data.
     PICK_PACKET_DATA pick_packet = {0};
     pick_packet.ui_mesh_data = ui_packet.mesh_data;
-    pick_packet.world_mesh_data = world_mesh_data;
+    pick_packet.world_mesh_data = game_instance->frame_data.world_geometries;
     pick_packet.texts = ui_packet.texts;
     pick_packet.text_count = ui_packet.text_count;
 

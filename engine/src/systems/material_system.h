@@ -13,11 +13,11 @@ typedef struct MATERIAL_SYSTEM_CONFIG {
 b8 material_system_init(u64* memory_requirement, void* state, MATERIAL_SYSTEM_CONFIG config);
 void material_system_shutdown(void* state);
 
-MATERIAL* material_system_acquire(const char* name);
-MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config);
-void material_system_release(const char* name);
+YAPI MATERIAL* material_system_acquire(const char* name);
+YAPI MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config);
+YAPI void material_system_release(const char* name);
 
-MATERIAL* material_system_get_default(void);
+YAPI MATERIAL* material_system_get_default(void);
 
 /**
  * @brief Applies global-level data for the material shader id.
@@ -30,7 +30,7 @@ MATERIAL* material_system_get_default(void);
  * @param render_mode The render mode.
  * @return True on success; otherwise false.
  */
-b8 material_system_apply_global(u32 shader_id, u64 renderer_frame_number, const Matrice4* projection, const Matrice4* view, const Vector4* ambient_color, const Vector3* view_position, u32 render_mode);
+YAPI b8 material_system_apply_global(u32 shader_id, u64 renderer_frame_number, const Matrice4* projection, const Matrice4* view, const Vector4* ambient_color, const Vector3* view_position, u32 render_mode);
 
 /**
  * @brief Applies instance-level material data for the given material.
@@ -39,7 +39,7 @@ b8 material_system_apply_global(u32 shader_id, u64 renderer_frame_number, const 
  * @param needs_update Indicates if material internals require updating, or if they should just be bound.
  * @return True on success; otherwise false.
  */
-b8 material_system_apply_instance(MATERIAL* m, b8 needs_update);
+YAPI b8 material_system_apply_instance(MATERIAL* m, b8 needs_update);
 
 /**
  * @brief Applies local-level material data (typically just model matrix).
@@ -48,4 +48,4 @@ b8 material_system_apply_instance(MATERIAL* m, b8 needs_update);
  * @param model A constant pointer to the model matrix to be applied.
  * @return True on success; otherwise false.
  */
-b8 material_system_apply_local(MATERIAL* m, const Matrice4* model);
+YAPI b8 material_system_apply_local(MATERIAL* m, const Matrice4* model);

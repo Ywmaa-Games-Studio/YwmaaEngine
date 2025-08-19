@@ -32,10 +32,10 @@ typedef struct UI_TEXT {
     u64 render_frame_number;
 } UI_TEXT;
 
-b8 ui_text_create(E_UI_TEXT_TYPE type, const char* font_name, u16 font_size, const char* text_content, UI_TEXT* out_text);
-void ui_text_destroy(UI_TEXT* text);
+YAPI b8 ui_text_create(E_UI_TEXT_TYPE type, const char* font_name, u16 font_size, const char* text_content, UI_TEXT* out_text);
+YAPI void ui_text_destroy(UI_TEXT* text);
 
-void ui_text_set_position(UI_TEXT* u_text, Vector3 position);
-void ui_text_set_text(UI_TEXT* u_text, const char* text);
+YAPI void ui_text_set_position(UI_TEXT* u_text, Vector3 position);
+YAPI void ui_text_set_text(UI_TEXT* u_text, const char* text);
 
-void ui_text_draw(UI_TEXT* u_text);
+YAPI void ui_text_draw(UI_TEXT* u_text);

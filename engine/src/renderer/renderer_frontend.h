@@ -274,12 +274,12 @@ TEXTURE* renderer_depth_attachment_get(u8 index);
 /**
  * @brief Returns the current window attachment index.
  */
-u8 renderer_window_attachment_index_get(void);
+YAPI u8 renderer_window_attachment_index_get(void);
 
 /**
  * @brief Returns the number of attachments required for window-based render targets.
  */
-u8 renderer_window_attachment_count_get(void);
+YAPI u8 renderer_window_attachment_count_get(void);
 
 /**
  * @brief Creates a new renderpass.

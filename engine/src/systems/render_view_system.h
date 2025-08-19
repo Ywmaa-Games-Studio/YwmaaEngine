@@ -35,7 +35,7 @@ void render_view_system_shutdown(void* state);
  * @param config A constant pointer to the view configuration.
  * @return True on success; otherwise false.
  */
-b8 render_view_system_create(const RENDER_VIEW_CONFIG* config);
+YAPI b8 render_view_system_create(const RENDER_VIEW_CONFIG* config);
 
 /**
  * @brief Called when the owner of this view (i.e. the window) is resized.
@@ -43,7 +43,7 @@ b8 render_view_system_create(const RENDER_VIEW_CONFIG* config);
  * @param width The new width in pixels.
  * @param width The new height in pixels.
  */
-void render_view_system_on_window_resize(u32 width, u32 height);
+YAPI void render_view_system_on_window_resize(u32 width, u32 height);
 
 /**
  * @brief Obtains a pointer to a view with the given name.
@@ -51,7 +51,7 @@ void render_view_system_on_window_resize(u32 width, u32 height);
  * @param name The name of the view.
  * @return A pointer to a view if found; otherwise 0.
  */
-RENDER_VIEW* render_view_system_get(const char* name);
+YAPI RENDER_VIEW* render_view_system_get(const char* name);
 
 /**
  * @brief Builds a render view packet using the provided view and meshes.
@@ -62,7 +62,7 @@ RENDER_VIEW* render_view_system_get(const char* name);
  * @param out_packet A pointer to hold the generated packet.
  * @return True on success; otherwise false.
  */
-b8 render_view_system_build_packet(const RENDER_VIEW* view, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet);
+YAPI b8 render_view_system_build_packet(const RENDER_VIEW* view, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet);
 
 /**
  * @brief Uses the given view and packet to render the contents therein.
@@ -73,6 +73,6 @@ b8 render_view_system_build_packet(const RENDER_VIEW* view, struct LINEAR_ALLOCA
  * @param render_target_index The current render target index for renderers that use multiple render targets at once (i.e. Vulkan).
  * @return True on success; otherwise false.
  */
-b8 render_view_system_on_render(const RENDER_VIEW* view, const RENDER_VIEW_PACKET* packet, u64 frame_number, u64 render_target_index);
+YAPI b8 render_view_system_on_render(const RENDER_VIEW* view, const RENDER_VIEW_PACKET* packet, u64 frame_number, u64 render_target_index);
 
-void render_view_system_regenerate_render_targets(RENDER_VIEW* view);
+YAPI void render_view_system_regenerate_render_targets(RENDER_VIEW* view);

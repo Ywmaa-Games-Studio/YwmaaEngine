@@ -165,3 +165,6 @@ YINLINE u64 get_aligned(u64 operand, u64 granularity) {
 YINLINE range get_aligned_range(u64 offset, u64 size, u64 granularity) {
     return (range){get_aligned(offset, granularity), get_aligned(size, granularity)};
 }
+
+#define YMIN(x, y) (x < y ? x : y)
+#define YMAX(x, y) (x > y ? x : y)

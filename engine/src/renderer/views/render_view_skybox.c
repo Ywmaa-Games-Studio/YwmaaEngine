@@ -7,6 +7,7 @@
 #include "math/ymath.h"
 #include "math/transform.h"
 #include "resources/skybox.h"
+#include "memory/linear_allocator.h"
 #include "data_structures/darray.h"
 #include "systems/resource_system.h"
 #include "systems/material_system.h"
@@ -135,7 +136,8 @@ b8 render_view_skybox_on_build_packet(const struct RENDER_VIEW* self, struct LIN
     out_packet->view_position = camera_position_get(internal_data->world_camera);
 
     // Just set the extended data to the skybox data
-    out_packet->extended_data = skybox_data;
+    out_packet->extended_data = linear_allocator_allocate(frame_allocator, sizeof(SKYBOX_PACKET_DATA));
+    ycopy_memory(out_packet->extended_data, skybox_data, sizeof(SKYBOX_PACKET_DATA));
     return true;
 }
 

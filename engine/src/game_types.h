@@ -4,6 +4,10 @@
 #include "memory/linear_allocator.h"
 
 struct RENDER_PACKET;
+typedef struct GAME_FRAME_DATA {
+    // A darray of world geometries to be rendered this frame.
+    GEOMETRY_RENDER_DATA* world_geometries;
+} GAME_FRAME_DATA;
 /**
  * Represents the basic game state in a game.
  * Called for creation by the application.
@@ -52,4 +56,7 @@ typedef struct GAME {
      * at the beginning of the frame.
      */
     LINEAR_ALLOCATOR frame_allocator;
+
+    /** @brief Data which is built up, used and discarded every frame. */
+    GAME_FRAME_DATA frame_data;
 } GAME;

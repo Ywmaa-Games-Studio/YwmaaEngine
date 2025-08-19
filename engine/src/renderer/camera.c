@@ -51,7 +51,7 @@ Matrice4 camera_view_get(Camera* c) {
             Matrice4 rotation = Matrice4_euler_xyz(c->euler_rotation.x, c->euler_rotation.y, c->euler_rotation.z);
             Matrice4 translation = Matrice4_translation(c->position);
 
-            c->view_matrix = Matrice4_mul(rotation, translation);
+            c->view_matrix = Matrice4_multiply(rotation, translation);
             c->view_matrix = Matrice4_inverse(c->view_matrix);
 
             c->is_dirty = false;
@@ -93,10 +93,18 @@ Vector3 camera_right(Camera* c) {
     return Vector3_zero();
 }
 
+Vector3 camera_up(Camera* c) {
+    if (c) {
+        Matrice4 view = camera_view_get(c);
+        return Matrice4_up(view);
+    }
+    return Vector3_zero();
+}
+
 void camera_move_forward(Camera* c, f32 amount) {
     if (c) {
         Vector3 direction = camera_forward(c);
-        direction = Vector3_mul_scalar(direction, amount);
+        direction = Vector3_multiply_scalar(direction, amount);
         c->position = Vector3_add(c->position, direction);
         c->is_dirty = true;
     }
@@ -105,7 +113,7 @@ void camera_move_forward(Camera* c, f32 amount) {
 void camera_move_backward(Camera* c, f32 amount) {
     if (c) {
         Vector3 direction = camera_backward(c);
-        direction = Vector3_mul_scalar(direction, amount);
+        direction = Vector3_multiply_scalar(direction, amount);
         c->position = Vector3_add(c->position, direction);
         c->is_dirty = true;
     }
@@ -114,7 +122,7 @@ void camera_move_backward(Camera* c, f32 amount) {
 void camera_move_left(Camera* c, f32 amount) {
     if (c) {
         Vector3 direction = camera_left(c);
-        direction = Vector3_mul_scalar(direction, amount);
+        direction = Vector3_multiply_scalar(direction, amount);
         c->position = Vector3_add(c->position, direction);
         c->is_dirty = true;
     }
@@ -123,7 +131,7 @@ void camera_move_left(Camera* c, f32 amount) {
 void camera_move_right(Camera* c, f32 amount) {
     if (c) {
         Vector3 direction = camera_right(c);
-        direction = Vector3_mul_scalar(direction, amount);
+        direction = Vector3_multiply_scalar(direction, amount);
         c->position = Vector3_add(c->position, direction);
         c->is_dirty = true;
     }
@@ -132,7 +140,7 @@ void camera_move_right(Camera* c, f32 amount) {
 void camera_move_up(Camera* c, f32 amount) {
     if (c) {
         Vector3 direction = Vector3_up();
-        direction = Vector3_mul_scalar(direction, amount);
+        direction = Vector3_multiply_scalar(direction, amount);
         c->position = Vector3_add(c->position, direction);
         c->is_dirty = true;
     }
@@ -141,7 +149,7 @@ void camera_move_up(Camera* c, f32 amount) {
 void camera_move_down(Camera* c, f32 amount) {
     if (c) {
         Vector3 direction = Vector3_down();
-        direction = Vector3_mul_scalar(direction, amount);
+        direction = Vector3_multiply_scalar(direction, amount);
         c->position = Vector3_add(c->position, direction);
         c->is_dirty = true;
     }

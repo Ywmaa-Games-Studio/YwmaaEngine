@@ -35,7 +35,7 @@ void geometry_system_shutdown(void* state);
  * @param id The geometry identifier to acquire by.
  * @return A pointer to the acquired geometry or nullptr if failed.
  */
-GEOMETRY* geometry_system_acquire_by_id(u32 id);
+YAPI GEOMETRY* geometry_system_acquire_by_id(u32 id);
 
 /**
  * @brief Registers and acquires a new geometry using the given config.
@@ -44,35 +44,35 @@ GEOMETRY* geometry_system_acquire_by_id(u32 id);
  * @param auto_release Indicates if the acquired geometry should be unloaded when its reference count reaches 0.
  * @return A pointer to the acquired geometry or nullptr if failed. 
  */
-GEOMETRY* geometry_system_acquire_from_config(GEOMETRY_CONFIG config, b8 auto_release);
+YAPI GEOMETRY* geometry_system_acquire_from_config(GEOMETRY_CONFIG config, b8 auto_release);
 
 /**
  * @brief Frees resources held by the provided configuration.
  *
  * @param config A pointer to the configuration to be disposed.
  */
-void geometry_system_config_dispose(GEOMETRY_CONFIG* config);
+YAPI void geometry_system_config_dispose(GEOMETRY_CONFIG* config);
 
 /**
  * @brief Releases a reference to the provided geometry.
  * 
  * @param geometry The geometry to be released.
  */
-void geometry_system_release(GEOMETRY* geometry);
+YAPI void geometry_system_release(GEOMETRY* geometry);
 
 /**
  * @brief Obtains a pointer to the default geometry.
  * 
  * @return A pointer to the default geometry. 
  */
-GEOMETRY* geometry_system_get_default(void);
+YAPI GEOMETRY* geometry_system_get_default(void);
 
 /**
  * @brief Obtains a pointer to the default geometry.
  * 
  * @return A pointer to the default geometry. 
  */
-GEOMETRY* geometry_system_get_default_2d(void);
+YAPI GEOMETRY* geometry_system_get_default_2d(void);
 
 
 /**
@@ -90,7 +90,7 @@ GEOMETRY* geometry_system_get_default_2d(void);
  * @param material_name The name of the material to be used.
  * @return A geometry configuration which can then be fed into geometry_system_acquire_from_config().
  */
-GEOMETRY_CONFIG geometry_system_generate_plane_config(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, const char* name, const char* material_name);
+YAPI GEOMETRY_CONFIG geometry_system_generate_plane_config(f32 width, f32 height, u32 x_segment_count, u32 y_segment_count, f32 tile_x, f32 tile_y, const char* name, const char* material_name);
 
 /**
  * @brief 
@@ -104,4 +104,4 @@ GEOMETRY_CONFIG geometry_system_generate_plane_config(f32 width, f32 height, u32
  * @param material_name 
  * @return geometry_config 
  */
-GEOMETRY_CONFIG geometry_system_generate_cube_config(f32 width, f32 height, f32 depth, f32 tile_x, f32 tile_y, const char* name, const char* material_name);
+YAPI GEOMETRY_CONFIG geometry_system_generate_cube_config(f32 width, f32 height, f32 depth, f32 tile_x, f32 tile_y, const char* name, const char* material_name);

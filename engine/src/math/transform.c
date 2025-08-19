@@ -79,7 +79,7 @@ void transform_set_rotation(Transform* t, Quaternion rotation) {
 }
 
 void transform_rotate(Transform* t, Quaternion rotation) {
-    t->rotation = Quaternion_mul(t->rotation, rotation);
+    t->rotation = Quaternion_multiply(t->rotation, rotation);
     t->is_dirty = true;
 }
 
@@ -93,7 +93,7 @@ void transform_set_scale(Transform* t, Vector3 scale) {
 }
 
 void transform_scale(Transform* t, Vector3 scale) {
-    t->scale = Vector3_mul(t->scale, scale);
+    t->scale = Vector3_multiply(t->scale, scale);
     t->is_dirty = true;
 }
 
@@ -112,15 +112,15 @@ void transform_set_position_rotation_scale(Transform* t, Vector3 position, Quate
 
 void transform_translate_rotate(Transform* t, Vector3 translation, Quaternion rotation) {
     t->position = Vector3_add(t->position, translation);
-    t->rotation = Quaternion_mul(t->rotation, rotation);
+    t->rotation = Quaternion_multiply(t->rotation, rotation);
     t->is_dirty = true;
 }
 
 Matrice4 transform_get_local(Transform* t) {
     if (t) {
         if (t->is_dirty) {
-            Matrice4 tr = Matrice4_mul(Quaternion_to_Matrice4(t->rotation), Matrice4_translation(t->position));
-            tr = Matrice4_mul(Matrice4_scale(t->scale), tr);
+            Matrice4 tr = Matrice4_multiply(Quaternion_to_Matrice4(t->rotation), Matrice4_translation(t->position));
+            tr = Matrice4_multiply(Matrice4_scale(t->scale), tr);
             t->local = tr;
             t->is_dirty = false;
         }
@@ -135,7 +135,7 @@ Matrice4 transform_get_world(Transform* t) {
         Matrice4 l = transform_get_local(t);
         if (t->parent) {
             Matrice4 p = transform_get_world(t->parent);
-            return Matrice4_mul(l, p);
+            return Matrice4_multiply(l, p);
         }
         return l;
     }

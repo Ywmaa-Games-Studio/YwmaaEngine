@@ -41,29 +41,36 @@ pub fn build(b: *std.Build) !void {
     const out_path = "engine/src/version.h";
     const file = try std.fs.cwd().createFile(out_path, .{ .truncate = true });
     defer file.close();
-    try file.writer().print(
+    var buf: [1024]u8 = undefined;
+    var file_writer = file.writer(&buf);
+
+    // Access the new interface part
+    const writer = &file_writer.interface;
+
+    try writer.print(
         \\#pragma once
         \\
         \\#define YVERSION "{s}"
         \\
     , .{version_str});
+    try writer.flush(); // flush to ensure buffered data is written
 
     // Print it in the build output
     std.log.info("Generated version: {s}", .{version_str});
 
     // If building with Android, initialize the tools / build
-    const android_apk: ?*android.APK = blk: {
+    const android_apk: ?*android.Apk = blk: {
         if (android_targets.len == 0) {
             break :blk null;
         }
-        const android_tools = android.Tools.create(b, .{
+        const android_sdk = android.Sdk.create(b, .{});
+        const apk = android_sdk.createApk(.{
             .api_level = .android15,
             .build_tools_version = "35.0.0",
             .ndk_version = "28.0.13004108", //"29.0.13113456",//"27.0.12077973",
         });
-        const apk = android.APK.create(b, android_tools);
 
-        const key_store_file = android_tools.createKeyStore(android.CreateKey.example());
+        const key_store_file = android_sdk.createKeyStore(.example);
         apk.setKeyStore(key_store_file);
         apk.setAndroidManifest(b.path("android/AndroidManifest.xml"));
         apk.addResourceDirectory(b.path("android/res"));
@@ -75,7 +82,9 @@ pub fn build(b: *std.Build) !void {
 
     const is_debug = optimize == .Debug;
 
-    var engine_flags = std.ArrayList([]const u8).init(b.allocator);
+    var engine_flags = std.array_list.Managed([]const u8).init(b.allocator);
+    defer engine_flags.deinit();
+
     try engine_flags.append("-DYEXPORT");
     if (is_debug) {
         try engine_flags.append("-D_DEBUG");
@@ -92,10 +101,13 @@ pub fn build(b: *std.Build) !void {
     // Engine Flag -DYEXPORT
     // Testbed Flag -DYIMPORT
 
-    const libengine = b.addSharedLibrary(.{ //addStaticLibrary/addSharedLibrary
+    const libengine = b.addLibrary(.{
         .name = "engine",
-        .target = target,
-        .optimize = optimize,
+        .linkage = .dynamic, // make it a shared library
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang" });
     libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang/glslang" });
@@ -201,10 +213,13 @@ pub fn build(b: *std.Build) !void {
 
     libengine.linkLibC();
 
-    const glslang_lib = b.addSharedLibrary(.{ //addStaticLibrary/addSharedLibrary
+    const glslang_lib = b.addLibrary(.{
         .name = "glslang_compiler",
-        .target = target,
-        .optimize = optimize,
+        .linkage = .dynamic, // make it a shared library
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     glslang_lib.linkLibCpp();
     glslang_lib.linkLibC();
@@ -278,16 +293,21 @@ pub fn build(b: *std.Build) !void {
     });
     libengine.linkLibrary(glslang_lib);
 
-    var exe: *std.Build.Step.Compile = if (target.result.abi.isAndroid()) b.addSharedLibrary(.{
+    var exe: *std.Build.Step.Compile = if (target.result.abi.isAndroid()) b.addLibrary(.{
         .name = exe_name,
-        .root_source_file = b.path("testbed/src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .linkage = .dynamic, // make it a shared library
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("testbed/src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     }) else b.addExecutable(.{
         .name = exe_name,
-        .root_source_file = b.path("testbed/src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("testbed/src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     exe.linkSystemLibrary("unwind");
     exe.addIncludePath(.{ .cwd_relative = "engine/src" });
@@ -323,7 +343,7 @@ pub fn build(b: *std.Build) !void {
 
     b.installArtifact(exe);
     if (target.result.abi == .android) {
-        const apk: *android.APK = android_apk orelse @panic("Android APK should be initialized");
+        const apk: *android.Apk = android_apk orelse @panic("Android APK should be initialized");
         apk.addArtifact(libengine);
         apk.addArtifact(exe);
     }

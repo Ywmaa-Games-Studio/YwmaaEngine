@@ -16,7 +16,7 @@ on:
       - "**.md"
       - "LICENSE**"
 env:
- ZIG_VERSION: "0.14.1"
+ ZIG_VERSION: "0.15.1"
 jobs:
   x86_64-linux-to-x86_64-linux:
     runs-on: ubuntu-latest

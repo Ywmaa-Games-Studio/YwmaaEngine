@@ -57,7 +57,7 @@ i32 find_memory_index(u32 type_filter, u32 property_flags);
 
 void create_command_buffers(RENDERER_BACKEND* backend);
 b8 recreate_swapchain(RENDERER_BACKEND* backend);
-b8 create_module(VULKAN_SHADER* shader, VULKAN_SHADER_STAGE_CONFIG config, VULKAN_SHADER_STAGE* shader_stage);
+b8 vulkan_create_shader_module(VULKAN_SHADER* shader, VULKAN_SHADER_STAGE_CONFIG config, VULKAN_SHADER_STAGE* shader_stage);
 b8 vulkan_buffer_copy_range_internal(VkBuffer source, u64 source_offset, VkBuffer dest, u64 dest_offset, u64 size);
 
 #if YVULKAN_USE_CUSTOM_ALLOCATOR == 1
@@ -1580,7 +1580,7 @@ b8 vulkan_renderer_shader_init(SHADER* shader) {
     // Create a module for each stage.
     yzero_memory(internal_shader->stages, sizeof(VULKAN_SHADER_STAGE) * VULKAN_SHADER_MAX_STAGES);
     for (u32 i = 0; i < internal_shader->config.stage_count; ++i) {
-        if (!create_module(internal_shader, internal_shader->config.stages[i], &internal_shader->stages[i])) {
+        if (!vulkan_create_shader_module(internal_shader, internal_shader->config.stages[i], &internal_shader->stages[i])) {
             PRINT_ERROR("Unable to create %s shader module for '%s'. Shader will be destroyed.", internal_shader->config.stages[i].file_name, shader->name);
             return false;
         }
@@ -2828,7 +2828,7 @@ b8 vulkan_buffer_draw(RENDER_BUFFER* buffer, u64 offset, u32 element_count, b8 b
 }
 
 #include "vulkan_shader_compiler.h"
-b8 create_module(VULKAN_SHADER* shader, VULKAN_SHADER_STAGE_CONFIG config, VULKAN_SHADER_STAGE* shader_stage) {
+b8 vulkan_create_shader_module(VULKAN_SHADER* shader, VULKAN_SHADER_STAGE_CONFIG config, VULKAN_SHADER_STAGE* shader_stage) {
     // Read the resource.
     RESOURCE text_resource;
     if (!resource_system_load(config.file_name, RESOURCE_TYPE_TEXT, 0, &text_resource)) {

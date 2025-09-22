@@ -58,19 +58,19 @@ extracted from https://ziglang.org/documentation/master/#Build-Mode
 
 ### Windows
 
- - `zig 0.14` the compiler
+ - `zig 0.15` the compiler
  - There shouldn't be other required dependencies, if it fails please report.
 
 ### Linux
 
 Install these via package manager:
- - `zig 0.14` the compiler
+ - `zig 0.15` the compiler
  - There shouldn't be other required dependencies, if it fails please report.
 
 You can also check the required dependecies for linux in shell.nix
 
 ### Mac OS
- - `zig 0.14` the compiler
+ - `zig 0.15` the compiler
  - There shouldn't be other required dependencies, if it fails please report.
  - Note: Unfortunately it isn't possible to cross-compile from linux/windows to Mac OS for now.
 

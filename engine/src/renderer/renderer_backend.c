@@ -60,6 +60,8 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->window_attachment_count_get = vulkan_renderer_window_attachment_count_get;
 
         out_renderer_backend->is_multithreaded = vulkan_renderer_is_multithreaded;
+        out_renderer_backend->flag_enabled = vulkan_renderer_flag_enabled;
+        out_renderer_backend->flag_set_enabled = vulkan_renderer_flag_set_enabled;
 
         out_renderer_backend->renderbuffer_create_internal = vulkan_buffer_create_internal;
         out_renderer_backend->renderbuffer_destroy_internal = vulkan_buffer_destroy_internal;
@@ -131,6 +133,8 @@ b8 renderer_backend_create(E_RENDERER_BACKEND_API type, RENDERER_BACKEND* out_re
         out_renderer_backend->window_attachment_count_get = webgpu_renderer_window_attachment_count_get;
 
         out_renderer_backend->is_multithreaded = webgpu_renderer_is_multithreaded;
+        out_renderer_backend->flag_enabled = webgpu_renderer_flag_enabled;
+        out_renderer_backend->flag_set_enabled = webgpu_renderer_flag_set_enabled;
 
         out_renderer_backend->renderbuffer_create_internal = webgpu_buffer_create_internal;
         out_renderer_backend->renderbuffer_destroy_internal = webgpu_buffer_destroy_internal;

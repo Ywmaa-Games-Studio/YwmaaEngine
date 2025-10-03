@@ -242,6 +242,10 @@ typedef struct WEBGPU_CONTEXT {
 
     b8 recreating_swapchain;
 
+    b8 render_flag_changed;
+
+    RENDERER_CONFIG_FLAGS flags;
+
     WGPUInstance instance;
     WGPUAdapter adapter;
     WGPUDevice device;

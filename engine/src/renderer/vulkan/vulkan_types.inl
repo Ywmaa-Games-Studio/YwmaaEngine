@@ -89,6 +89,8 @@ typedef struct VULKAN_SWAPCHAIN {
     VkSurfaceFormatKHR image_format;
     u8 max_frames_in_flight;
     VkSwapchainKHR handle;
+    /** @brief Indicates various flags used for swapchain instantiation. */
+    RENDERER_CONFIG_FLAGS flags;
     u32 image_count;
     /** @brief An array of render targets, which contain swapchain images. */
     TEXTURE* render_textures;
@@ -412,6 +414,8 @@ typedef struct VULKAN_CONTEXT {
     u32 current_frame;
 
     b8 recreating_swapchain;
+
+    b8 render_flag_changed;
 
     // TODO: make dynamic
     VULKAN_GEOMETRY_DATA geometries[VULKAN_MAX_GEOMETRY_COUNT];

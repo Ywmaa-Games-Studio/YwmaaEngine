@@ -213,10 +213,21 @@ typedef struct RENDER_BUFFER {
     void* internal_data;
 } RENDER_BUFFER;
 
+typedef enum E_RENDERER_CONFIG_FLAG_BITS {
+    /** @brief Indicates that vsync should be enabled. */
+    RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT = 0x1,
+    /** @brief Configures the renderer backend in a way that conserves power where possible. */
+    RENDERER_CONFIG_FLAG_POWER_SAVING_BIT = 0x2,
+} E_RENDERER_CONFIG_FLAG_BITS;
+
+typedef u32 RENDERER_CONFIG_FLAGS;
+
 /** @brief The generic configuration for a renderer backend. */
 typedef struct RENDERER_BACKEND_CONFIG {
     /** @brief The name of the application */
     const char* application_name;
+    /** @brief Various configuration flags for renderer backend setup. */
+    RENDERER_CONFIG_FLAGS flags;
 } RENDERER_BACKEND_CONFIG;
 
 typedef struct RENDERER_BACKEND {
@@ -501,6 +512,23 @@ typedef struct RENDERER_BACKEND {
      * @brief Indicates if the renderer is capable of multi-threading.
      */
     b8 (*is_multithreaded)(void);
+
+    /**
+     * @brief Indicates if the provided renderer flag is enabled. If multiple
+     * flags are passed, all must be set for this to return true.
+     *
+     * @param flag The flag to be checked.
+     * @return True if the flag(s) set; otherwise false.
+     */
+    b8 (*flag_enabled)(RENDERER_CONFIG_FLAGS flag);
+    /**
+     * @brief Sets whether the included flag(s) are enabled or not. If multiple flags
+     * are passed, multiple are set at once.
+     *
+     * @param flag The flag to be checked.
+     * @param enabled Indicates whether or not to enable the flag(s).
+     */
+    void (*flag_set_enabled)(RENDERER_CONFIG_FLAGS flag, b8 enabled);
 
     /**
      * @brief Creates and assigns the renderer-backend-specific buffer.

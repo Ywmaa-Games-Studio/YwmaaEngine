@@ -56,6 +56,8 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
 
     RENDERER_BACKEND_CONFIG renderer_config = {0};
     renderer_config.application_name = application_name;
+    // TODO: expose this to the application to configure.
+    renderer_config.flags = RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT | RENDERER_CONFIG_FLAG_POWER_SAVING_BIT;
 
     // Initialize the backend.
     if (!state_ptr->backend.init(&state_ptr->backend, &renderer_config, &state_ptr->window_render_target_count)) {
@@ -345,6 +347,15 @@ void renderer_renderpass_destroy(RENDERPASS* pass) {
 b8 renderer_is_multithreaded(void) {
     return state_ptr->backend.is_multithreaded();
 }
+
+b8 renderer_flag_enabled(RENDERER_CONFIG_FLAGS flag) {
+    return state_ptr->backend.flag_enabled(flag);
+}
+
+void renderer_flag_set_enabled(RENDERER_CONFIG_FLAGS flag, b8 enabled) {
+    state_ptr->backend.flag_set_enabled(flag, enabled);
+}
+
 
 b8 renderer_renderbuffer_create(E_RENDERBUFFER_TYPE type, u64 total_size, b8 use_freelist, RENDER_BUFFER* out_buffer) {
     if (!out_buffer) {

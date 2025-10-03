@@ -14,7 +14,7 @@ b8 webgpu_swapchain_create(WEBGPU_CONTEXT* context,
     config.viewFormatCount = 0;
     config.viewFormats = NULL;
     config.device = context->device;
-    config.presentMode = WGPUPresentMode_Fifo;
+    config.presentMode = context->flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT ? WGPUPresentMode_Fifo : WGPUPresentMode_Immediate;
     config.alphaMode = WGPUCompositeAlphaMode_Auto;
     wgpuSurfaceConfigure(context->surface, &config);
     

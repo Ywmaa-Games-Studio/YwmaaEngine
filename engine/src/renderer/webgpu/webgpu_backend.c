@@ -43,6 +43,8 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const  RENDERER_BACKE
     // overridden, but are needed for swapchain creation.
     context.framebuffer_width = 1280;
     context.framebuffer_height = 720;
+    context.render_flag_changed = false;
+    context.flags = config->flags;
 
     // We create a descriptor
     WGPUInstanceDescriptor desc = {0};
@@ -158,12 +160,18 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     }
 
     // Check if the framebuffer has been resized. If so, a new swapchain must be created.
-    if (context.framebuffer_size_generation != context.framebuffer_size_last_generation) {
+    // Also include a vsync changed check.
+    if (context.framebuffer_size_generation != context.framebuffer_size_last_generation || context.render_flag_changed) {
         b8 result = wgpuDevicePoll(context.device, true, NULL);
         if (!result) {
             PRINT_ERROR("webgpu_renderer_backend_begin_frame wgpuDevicePoll failed");
             return false;
         }
+
+        if (context.render_flag_changed) {
+            context.render_flag_changed = false;
+        }
+
         // If the swapchain recreation failed (because, for example, the window was minimized),
         // boot out before unsetting the flag.
         if (!wgpu_recreate_swapchain(backend)) {
@@ -1450,6 +1458,15 @@ u8 webgpu_renderer_window_attachment_count_get(void) {
 
 b8 webgpu_renderer_is_multithreaded(void) {
     return context.multithreading_enabled;
+}
+
+b8 webgpu_renderer_flag_enabled(RENDERER_CONFIG_FLAGS flag) {
+    return (context.flags & flag);
+}
+
+void webgpu_renderer_flag_set_enabled(RENDERER_CONFIG_FLAGS flag, b8 enabled) {
+    context.flags = (enabled ? (context.flags | flag) : (context.flags & ~flag));
+    context.render_flag_changed = true;
 }
 
 // NOTE: Begin webgpu buffer.

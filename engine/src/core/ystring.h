@@ -319,3 +319,31 @@ YAPI void string_filename_from_path(char* dest, const char* path);
  */
 YAPI void string_filename_no_extension_from_path(char* dest, const char* path);
 
+// ----------------------
+// YString implementation
+// ----------------------
+
+/**
+ * @brief A YSTRING is a managed string for higher-level logic to use. It is
+ * safer and, in some cases quicker than a typical cstring because it maintains
+ * length/allocation information and doesn't have to use strlen on most of its
+ * internal operations.
+ */
+typedef struct YSTRING {
+    /** @brief The current length of the string in bytes. */
+    u32 length;
+    /** @brief The amount of currently allocated memory. Always accounts for a null terminator. */
+    u32 allocated;
+    /** @brief The raw string data. */
+    char* data;
+} YSTRING;
+
+YAPI void ystring_create(YSTRING* out_string);
+YAPI void ystring_from_cstring(const char* source, YSTRING* out_string);
+YAPI void ystring_destroy(YSTRING* string);
+
+YAPI u32 ystring_length(const YSTRING* string);
+YAPI u32 ystring_utf8_length(const YSTRING* string);
+
+YAPI void ystring_append_str(YSTRING* string, const char* s);
+YAPI void ystring_append_ystring(YSTRING* string, const YSTRING* other);

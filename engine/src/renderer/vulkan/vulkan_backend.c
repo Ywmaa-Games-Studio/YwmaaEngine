@@ -229,6 +229,7 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const RENDERER_BACKEN
 
     // Function pointers
     context.find_memory_index = find_memory_index;
+    context.render_flag_changed = false;
     // NOTE: Custom allocator.
 #if YVULKAN_USE_CUSTOM_ALLOCATOR == 1
     context.allocator = yallocate_aligned(sizeof(VkAllocationCallbacks), 8, MEMORY_TAG_RENDERER);
@@ -301,6 +302,7 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const RENDERER_BACKEN
         &context,
         context.framebuffer_width,
         context.framebuffer_height,
+        config->flags,
         &context.swapchain);
 
     // Save off the number of images we have as the number of render targets needed.
@@ -463,11 +465,16 @@ b8 vulkan_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     }
 
     // Check if the framebuffer has been resized. If so, a new swapchain must be created.
-    if (context.framebuffer_size_generation != context.framebuffer_size_last_generation) {
+    // Also include a vsync changed check.
+    if (context.framebuffer_size_generation != context.framebuffer_size_last_generation || context.render_flag_changed) {
         VkResult result = vkDeviceWaitIdle(device->logical_device);
         if (!vulkan_result_is_success(result)) {
             PRINT_ERROR("vulkan_renderer_backend_begin_frame vkDeviceWaitIdle (2) failed: '%s'", vulkan_result_string(result, true));
             return false;
+        }
+
+        if (context.render_flag_changed) {
+            context.render_flag_changed = false;
         }
 
         // If the swapchain recreation failed (because, for example, the window was minimized),
@@ -2433,6 +2440,15 @@ u8 vulkan_renderer_window_attachment_count_get(void) {
 
 b8 vulkan_renderer_is_multithreaded(void) {
     return context.multithreading_enabled;
+}
+
+b8 vulkan_renderer_flag_enabled(RENDERER_CONFIG_FLAGS flag) {
+    return (context.swapchain.flags & flag);
+}
+
+void vulkan_renderer_flag_set_enabled(RENDERER_CONFIG_FLAGS flag, b8 enabled) {
+    context.swapchain.flags = (enabled ? (context.swapchain.flags | flag) : (context.swapchain.flags & ~flag));
+    context.render_flag_changed = true;
 }
 
 // NOTE: Begin vulkan buffer.

@@ -18,6 +18,9 @@
 #define Y_DEG2RAD_MULTIPLIER Y_PI / 180.0f
 #define Y_RAD2DEG_MULTIPLIER 180.0f / Y_PI
 
+/** @brief The multiplier to convert seconds to microseconds. */
+#define Y_SEC_TO_US_MULTIPLIER (1000.0f * 1000.0f)
+
 // The multiplier to convert seconds to milliseconds.
 #define Y_SEC_TO_MS_MULTIPLIER 1000.0f
 

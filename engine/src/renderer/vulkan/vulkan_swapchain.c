@@ -7,16 +7,17 @@
 
 #include "systems/texture_system.h"
 
-void create(VULKAN_CONTEXT* context, u32 width, u32 height, VULKAN_SWAPCHAIN* swapchain);
+void create(VULKAN_CONTEXT* context, u32 width, u32 height, RENDERER_CONFIG_FLAGS flags, VULKAN_SWAPCHAIN* swapchain);
 void destroy(VULKAN_CONTEXT* context, VULKAN_SWAPCHAIN* swapchain);
 
 void vulkan_swapchain_create(
     VULKAN_CONTEXT* context,
     u32 width,
     u32 height,
+    RENDERER_CONFIG_FLAGS flags,
     VULKAN_SWAPCHAIN* out_swapchain) {
     // Simply create a new one.
-    create(context, width, height, out_swapchain);
+    create(context, width, height, flags, out_swapchain);
 }
 
 void vulkan_swapchain_recreate(
@@ -26,7 +27,7 @@ void vulkan_swapchain_recreate(
     VULKAN_SWAPCHAIN* swapchain) {
     // Destroy the old and create a new one.
     destroy(context, swapchain);
-    create(context, width, height, swapchain);
+    create(context, width, height, swapchain->flags, swapchain);
 }
 
 void vulkan_swapchain_destroy(
@@ -92,7 +93,7 @@ void vulkan_swapchain_present(
     context->current_frame = (context->current_frame + 1) % swapchain->max_frames_in_flight;
 }
 
-void create(VULKAN_CONTEXT* context, u32 width, u32 height, VULKAN_SWAPCHAIN* swapchain) {
+void create(VULKAN_CONTEXT* context, u32 width, u32 height, RENDERER_CONFIG_FLAGS flags, VULKAN_SWAPCHAIN* swapchain) {
     VkExtent2D swapchain_extent = {width, height};
 
     // Choose a swap surface format.
@@ -113,13 +114,25 @@ void create(VULKAN_CONTEXT* context, u32 width, u32 height, VULKAN_SWAPCHAIN* sw
     }
 
 
-    VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
-    for (u32 i = 0; i < context->device.swapchain_support.present_mode_count; ++i) {
-        VkPresentModeKHR mode = context->device.swapchain_support.present_modes[i];
-        if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-            present_mode = mode;
-            break;
+    // FIFO and MAILBOX support vsync, IMMEDIATE does not.
+    // TODO: vsync seems to hold up the game update for some reason.
+    // It theoretically should be post-update and pre-render where that happens.
+    swapchain->flags = flags;
+    VkPresentModeKHR present_mode;
+    if (flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) {
+        present_mode = VK_PRESENT_MODE_FIFO_KHR;
+        // Only try for mailbox mode if not in power-saving mode.
+        if ((flags & RENDERER_CONFIG_FLAG_POWER_SAVING_BIT) == 0) {
+            for (u32 i = 0; i < context->device.swapchain_support.present_mode_count; ++i) {
+                VkPresentModeKHR mode = context->device.swapchain_support.present_modes[i];
+                if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+                    present_mode = mode;
+                    break;
+                }
+            }
         }
+    } else {
+        present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
     }
 
     // Requery swapchain support.

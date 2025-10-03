@@ -8,6 +8,8 @@
 // TODO: temp
 #include <resources/skybox.h>
 #include <resources/ui_text.h>
+#include <core/clock.h>
+#include <core/keymap.h>
 
 typedef struct GAME_STATE {
     f32 delta_time;
@@ -16,6 +18,10 @@ typedef struct GAME_STATE {
     u16 width, height;
 
     Frustum camera_frustum;
+
+    clock update_clock;
+    clock render_clock;
+    f64 last_update_elapsed;
 
     // TODO: temp
     Skybox sb;
@@ -33,6 +39,11 @@ typedef struct GAME_STATE {
 
     // The unique identifier of the currently hovered-over object.
     u32 hovered_object_id;
+
+    KEYMAP console_keymap;
+
+    u64 alloc_count;
+    u64 prev_alloc_count;
     // TODO: end temp
 } GAME_STATE;
 

@@ -301,6 +301,23 @@ void renderer_renderpass_destroy(RENDERPASS* pass);
 b8 renderer_is_multithreaded(void);
 
 /**
+ * @brief Indicates if the provided renderer flag is enabled. If multiple
+ * flags are passed, all must be set for this to return true.
+ *
+ * @param flag The flag to be checked.
+ * @return True if the flag(s) set; otherwise false.
+ */
+YAPI b8 renderer_flag_enabled(RENDERER_CONFIG_FLAGS flag);
+/**
+ * @brief Sets whether the included flag(s) are enabled or not. If multiple flags
+ * are passed, multiple are set at once.
+ *
+ * @param flag The flag to be checked.
+ * @param enabled Indicates whether or not to enable the flag(s).
+ */
+YAPI void renderer_flag_set_enabled(RENDERER_CONFIG_FLAGS flag, b8 enabled);
+
+/**
  * @brief Creates a new RENDER_BUFFER to hold data for a given purpose/use. Backed by a
  * renderer-backend-specific buffer resource.
  *

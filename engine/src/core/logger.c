@@ -4,6 +4,7 @@
 #include "io/filesystem.h"
 #include "core/ystring.h"
 #include "core/ymemory.h"
+#include "console.h"
 
 // TODO: temporary
 #include <stdarg.h>
@@ -71,6 +72,9 @@ void log_output(E_LOG_LEVEL level, const char* message, ...) {
 
     // Prepend log level to message.
     string_format(out_message, "%s%s\n", level_strings[level], out_message);
+
+    // Pass along to console consumers.
+    console_write_line(level, out_message);
 
     platform_console_write(out_message, level);
 

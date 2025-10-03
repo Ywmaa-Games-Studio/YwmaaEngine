@@ -2,6 +2,8 @@
 
 #include "defines.h"
 
+struct KEYMAP;
+
 typedef enum E_BUTTONS {
     BUTTON_LEFT,
     BUTTON_RIGHT,
@@ -203,3 +205,7 @@ void input_process_mouse_wheel(i8 z_delta);
  * @return const char*
  */
 YAPI const char* input_keycode_str(E_KEYS key);
+
+YAPI void input_keymap_push(const struct KEYMAP* map);
+
+YAPI void input_keymap_pop(void);

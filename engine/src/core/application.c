@@ -19,6 +19,7 @@
 #include "renderer/renderer_frontend.h"
 
 // systems
+#include "core/console.h"
 #include "systems/texture_system.h"
 #include "systems/material_system.h"
 #include "systems/geometry_system.h"
@@ -38,6 +39,9 @@ typedef struct APPLICATION_STATE {
     clock clock;
     f64 last_time;
     LINEAR_ALLOCATOR systems_allocator;
+
+    u64 console_memory_requirement;
+    void* console_state;
 
     u64 event_system_memory_requirement;
     void* event_system_state;
@@ -127,6 +131,11 @@ b8 application_create(GAME* game_instance) {
     linear_allocator_create(systems_allocator_total_size, 0, &app_state->systems_allocator);
 
     // Initialize other subsystems.
+
+    // Console
+    console_init(&app_state->console_memory_requirement, 0);
+    app_state->console_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->console_memory_requirement);
+    console_init(&app_state->console_memory_requirement, app_state->console_state);
 
     // Events
     event_system_init(&app_state->event_system_memory_requirement, 0);
@@ -450,6 +459,8 @@ b8 application_run(void) {
     platform_system_shutdown(app_state->platform_system_state);
 
     event_system_shutdown(app_state->event_system_state);
+
+    console_shutdown(app_state->console_state);
 
     memory_system_shutdown();
 

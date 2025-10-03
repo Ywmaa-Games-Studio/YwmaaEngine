@@ -63,6 +63,8 @@ u8 webgpu_renderer_window_attachment_index_get(void);
 u8 webgpu_renderer_window_attachment_count_get(void);
 
 b8 webgpu_renderer_is_multithreaded(void);
+b8 webgpu_renderer_flag_enabled(RENDERER_CONFIG_FLAGS flag);
+void webgpu_renderer_flag_set_enabled(RENDERER_CONFIG_FLAGS flag, b8 enabled);
 
 b8 webgpu_buffer_create_internal(RENDER_BUFFER* buffer);
 void webgpu_buffer_destroy_internal(RENDER_BUFFER* buffer);

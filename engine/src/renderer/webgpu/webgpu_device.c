@@ -38,8 +38,7 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
 
     WGPURequestAdapterOptions adapter_opts = {0};
     //adapter_opts.backendType = WGPUBackendType_OpenGL;
-    // TODO: make this configurable
-    adapter_opts.powerPreference = WGPUPowerPreference_HighPerformance;
+    adapter_opts.powerPreference = (context->flags & RENDERER_CONFIG_FLAG_POWER_SAVING_BIT) == 0 ? WGPUPowerPreference_LowPower : WGPUPowerPreference_HighPerformance;
     adapter_opts.featureLevel = WGPUFeatureLevel_Core;
     //adapter_opts.forceFallbackAdapter = true;
     adapter_opts.nextInChain = NULL;

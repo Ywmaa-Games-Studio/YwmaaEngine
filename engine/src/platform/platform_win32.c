@@ -182,8 +182,8 @@ void platform_console_write(const char *message, u8 color) {
     SetConsoleTextAttribute(console_handle, levels[color]);
     OutputDebugStringA(message);
     u64 length = strlen(message);
-    DWORD number_written = 0;
-    WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), message, (DWORD)length, number_written, 0);
+    LPDWORD number_written = 0;
+    WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), message, (DWORD)length, (LPDWORD)number_written, 0);
 }
 
 f64 platform_get_absolute_time(void) {

@@ -4,9 +4,12 @@
 #include "systems/font_system.h"
 #include "renderer/renderer_types.inl"
 
-struct GAME;
+struct APPLICATION;
 
-// Application configuration.
+/** 
+ * @brief Represents configuration for the application. The application config
+ * is fed to the engine on creation, so it knows how to configure itself internally.
+ */
 typedef struct APPLICATION_CONFIG {
     // Window starting position x axis, if applicable.
     i16 start_pos_x;
@@ -23,7 +26,7 @@ typedef struct APPLICATION_CONFIG {
     // The renderer backend API to use.
     E_RENDERER_BACKEND_API renderer_backend_api;
 
-    // The application name used in windowing, if applicable.
+    // The engine name used in windowing, if applicable.
     char* name;
 
     /** @brief Configuration for the font system. */
@@ -33,10 +36,16 @@ typedef struct APPLICATION_CONFIG {
     RENDER_VIEW_CONFIG* render_views;    
 } APPLICATION_CONFIG;
 
+/**
+ * @brief Creates the engine, standing up the platform layer and all
+ * underlying subsystems.
+ * @param game_instance A pointer to the application instance associated with the engine
+ * @returns True on success; otherwise false.
+ */
+YAPI b8 engine_create(struct APPLICATION* game_instance);
 
-YAPI b8 application_create(struct GAME* game_instance);
-
-YAPI b8 application_run(void);
-
-
-void application_get_framebuffer_size(u32* width, u32* height);
+/**
+ * @brief Starts the main engine loop.
+ * @returns True on success; otherwise false.
+ */
+YAPI b8 engine_run(void);

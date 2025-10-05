@@ -77,7 +77,7 @@ void benchmark_yallocate(u16 alignment) {
             allocs[i].size = (rand() % MAX_ALLOC_SIZE) + 1;
             allocs[i].alignment = alignment;
             //PRINT_DEBUG("Allocating %llu bytes with alignment %hu", allocs[i].size, allocs[i].alignment);
-            allocs[i].ptr = yallocate_aligned(allocs[i].size, alignment, MEMORY_TAG_APPLICATION);
+            allocs[i].ptr = yallocate_aligned(allocs[i].size, alignment, MEMORY_TAG_ENGINE);
         }
         end = clock();
         total_time += ((double)(end - start)) / CLOCKS_PER_SEC;
@@ -103,7 +103,7 @@ void run_alignment_tests(void) {
     printf("\n=== Alignment Validation ===\n");
     for (int i = 0; i < ALIGNMENT_TEST_CASES; i++) {
         u16 alignment = alignments[i];
-        void* ptr = yallocate_aligned(128, alignment, MEMORY_TAG_APPLICATION);
+        void* ptr = yallocate_aligned(128, alignment, MEMORY_TAG_ENGINE);
         b8 is_aligned = ((u64)ptr % alignment) == 0;
         printf("Requested: %3hu bytes, Actual: %s\n", 
                alignment, 

@@ -175,6 +175,13 @@ b8 debug_console_load(void) {
     return true;
 }
 
+void debug_console_unload(void) {
+    if (state_ptr) {
+        ui_text_destroy(&state_ptr->text_control);
+        ui_text_destroy(&state_ptr->entry_control);
+    }
+}
+
 void debug_console_update(void) {
     if (state_ptr && state_ptr->dirty) {
         u32 line_count = darray_length(state_ptr->lines);

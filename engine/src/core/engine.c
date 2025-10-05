@@ -1,5 +1,5 @@
-#include "application.h"
-#include "game_types.h"
+#include "engine.h"
+#include "application_types.h"
 
 #include "version.h"
 
@@ -30,8 +30,8 @@
 #include "systems/job_system.h"
 #include "systems/font_system.h"
 
-typedef struct APPLICATION_STATE {
-    GAME* game_instance;
+typedef struct ENGINE_STATE_T {
+    APPLICATION* game_instance;
     b8 is_running;
     b8 is_suspended;
     i16 width;
@@ -84,17 +84,17 @@ typedef struct APPLICATION_STATE {
 
     u64 font_system_memory_requirement;
     void* font_system_state;
-} APPLICATION_STATE;
+} ENGINE_STATE_T;
 
-static APPLICATION_STATE* app_state;
+static ENGINE_STATE_T* engine_state;
 
 // Event handlers
-b8 application_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context);
-b8 application_on_resized(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context);
+b8 engine_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context);
+b8 engine_on_resized(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context);
 
-b8 application_create(GAME* game_instance) {
-    if (game_instance->application_state) {
-        PRINT_ERROR("application_create called more than once.");
+b8 engine_create(APPLICATION* game_instance) {
+    if (game_instance->engine_state) {
+        PRINT_ERROR("engine_create called more than once.");
         return false;
     }
 
@@ -120,51 +120,51 @@ b8 application_create(GAME* game_instance) {
     // and it consumes the large pool
     game_instance->state = yallocate(game_instance->state_memory_requirement, MEMORY_TAG_GAME);
 
-    game_instance->application_state = yallocate_aligned(sizeof(APPLICATION_STATE), 8, MEMORY_TAG_APPLICATION);
-    app_state = game_instance->application_state;
-    app_state->game_instance = game_instance;
-    app_state->is_running = false;
-    app_state->is_suspended = false;
+    game_instance->engine_state = yallocate_aligned(sizeof(ENGINE_STATE_T), 8, MEMORY_TAG_ENGINE);
+    engine_state = game_instance->engine_state;
+    engine_state->game_instance = game_instance;
+    engine_state->is_running = false;
+    engine_state->is_suspended = false;
 
     // Create a linear allocator for all systems (except memory) to use.
     u64 systems_allocator_total_size = MEBIBYTES(64);
-    linear_allocator_create(systems_allocator_total_size, 0, &app_state->systems_allocator);
+    linear_allocator_create(systems_allocator_total_size, 0, &engine_state->systems_allocator);
 
     // Initialize other subsystems.
 
     // Console
-    console_init(&app_state->console_memory_requirement, 0);
-    app_state->console_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->console_memory_requirement);
-    console_init(&app_state->console_memory_requirement, app_state->console_state);
+    console_init(&engine_state->console_memory_requirement, 0);
+    engine_state->console_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->console_memory_requirement);
+    console_init(&engine_state->console_memory_requirement, engine_state->console_state);
 
     // Events
-    event_system_init(&app_state->event_system_memory_requirement, 0);
-    app_state->event_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->event_system_memory_requirement);
-    event_system_init(&app_state->event_system_memory_requirement, app_state->event_system_state);
+    event_system_init(&engine_state->event_system_memory_requirement, 0);
+    engine_state->event_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->event_system_memory_requirement);
+    event_system_init(&engine_state->event_system_memory_requirement, engine_state->event_system_state);
 
     // Logging
-    init_logging(&app_state->logging_system_memory_requirement, 0);
-    app_state->logging_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->logging_system_memory_requirement);
-    if (!init_logging(&app_state->logging_system_memory_requirement, app_state->logging_system_state)) {
+    init_logging(&engine_state->logging_system_memory_requirement, 0);
+    engine_state->logging_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->logging_system_memory_requirement);
+    if (!init_logging(&engine_state->logging_system_memory_requirement, engine_state->logging_system_state)) {
         PRINT_ERROR("Failed to initialize logging system; shutting down.");
         return false;
     }
 
     // Input
-    input_system_init(&app_state->input_system_memory_requirement, 0);
-    app_state->input_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->input_system_memory_requirement);
-    input_system_init(&app_state->input_system_memory_requirement, app_state->input_system_state);
+    input_system_init(&engine_state->input_system_memory_requirement, 0);
+    engine_state->input_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->input_system_memory_requirement);
+    input_system_init(&engine_state->input_system_memory_requirement, engine_state->input_system_state);
 
     // Register for engine-level events.
-    event_register(EVENT_CODE_APPLICATION_QUIT, 0, application_on_event);
-    event_register(EVENT_CODE_RESIZED, 0, application_on_resized);
+    event_register(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
+    event_register(EVENT_CODE_RESIZED, 0, engine_on_resized);
 
     // Platform
-    platform_system_startup(&app_state->platform_system_memory_requirement, 0, 0, 0, 0, 0, 0);
-    app_state->platform_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->platform_system_memory_requirement);
+    platform_system_startup(&engine_state->platform_system_memory_requirement, 0, 0, 0, 0, 0, 0);
+    engine_state->platform_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->platform_system_memory_requirement);
     if (!platform_system_startup(
-        &app_state->platform_system_memory_requirement,
-        app_state->platform_system_state,
+        &engine_state->platform_system_memory_requirement,
+        engine_state->platform_system_state,
         game_instance->app_config.name,
         game_instance->app_config.start_pos_x,
         game_instance->app_config.start_pos_y,
@@ -177,9 +177,9 @@ b8 application_create(GAME* game_instance) {
     RESOURCE_SYSTEM_CONFIG resource_sys_config;
     resource_sys_config.asset_base_path = "assets";
     resource_sys_config.max_loader_count = 32;
-    resource_system_init(&app_state->resource_system_memory_requirement, 0, resource_sys_config);
-    app_state->resource_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->resource_system_memory_requirement);
-    if(!resource_system_init(&app_state->resource_system_memory_requirement, app_state->resource_system_state, resource_sys_config)) {
+    resource_system_init(&engine_state->resource_system_memory_requirement, 0, resource_sys_config);
+    engine_state->resource_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->resource_system_memory_requirement);
+    if(!resource_system_init(&engine_state->resource_system_memory_requirement, engine_state->resource_system_state, resource_sys_config)) {
         PRINT_ERROR("Failed to initialize resource system. Aborting application.");
         return false;
     }
@@ -190,9 +190,9 @@ b8 application_create(GAME* game_instance) {
     shader_sys_config.max_uniform_count = 128;
     shader_sys_config.max_global_textures = 31;
     shader_sys_config.max_instance_textures = 31;
-    shader_system_init(&app_state->shader_system_memory_requirement, 0, shader_sys_config);
-    app_state->shader_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->shader_system_memory_requirement);
-    if(!shader_system_init(&app_state->shader_system_memory_requirement, app_state->shader_system_state, shader_sys_config)) {
+    shader_system_init(&engine_state->shader_system_memory_requirement, 0, shader_sys_config);
+    engine_state->shader_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->shader_system_memory_requirement);
+    if(!shader_system_init(&engine_state->shader_system_memory_requirement, engine_state->shader_system_state, shader_sys_config)) {
         PRINT_ERROR("Failed to initialize shader system. Aborting application.");
         return false;
     }
@@ -207,9 +207,9 @@ b8 application_create(GAME* game_instance) {
     }
     
     // Renderer system
-    renderer_system_init(&app_state->renderer_system_memory_requirement, 0, 0, 0);
-    app_state->renderer_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_system_memory_requirement);
-    if (!renderer_system_init(&app_state->renderer_system_memory_requirement, app_state->renderer_system_state, game_instance->app_config.name, game_instance->app_config.renderer_backend_api)) { //RENDERER_BACKEND_API_WEBGPU|RENDERER_BACKEND_API_VULKAN
+    renderer_system_init(&engine_state->renderer_system_memory_requirement, 0, 0, 0);
+    engine_state->renderer_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->renderer_system_memory_requirement);
+    if (!renderer_system_init(&engine_state->renderer_system_memory_requirement, engine_state->renderer_system_state, game_instance->app_config.name, game_instance->app_config.renderer_backend_api)) { //RENDERER_BACKEND_API_WEBGPU|RENDERER_BACKEND_API_VULKAN
         PRINT_ERROR("Failed to initialize renderer. Aborting application.");
         return false;
     }
@@ -252,9 +252,9 @@ b8 application_create(GAME* game_instance) {
         job_thread_types[1] = JOB_TYPE_RESOURCE_LOAD;
     }
 
-    job_system_init(&app_state->job_system_memory_requirement, 0, 0, 0);
-    app_state->job_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->job_system_memory_requirement);
-    if (!job_system_init(&app_state->job_system_memory_requirement, app_state->job_system_state, thread_count, job_thread_types)) {
+    job_system_init(&engine_state->job_system_memory_requirement, 0, 0, 0);
+    engine_state->job_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->job_system_memory_requirement);
+    if (!job_system_init(&engine_state->job_system_memory_requirement, engine_state->job_system_state, thread_count, job_thread_types)) {
         PRINT_ERROR("Failed to initialize job system. Aborting application.");
         return false;
     }
@@ -263,17 +263,17 @@ b8 application_create(GAME* game_instance) {
     // Allocate the texture & material systems memory before the renderer to not overflow the renderer's memory
     TEXTURE_SYSTEM_CONFIG texture_sys_config = {0};
     texture_sys_config.max_texture_count = 65536;
-    texture_system_init(&app_state->texture_system_memory_requirement, 0, texture_sys_config);
-    app_state->texture_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->texture_system_memory_requirement);
-    if (!texture_system_init(&app_state->texture_system_memory_requirement, app_state->texture_system_state, texture_sys_config)) {
+    texture_system_init(&engine_state->texture_system_memory_requirement, 0, texture_sys_config);
+    engine_state->texture_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->texture_system_memory_requirement);
+    if (!texture_system_init(&engine_state->texture_system_memory_requirement, engine_state->texture_system_state, texture_sys_config)) {
         PRINT_ERROR("Failed to initialize texture system. Application cannot continue.");
         return false;
     }
 
     // Font system.
-    font_system_init(&app_state->font_system_memory_requirement, 0, &game_instance->app_config.font_config);
-    app_state->font_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->font_system_memory_requirement);
-    if (!font_system_init(&app_state->font_system_memory_requirement, app_state->font_system_state, &game_instance->app_config.font_config)) {
+    font_system_init(&engine_state->font_system_memory_requirement, 0, &game_instance->app_config.font_config);
+    engine_state->font_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->font_system_memory_requirement);
+    if (!font_system_init(&engine_state->font_system_memory_requirement, engine_state->font_system_state, &game_instance->app_config.font_config)) {
         PRINT_ERROR("Failed to initialize font system. Application cannot continue.");
         return false;
     }
@@ -281,18 +281,18 @@ b8 application_create(GAME* game_instance) {
     // Camera
     CAMERA_SYSTEM_CONFIG camera_sys_config = {0};
     camera_sys_config.max_camera_count = 61;
-    camera_system_init(&app_state->camera_system_memory_requirement, 0, camera_sys_config);
-    app_state->camera_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->camera_system_memory_requirement);
-    if (!camera_system_init(&app_state->camera_system_memory_requirement, app_state->camera_system_state, camera_sys_config)) {
+    camera_system_init(&engine_state->camera_system_memory_requirement, 0, camera_sys_config);
+    engine_state->camera_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->camera_system_memory_requirement);
+    if (!camera_system_init(&engine_state->camera_system_memory_requirement, engine_state->camera_system_state, camera_sys_config)) {
         PRINT_ERROR("Failed to initialize camera system. Application cannot continue.");
         return false;
     }
 
     RENDER_VIEW_SYSTEM_CONFIG render_view_sys_config = {0};
     render_view_sys_config.max_view_count = 256;
-    render_view_system_init(&app_state->renderer_view_system_memory_requirement, 0, render_view_sys_config);
-    app_state->renderer_view_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->renderer_view_system_memory_requirement);
-    if (!render_view_system_init(&app_state->renderer_view_system_memory_requirement, app_state->renderer_view_system_state, render_view_sys_config)) {
+    render_view_system_init(&engine_state->renderer_view_system_memory_requirement, 0, render_view_sys_config);
+    engine_state->renderer_view_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->renderer_view_system_memory_requirement);
+    if (!render_view_system_init(&engine_state->renderer_view_system_memory_requirement, engine_state->renderer_view_system_state, render_view_sys_config)) {
         PRINT_ERROR("Failed to initialize render view system. Aborting application.");
         return false;
     }
@@ -310,9 +310,9 @@ b8 application_create(GAME* game_instance) {
     // Material system.
     MATERIAL_SYSTEM_CONFIG material_sys_config;
     material_sys_config.max_material_count = 4096;
-    material_system_init(&app_state->material_system_memory_requirement, 0, material_sys_config);
-    app_state->material_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->material_system_memory_requirement);
-    if (!material_system_init(&app_state->material_system_memory_requirement, app_state->material_system_state, material_sys_config)) {
+    material_system_init(&engine_state->material_system_memory_requirement, 0, material_sys_config);
+    engine_state->material_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->material_system_memory_requirement);
+    if (!material_system_init(&engine_state->material_system_memory_requirement, engine_state->material_system_state, material_sys_config)) {
         PRINT_ERROR("Failed to initialize material system. Application cannot continue.");
         return false;
     }
@@ -320,31 +320,31 @@ b8 application_create(GAME* game_instance) {
     // Geometry system.
     GEOMETRY_SYSTEM_CONFIG geometry_sys_config;
     geometry_sys_config.max_geometry_count = 4096;
-    geometry_system_init(&app_state->geometry_system_memory_requirement, 0, geometry_sys_config);
-    app_state->geometry_system_state = linear_allocator_allocate(&app_state->systems_allocator, app_state->geometry_system_memory_requirement);
-    if (!geometry_system_init(&app_state->geometry_system_memory_requirement, app_state->geometry_system_state, geometry_sys_config)) {
+    geometry_system_init(&engine_state->geometry_system_memory_requirement, 0, geometry_sys_config);
+    engine_state->geometry_system_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->geometry_system_memory_requirement);
+    if (!geometry_system_init(&engine_state->geometry_system_memory_requirement, engine_state->geometry_system_state, geometry_sys_config)) {
         PRINT_ERROR("Failed to initialize geometry system. Application cannot continue.");
         return false;
     }
 
     // Initialize the game.
-    if (!app_state->game_instance->init(app_state->game_instance)) {
+    if (!engine_state->game_instance->init(engine_state->game_instance)) {
         PRINT_ERROR("Game failed to initialize.");
         return false;
     }
 
     // Call resize once to ensure the proper size has been set.
-    renderer_on_resized(app_state->width, app_state->height);
-    app_state->game_instance->on_resize(app_state->game_instance, app_state->width, app_state->height);
+    renderer_on_resized(engine_state->width, engine_state->height);
+    engine_state->game_instance->on_resize(engine_state->game_instance, engine_state->width, engine_state->height);
     
     return true;
 }
 
-b8 application_run(void) {
-    app_state->is_running = true;
-    clock_start(&app_state->clock);
-    clock_update(&app_state->clock);
-    app_state->last_time = app_state->clock.elapsed;
+b8 engine_run(void) {
+    engine_state->is_running = true;
+    clock_start(&engine_state->clock);
+    clock_update(&engine_state->clock);
+    engine_state->last_time = engine_state->clock.elapsed;
     f64 running_time = 0;
     u8 frame_count = 0;
     f64 target_frame_seconds = 1.0f / 60;
@@ -357,16 +357,16 @@ b8 application_run(void) {
     char* mem_usage = get_memory_usage_str();
     PRINT_INFO(mem_usage);
 
-    while (app_state->is_running) { // Game Loop
+    while (engine_state->is_running) { // Game Loop
         if(!platform_pump_messages()) {
-            app_state->is_running = false;
+            engine_state->is_running = false;
         }
 
-        if(!app_state->is_suspended) {
+        if(!engine_state->is_suspended) {
             // Update clock and get delta time.
-            clock_update(&app_state->clock);
-            f64 current_time = app_state->clock.elapsed;
-            f64 delta = (current_time - app_state->last_time);
+            clock_update(&engine_state->clock);
+            f64 current_time = engine_state->clock.elapsed;
+            f64 delta = (current_time - engine_state->last_time);
             f64 frame_start_time = platform_get_absolute_time();
 
             // Update the job system.
@@ -375,9 +375,9 @@ b8 application_run(void) {
             // update metrics
             metrics_update(frame_elapsed_time);
     
-            if (!app_state->game_instance->update(app_state->game_instance, (f32)delta)) {
+            if (!engine_state->game_instance->update(engine_state->game_instance, (f32)delta)) {
                 PRINT_ERROR("Game update failed, shutting down.");
-                app_state->is_running = false;
+                engine_state->is_running = false;
                 break;
             }
 
@@ -386,9 +386,9 @@ b8 application_run(void) {
             packet.delta_time = delta;
 
             // Call the game's render routine.
-            if (!app_state->game_instance->render(app_state->game_instance, &packet, (f32)delta)) {
+            if (!engine_state->game_instance->render(engine_state->game_instance, &packet, (f32)delta)) {
                 PRINT_ERROR("Game render failed, shutting down.");
-                app_state->is_running = false;
+                engine_state->is_running = false;
                 break;
             }
 
@@ -424,59 +424,59 @@ b8 application_run(void) {
             input_update(delta);
 
             // Update last time
-            app_state->last_time = current_time;
+            engine_state->last_time = current_time;
         }
     }
 
-    app_state->is_running = false;
+    engine_state->is_running = false;
 
     // Shut down the game.
-    app_state->game_instance->shutdown(app_state->game_instance);
+    engine_state->game_instance->shutdown(engine_state->game_instance);
 
     // Shutdown event system.
-    event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, application_on_event);
+    event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
 
-    input_system_shutdown(app_state->input_system_state);
+    input_system_shutdown(engine_state->input_system_state);
 
-    font_system_shutdown(app_state->font_system_state);
+    font_system_shutdown(engine_state->font_system_state);
 
-    render_view_system_shutdown(app_state->renderer_view_system_state);
+    render_view_system_shutdown(engine_state->renderer_view_system_state);
 
-    geometry_system_shutdown(app_state->geometry_system_state);
+    geometry_system_shutdown(engine_state->geometry_system_state);
 
-    material_system_shutdown(app_state->material_system_state);
+    material_system_shutdown(engine_state->material_system_state);
 
-    texture_system_shutdown(app_state->texture_system_state);
+    texture_system_shutdown(engine_state->texture_system_state);
 
-    shader_system_shutdown(app_state->shader_system_state);
+    shader_system_shutdown(engine_state->shader_system_state);
 
-    renderer_system_shutdown(app_state->renderer_system_state);
+    renderer_system_shutdown(engine_state->renderer_system_state);
 
-    resource_system_shutdown(app_state->resource_system_state);
+    resource_system_shutdown(engine_state->resource_system_state);
 
-    job_system_shutdown(app_state->job_system_state);
+    job_system_shutdown(engine_state->job_system_state);
 
-    platform_system_shutdown(app_state->platform_system_state);
+    platform_system_shutdown(engine_state->platform_system_state);
 
-    event_system_shutdown(app_state->event_system_state);
+    event_system_shutdown(engine_state->event_system_state);
 
-    console_shutdown(app_state->console_state);
+    console_shutdown(engine_state->console_state);
 
     memory_system_shutdown();
 
     return true;
 }
 
-void application_get_framebuffer_size(u32* width, u32* height) {
-    *width = app_state->width;
-    *height = app_state->height;
+void engine_get_framebuffer_size(u32* width, u32* height) {
+    *width = engine_state->width;
+    *height = engine_state->height;
 }
 
-b8 application_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context) {
+b8 engine_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context) {
     switch (code) {
         case EVENT_CODE_APPLICATION_QUIT: {
             PRINT_INFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
-            app_state->is_running = false;
+            engine_state->is_running = false;
             return true;
         }
     }
@@ -484,29 +484,29 @@ b8 application_on_event(u16 code, void* sender, void* listener_instance, EVENT_C
     return false;
 }
 
-b8 application_on_resized(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
+b8 engine_on_resized(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
     if (code == EVENT_CODE_RESIZED) {
         u16 width = context.data.u16[0];
         u16 height = context.data.u16[1];
 
         // Check if different. If so, trigger a resize event.
-        if (width != app_state->width || height != app_state->height) {
-            app_state->width = width;
-            app_state->height = height;
+        if (width != engine_state->width || height != engine_state->height) {
+            engine_state->width = width;
+            engine_state->height = height;
 
             PRINT_DEBUG("Window resize: %i, %i", width, height);
 
             // Handle minimization
             if (width == 0 || height == 0) {
                 PRINT_INFO("Window minimized, suspending application.");
-                app_state->is_suspended = true;
+                engine_state->is_suspended = true;
                 return true;
             } else {
-                if (app_state->is_suspended) {
+                if (engine_state->is_suspended) {
                     PRINT_INFO("Window restored, resuming application.");
-                    app_state->is_suspended = false;
+                    engine_state->is_suspended = false;
                 }
-                app_state->game_instance->on_resize(app_state->game_instance, width, height);
+                engine_state->game_instance->on_resize(engine_state->game_instance, width, height);
                 renderer_on_resized(width, height);
             }
         }

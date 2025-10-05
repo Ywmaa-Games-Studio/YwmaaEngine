@@ -13,7 +13,7 @@ void game_on_escape_callback(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_M
 }
 
 void game_on_yaw(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     f32 f = 0.0f;
@@ -26,7 +26,7 @@ void game_on_yaw(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modi
 }
 
 void game_on_pitch(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     f32 f = 0.0f;
@@ -39,49 +39,49 @@ void game_on_pitch(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER mo
 }
 
 void game_on_move_forward(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
     static const f32 temp_move_speed = 50.0f;
     camera_move_forward(state->world_camera, temp_move_speed * state->delta_time);
 }
 
 void game_on_move_backward(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
     static const f32 temp_move_speed = 50.0f;
     camera_move_backward(state->world_camera, temp_move_speed * state->delta_time);
 }
 
 void game_on_move_left(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
     static const f32 temp_move_speed = 50.0f;
     camera_move_left(state->world_camera, temp_move_speed * state->delta_time);
 }
 
 void game_on_move_right(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
     static const f32 temp_move_speed = 50.0f;
     camera_move_right(state->world_camera, temp_move_speed * state->delta_time);
 }
 
 void game_on_move_up(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
     static const f32 temp_move_speed = 50.0f;
     camera_move_up(state->world_camera, temp_move_speed * state->delta_time);
 }
 
 void game_on_move_down(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
     static const f32 temp_move_speed = 50.0f;
     camera_move_down(state->world_camera, temp_move_speed * state->delta_time);
 }
 
 void game_on_console_change_visibility(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     b8 console_visible = debug_console_visible();
@@ -98,23 +98,23 @@ void game_on_console_change_visibility(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type
 void game_on_set_render_mode_default(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
     EVENT_CONTEXT data = {0};
     data.data.i32[0] = RENDERER_VIEW_MODE_DEFAULT;
-    event_fire(EVENT_CODE_SET_RENDER_MODE, (GAME*)user_data, data);
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (APPLICATION*)user_data, data);
 }
 
 void game_on_set_render_mode_lighting(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
     EVENT_CONTEXT data = {0};
     data.data.i32[0] = RENDERER_VIEW_MODE_LIGHTING;
-    event_fire(EVENT_CODE_SET_RENDER_MODE, (GAME*)user_data, data);
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (APPLICATION*)user_data, data);
 }
 
 void game_on_set_render_mode_normals(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
     EVENT_CONTEXT data = {0};
     data.data.i32[0] = RENDERER_VIEW_MODE_NORMALS;
-    event_fire(EVENT_CODE_SET_RENDER_MODE, (GAME*)user_data, data);
+    event_fire(EVENT_CODE_SET_RENDER_MODE, (APPLICATION*)user_data, data);
 }
 
 void game_on_load_scene(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    event_fire(EVENT_CODE_DEBUG1, (GAME*)user_data, (EVENT_CONTEXT){});
+    event_fire(EVENT_CODE_DEBUG1, (APPLICATION*)user_data, (EVENT_CONTEXT){});
 }
 
 void game_on_console_scroll(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
@@ -126,7 +126,7 @@ void game_on_console_scroll(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MO
 }
 
 void game_on_console_scroll_hold(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     static f32 accumulated_time = 0.0f;
@@ -148,7 +148,7 @@ void game_on_debug_texture_swap(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMA
 }
 
 void game_on_debug_cam_position(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     PRINT_DEBUG(
@@ -165,7 +165,7 @@ void game_on_debug_vsync_toggle(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMA
 }
 
 void game_print_memory_metrics(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    GAME* game_instance = (GAME*)user_data;
+    APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     char* usage = get_memory_usage_str();
@@ -174,7 +174,7 @@ void game_print_memory_metrics(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP
     PRINT_DEBUG("Allocations: %llu (%llu this frame)", state->alloc_count, state->alloc_count - state->prev_alloc_count);
 }
 
-void game_setup_keymaps(GAME* game_instance) {
+void game_setup_keymaps(APPLICATION* game_instance) {
     // Global KEYMAP
     KEYMAP global_keymap = keymap_create();
     keymap_binding_add(&global_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_escape_callback);

@@ -42,7 +42,7 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "BST        ",
     "STRING     ",
     "ROPE       ",
-    "APPLICATION",
+    "ENGINE     ",
     "JOB        ",
     "TEXTURE    ",
     "MAT_INST   ",

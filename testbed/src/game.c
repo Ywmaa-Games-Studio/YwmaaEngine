@@ -31,7 +31,7 @@
 b8 configure_render_views(APPLICATION_CONFIG* config);
 
 b8 game_on_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
-    GAME* game_instance = (GAME*)listener_inst;
+    APPLICATION* game_instance = (APPLICATION*)listener_inst;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     switch (code) {
@@ -45,7 +45,7 @@ b8 game_on_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT cont
 }
 
 b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT data) {
-    GAME* game_instance = (GAME*)listener_inst;
+    APPLICATION* game_instance = (APPLICATION*)listener_inst;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     if (code == EVENT_CODE_DEBUG0) {
@@ -119,7 +119,7 @@ b8 game_on_key(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT contex
     return false;
 }
 
-b8 game_boot(struct GAME* game_instance) {
+b8 game_boot(struct APPLICATION* game_instance) {
     PRINT_INFO("Booting testbed...");
 
     debug_console_create();
@@ -174,7 +174,7 @@ b8 game_boot(struct GAME* game_instance) {
     return true;
 }
 
-b8 game_init(GAME* game_instance) {
+b8 game_init(APPLICATION* game_instance) {
     PRINT_DEBUG("game_init() called!");
 
     debug_console_load();
@@ -341,7 +341,7 @@ b8 game_init(GAME* game_instance) {
     event_register(EVENT_CODE_KEY_PRESSED, game_instance, game_on_key);
     event_register(EVENT_CODE_KEY_RELEASED, game_instance, game_on_key);
 
-    yzero_memory(&game_instance->frame_data, sizeof(GAME_FRAME_DATA));
+    yzero_memory(&game_instance->frame_data, sizeof(APP_FRAME_DATA));
 
     yzero_memory(&state->update_clock, sizeof(clock));
     yzero_memory(&state->render_clock, sizeof(clock));
@@ -349,7 +349,7 @@ b8 game_init(GAME* game_instance) {
     return true;
 }
 
-void game_shutdown(GAME* game_instance) {
+void game_shutdown(APPLICATION* game_instance) {
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     // TODO: Temp
@@ -358,6 +358,8 @@ void game_shutdown(GAME* game_instance) {
     // Destroy ui texts
     ui_text_destroy(&state->test_text);
     ui_text_destroy(&state->test_sys_text);
+
+    debug_console_unload();
 
     event_unregister(EVENT_CODE_DEBUG0, game_instance, game_on_debug_event);
     event_unregister(EVENT_CODE_DEBUG1, game_instance, game_on_debug_event);
@@ -368,7 +370,7 @@ void game_shutdown(GAME* game_instance) {
     event_unregister(EVENT_CODE_KEY_RELEASED, game_instance, game_on_key);
 }
 
-b8 game_update(GAME* game_instance, f32 delta_time) {
+b8 game_update(APPLICATION* game_instance, f32 delta_time) {
     // Ensure this is cleaned up to avoid leaking memory.
     // TODO: Need a version of this that uses the frame allocator.
     if (game_instance->frame_data.world_geometries) {
@@ -380,7 +382,7 @@ b8 game_update(GAME* game_instance, f32 delta_time) {
     linear_allocator_free_all(&game_instance->frame_allocator);
 
     // Clear frame data
-    yzero_memory(&game_instance->frame_data, sizeof(GAME_FRAME_DATA));
+    yzero_memory(&game_instance->frame_data, sizeof(APP_FRAME_DATA));
 
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
@@ -525,7 +527,7 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
     return true;
 }
 
-b8 game_render(GAME* game_instance, struct RENDER_PACKET* packet, f32 delta_time) {
+b8 game_render(APPLICATION* game_instance, struct RENDER_PACKET* packet, f32 delta_time) {
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     clock_start(&state->render_clock);
@@ -604,7 +606,7 @@ b8 game_render(GAME* game_instance, struct RENDER_PACKET* packet, f32 delta_time
     return true;
 }
 
-void game_on_resize(GAME* game_instance, u32 width, u32 height) {
+void game_on_resize(APPLICATION* game_instance, u32 width, u32 height) {
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
     state->width = width;

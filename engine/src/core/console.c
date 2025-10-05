@@ -43,7 +43,7 @@ void console_init(u64* memory_requirement, void* memory) {
 }
 
 void console_shutdown(void* state) {
-    if (state) {
+    if (state_ptr) {
         darray_destroy(state_ptr->registered_commands);
 
         yzero_memory(state, sizeof(CONSOLE_STATE) + (sizeof(CONSOLE_CONSUMER) * MAX_CONSUMER_COUNT));

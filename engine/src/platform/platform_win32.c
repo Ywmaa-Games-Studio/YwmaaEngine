@@ -182,7 +182,7 @@ void platform_console_write(const char *message, u8 color) {
     SetConsoleTextAttribute(console_handle, levels[color]);
     OutputDebugStringA(message);
     u64 length = strlen(message);
-    LPDWORD number_written = 0;
+    DWORD number_written = 0;
     WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), message, (DWORD)length, number_written, 0);
 }
 

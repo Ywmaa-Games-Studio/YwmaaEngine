@@ -16,7 +16,7 @@ static METRICS_STATE* state_ptr = 0;
 
 void metrics_init(void) {
     if (!state_ptr) {
-        state_ptr = yallocate(sizeof(METRICS_STATE), MEMORY_TAG_APPLICATION);
+        state_ptr = yallocate(sizeof(METRICS_STATE), MEMORY_TAG_ENGINE);
     }
 }
 

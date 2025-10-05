@@ -1,7 +1,7 @@
 #pragma once
 
 #include <defines.h>
-#include <game_types.h>
+#include <application_types.h>
 #include <math/math_types.h>
 #include <systems/camera_system.h>
 
@@ -49,14 +49,14 @@ typedef struct GAME_STATE {
 
 struct RENDER_PACKET;
 
-b8 game_boot(struct GAME* game_instance);
+b8 game_boot(struct APPLICATION* game_instance);
 
-b8 game_init(GAME* game_instance);
+b8 game_init(APPLICATION* game_instance);
 
-b8 game_update(GAME* game_instance, f32 delta_time);
+b8 game_update(APPLICATION* game_instance, f32 delta_time);
 
-b8 game_render(GAME* game_instance, struct RENDER_PACKET* packet, f32 delta_time);
+b8 game_render(APPLICATION* game_instance, struct RENDER_PACKET* packet, f32 delta_time);
 
-void game_on_resize(GAME* game_instance, u32 width, u32 height);
+void game_on_resize(APPLICATION* game_instance, u32 width, u32 height);
 
-void game_shutdown(GAME* game_inst);
+void game_shutdown(APPLICATION* game_inst);

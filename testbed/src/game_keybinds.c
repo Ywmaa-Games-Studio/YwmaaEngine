@@ -118,9 +118,9 @@ void game_on_load_scene(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFI
 }
 
 void game_on_console_scroll(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    if (key == KEY_UP) {
+    if (key == KEY_PAGEUP) {
         debug_console_move_up();
-    } else if (key == KEY_DOWN) {
+    } else if (key == KEY_PAGEDOWN) {
         debug_console_move_down();
     }
 }
@@ -132,9 +132,9 @@ void game_on_console_scroll_hold(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYM
     static f32 accumulated_time = 0.0f;
     accumulated_time += state->delta_time;
     if (accumulated_time >= 0.1f) {
-        if (key == KEY_UP) {
+        if (key == KEY_PAGEUP) {
             debug_console_move_up();
-        } else if (key == KEY_DOWN) {
+        } else if (key == KEY_PAGEDOWN) {
             debug_console_move_down();
         }
         accumulated_time = 0.0f;
@@ -172,6 +172,14 @@ void game_print_memory_metrics(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP
     PRINT_INFO(usage);
     string_free(usage);
     PRINT_DEBUG("Allocations: %llu (%llu this frame)", state->alloc_count, state->alloc_count - state->prev_alloc_count);
+}
+
+void game_on_debug_console_history_forward(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
+    debug_console_history_forward();
+}
+
+void game_on_debug_console_history_back(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
+    debug_console_history_back();
 }
 
 void game_setup_keymaps(APPLICATION* game_instance) {
@@ -221,8 +229,11 @@ void game_setup_keymaps(APPLICATION* game_instance) {
     keymap_binding_add(&state->console_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_change_visibility);
     keymap_binding_add(&state->console_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_change_visibility);
 
-    keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll);
-    keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll);
-    keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll_hold);
-    keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll_hold);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll_hold);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll_hold);
+
+    keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_debug_console_history_back);
+    keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_debug_console_history_forward);
 }

@@ -12,6 +12,7 @@
 #include "core/ystring.h"
 #include "core/uuid.h"
 #include "core/metrics.h"
+
 #include "data_structures/darray.h"
 
 #include "memory/linear_allocator.h"
@@ -20,6 +21,7 @@
 
 // systems
 #include "core/console.h"
+#include "core/yvar.h"
 #include "systems/texture_system.h"
 #include "systems/material_system.h"
 #include "systems/geometry_system.h"
@@ -42,6 +44,9 @@ typedef struct ENGINE_STATE_T {
 
     u64 console_memory_requirement;
     void* console_state;
+
+    u64 yvar_memory_requirement;
+    void* yvar_state;
 
     u64 event_system_memory_requirement;
     void* event_system_state;
@@ -136,6 +141,11 @@ b8 engine_create(APPLICATION* game_instance) {
     console_init(&engine_state->console_memory_requirement, 0);
     engine_state->console_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->console_memory_requirement);
     console_init(&engine_state->console_memory_requirement, engine_state->console_state);
+
+    // YVars
+    yvar_init(&engine_state->yvar_memory_requirement, 0);
+    engine_state->yvar_state = linear_allocator_allocate(&engine_state->systems_allocator, engine_state->yvar_memory_requirement);
+    yvar_init(&engine_state->yvar_memory_requirement, engine_state->yvar_state);
 
     // Events
     event_system_init(&engine_state->event_system_memory_requirement, 0);

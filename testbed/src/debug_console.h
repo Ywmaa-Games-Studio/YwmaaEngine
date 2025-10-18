@@ -20,3 +20,6 @@ void debug_console_move_up(void);
 void debug_console_move_down(void);
 void debug_console_move_to_top(void);
 void debug_console_move_to_bottom(void);
+
+void debug_console_history_back(void);
+void debug_console_history_forward(void);

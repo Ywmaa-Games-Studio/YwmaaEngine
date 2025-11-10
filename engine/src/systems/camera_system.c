@@ -23,16 +23,17 @@ typedef struct CAMERA_SYSTEM_STATE {
 
 static CAMERA_SYSTEM_STATE* state_ptr;
 
-b8 camera_system_init(u64* memory_requirement, void* state, CAMERA_SYSTEM_CONFIG config) {
-    if (config.max_camera_count == 0) {
-        PRINT_ERROR("camera_system_init - config.max_camera_count must be > 0.");
+b8 camera_system_init(u64* memory_requirement, void* state, void* config) {
+    CAMERA_SYSTEM_CONFIG* typed_config = (CAMERA_SYSTEM_CONFIG*)config;
+    if (typed_config->max_camera_count == 0) {
+        PRINT_ERROR("camera_system_init - typed_config->max_camera_count must be > 0.");
         return false;
     }
 
     // Block of memory will contain state structure, then block for array, then block for hashtable.
     u64 struct_requirement = sizeof(CAMERA_SYSTEM_STATE);
-    u64 array_requirement = sizeof(CAMERA_LOOKUP) * config.max_camera_count;
-    u64 hashtable_requirement = sizeof(CAMERA_LOOKUP) * config.max_camera_count;
+    u64 array_requirement = sizeof(CAMERA_LOOKUP) * typed_config->max_camera_count;
+    u64 hashtable_requirement = sizeof(CAMERA_LOOKUP) * typed_config->max_camera_count;
     *memory_requirement = struct_requirement + array_requirement + hashtable_requirement;
 
     if (!state) {
@@ -40,7 +41,7 @@ b8 camera_system_init(u64* memory_requirement, void* state, CAMERA_SYSTEM_CONFIG
     }
 
     state_ptr = (CAMERA_SYSTEM_STATE*)state;
-    state_ptr->config = config;
+    state_ptr->config = *typed_config;
 
     // The array block is after the state. Already allocated, so just set the pointer.
     void* array_block = state + struct_requirement;
@@ -50,7 +51,7 @@ b8 camera_system_init(u64* memory_requirement, void* state, CAMERA_SYSTEM_CONFIG
     void* hashtable_block = array_block + array_requirement;
 
     // Create a hashtable for Camera lookups.
-    hashtable_create(sizeof(u16), config.max_camera_count, hashtable_block, false, &state_ptr->lookup);
+    hashtable_create(sizeof(u16), typed_config->max_camera_count, hashtable_block, false, &state_ptr->lookup);
 
     // Fill the hashtable with invalid references to use as a default.
     u16 invalid_id = INVALID_ID_U16;

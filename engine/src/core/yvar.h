@@ -2,7 +2,7 @@
 
 #include "defines.h"
 
-b8 yvar_init(u64* memory_requirement, void* memory);
+b8 yvar_init(u64* memory_requirement, void* memory, void* config);
 void yvar_shutdown(void* state);
 
 YAPI b8 yvar_create_int(const char* name, i32 value);

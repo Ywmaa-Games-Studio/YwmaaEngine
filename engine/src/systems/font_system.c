@@ -65,18 +65,19 @@ b8 verify_system_font_size_variant(SYSTEM_FONT_LOOKUP* lookup, FONT_DATA* varian
 
 static FONT_SYSTEM_STATE* state_ptr;
 
-b8 font_system_init(u64* memory_requirement, void* memory, FONT_SYSTEM_CONFIG* config) {
-    if (config->max_bitmap_font_count == 0 || config->max_system_font_count == 0) {
+b8 font_system_init(u64* memory_requirement, void* memory, void* config) {
+    FONT_SYSTEM_CONFIG* typed_config = (FONT_SYSTEM_CONFIG*)config;
+    if (typed_config->max_bitmap_font_count == 0 || typed_config->max_system_font_count == 0) {
         PRINT_ERROR("font_system_init - config.max_bitmap_font_count and config.max_system_font_count must be > 0.");
         return false;
     }
 
     // Block of memory will contain state structure, then blocks for arrays, then blocks for hashtables.
     u64 struct_requirement = sizeof(FONT_SYSTEM_STATE);
-    u64 bmp_array_requirement = sizeof(BITMAP_FONT_LOOKUP) * config->max_bitmap_font_count;
-    u64 sys_array_requirement = sizeof(SYSTEM_FONT_LOOKUP) * config->max_system_font_count;
-    u64 bmp_hashtable_requirement = sizeof(u16) * config->max_bitmap_font_count;
-    u64 sys_hashtable_requirement = sizeof(u16) * config->max_system_font_count;
+    u64 bmp_array_requirement = sizeof(BITMAP_FONT_LOOKUP) * typed_config->max_bitmap_font_count;
+    u64 sys_array_requirement = sizeof(SYSTEM_FONT_LOOKUP) * typed_config->max_system_font_count;
+    u64 bmp_hashtable_requirement = sizeof(u16) * typed_config->max_bitmap_font_count;
+    u64 sys_hashtable_requirement = sizeof(u16) * typed_config->max_system_font_count;
     *memory_requirement = struct_requirement + bmp_array_requirement + sys_array_requirement + bmp_hashtable_requirement + sys_hashtable_requirement;
 
     if (!memory) {
@@ -84,7 +85,7 @@ b8 font_system_init(u64* memory_requirement, void* memory, FONT_SYSTEM_CONFIG* c
     }
 
     state_ptr = (FONT_SYSTEM_STATE*)memory;
-    state_ptr->config = *config;
+    state_ptr->config = *typed_config;
 
     // The array blocks are after the state. Already allocated, so just set the pointer.
     void* bmp_array_block = (void*)(((u8*)memory) + struct_requirement);

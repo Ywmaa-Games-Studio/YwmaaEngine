@@ -126,5 +126,5 @@ void run_benchmarks(void) {
         benchmark_yallocate(alignments[i]);
         printf("\n");
     }
-    memory_system_shutdown();
+    //memory_system_shutdown();
 }

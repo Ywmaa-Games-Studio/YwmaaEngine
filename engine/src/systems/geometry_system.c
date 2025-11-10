@@ -30,15 +30,16 @@ b8 create_default_geometries(GEOMETRY_SYSTEM_STATE* state);
 b8 create_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY_CONFIG config, GEOMETRY* g);
 void destroy_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY* g);
 
-b8 geometry_system_init(u64* memory_requirement, void* state, GEOMETRY_SYSTEM_CONFIG config) {
-    if (config.max_geometry_count == 0) {
-        PRINT_ERROR("geometry_system_initialize - config.max_geometry_count must be > 0.");
+b8 geometry_system_init(u64* memory_requirement, void* state, void* config) {
+    GEOMETRY_SYSTEM_CONFIG* typed_config = (GEOMETRY_SYSTEM_CONFIG*)config;
+    if (typed_config->max_geometry_count == 0) {
+        PRINT_ERROR("geometry_system_init - typed_config->max_geometry_count must be > 0.");
         return false;
     }
 
     // Block of memory will contain state structure, then block for array, then block for hashtable.
     u64 struct_requirement = sizeof(GEOMETRY_SYSTEM_STATE);
-    u64 array_requirement = sizeof(GEOMETRY_REFERENCE) * config.max_geometry_count;
+    u64 array_requirement = sizeof(GEOMETRY_REFERENCE) * typed_config->max_geometry_count;
     *memory_requirement = struct_requirement + array_requirement;
 
     if (!state) {
@@ -46,7 +47,7 @@ b8 geometry_system_init(u64* memory_requirement, void* state, GEOMETRY_SYSTEM_CO
     }
     
     state_ptr = state;
-    state_ptr->config = config;
+    state_ptr->config = *typed_config;
     
     // The array block is after the state. Already allocated, so just set the pointer.
     void* array_block = state + struct_requirement;

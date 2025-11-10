@@ -22,26 +22,27 @@ static RESOURCE_SYSTEM_STATE* state_ptr = 0;
 
 b8 load(const char* name, RESOURCE_LOADER* loader, void* params, RESOURCE* out_resource);
 
-b8 resource_system_init(u64* memory_requirement, void* state, RESOURCE_SYSTEM_CONFIG config) {
-    if (config.max_loader_count == 0) {
-        PRINT_ERROR("resource_system_init failed because config.max_loader_count==0.");
+b8 resource_system_init(u64* memory_requirement, void* state, void* config) {
+    RESOURCE_SYSTEM_CONFIG* typed_config = (RESOURCE_SYSTEM_CONFIG*)config;
+    if (typed_config->max_loader_count == 0) {
+        PRINT_ERROR("resource_system_init failed because typed_config->max_loader_count==0.");
         return false;
     }
 
-    *memory_requirement = sizeof(RESOURCE_SYSTEM_STATE) + (sizeof(RESOURCE_LOADER) * config.max_loader_count);
+    *memory_requirement = sizeof(RESOURCE_SYSTEM_STATE) + (sizeof(RESOURCE_LOADER) * typed_config->max_loader_count);
 
     if (!state) {
         return true;
     }
 
     state_ptr = state;
-    state_ptr->config = config;
+    state_ptr->config = *typed_config;
 
     void* array_block = state + sizeof(RESOURCE_SYSTEM_STATE);
     state_ptr->registered_loaders = array_block;
 
     // Invalidate all loaders
-    u32 count = config.max_loader_count;
+    u32 count = typed_config->max_loader_count;
     for (u32 i = 0; i < count; ++i) {
         state_ptr->registered_loaders[i].id = INVALID_ID;
     }
@@ -56,7 +57,7 @@ b8 resource_system_init(u64* memory_requirement, void* state, RESOURCE_SYSTEM_CO
     resource_system_register_loader(bitmap_font_resource_loader_create());
     resource_system_register_loader(system_font_resource_loader_create());
 
-    PRINT_INFO("Resource system initialized with base path '%s'.", config.asset_base_path);
+    PRINT_INFO("Resource system initialized with base path '%s'.", typed_config->asset_base_path);
 
     return true;
 }

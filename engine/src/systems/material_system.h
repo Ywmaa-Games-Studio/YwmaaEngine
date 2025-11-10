@@ -10,7 +10,7 @@ typedef struct MATERIAL_SYSTEM_CONFIG {
     u32 max_material_count;
 } MATERIAL_SYSTEM_CONFIG;
 
-b8 material_system_init(u64* memory_requirement, void* state, MATERIAL_SYSTEM_CONFIG config);
+b8 material_system_init(u64* memory_requirement, void* state, void* config);
 void material_system_shutdown(void* state);
 
 YAPI MATERIAL* material_system_acquire(const char* name);

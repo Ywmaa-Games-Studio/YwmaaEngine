@@ -20,16 +20,17 @@ typedef struct RENDER_VIEW_SYSTEM_STATE {
 
 static RENDER_VIEW_SYSTEM_STATE* state_ptr = 0;
 
-b8 render_view_system_init(u64* memory_requirement, void* state, RENDER_VIEW_SYSTEM_CONFIG config) {
-    if (config.max_view_count == 0) {
+b8 render_view_system_init(u64* memory_requirement, void* state, void* config) {
+    RENDER_VIEW_SYSTEM_CONFIG* typed_config = (RENDER_VIEW_SYSTEM_CONFIG*)config;
+    if (typed_config->max_view_count == 0) {
         PRINT_ERROR("render_view_system_init - config.max_view_count must be > 0.");
         return false;
     }
 
     // Block of memory will contain state structure, then block for hashtable, then block for array.
     u64 struct_requirement = sizeof(RENDER_VIEW_SYSTEM_STATE);
-    u64 hashtable_requirement = sizeof(u16) * config.max_view_count;
-    u64 array_requirement = sizeof(RENDER_VIEW) * config.max_view_count;
+    u64 hashtable_requirement = sizeof(u16) * typed_config->max_view_count;
+    u64 array_requirement = sizeof(RENDER_VIEW) * typed_config->max_view_count;
     *memory_requirement = struct_requirement + hashtable_requirement + array_requirement;
 
      if (!state) {
@@ -37,7 +38,7 @@ b8 render_view_system_init(u64* memory_requirement, void* state, RENDER_VIEW_SYS
     }
 
     state_ptr = state;
-    state_ptr->max_view_count = config.max_view_count;
+    state_ptr->max_view_count = typed_config->max_view_count;
 
     // The hashtable block is after the state. Already allocated, so just set the pointer.
     u64 addr = (u64)state_ptr;

@@ -27,7 +27,7 @@ typedef struct FONT_SYSTEM_CONFIG {
 
 struct UI_TEXT;
 
-b8 font_system_init(u64* memory_requirement, void* memory, FONT_SYSTEM_CONFIG* config);
+b8 font_system_init(u64* memory_requirement, void* memory, void* config);
 void font_system_shutdown(void* memory);
 
 b8 font_system_load_system_font(SYSTEM_FONT_CONFIG* config);

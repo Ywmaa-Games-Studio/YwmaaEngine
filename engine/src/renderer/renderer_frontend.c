@@ -34,7 +34,8 @@ typedef struct RENDERER_SYSTEM_STATE {
 
 static RENDERER_SYSTEM_STATE* state_ptr;
 
-b8 renderer_system_init(u64* memory_requirement, void* state, const char* application_name, E_RENDERER_BACKEND_API rendering_backend_api) {
+b8 renderer_system_init(u64* memory_requirement, void* state, void* config) {
+    RENDERER_SYSTEM_CONFIG* typed_config = (RENDERER_SYSTEM_CONFIG*)config;
     *memory_requirement = sizeof(RENDERER_SYSTEM_STATE);
     if (state == 0) {
         return true;
@@ -47,7 +48,7 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
     state_ptr->resizing = false;
     state_ptr->frames_since_resize = 0;
 
-    if (!renderer_backend_create(rendering_backend_api, &state_ptr->backend)){
+    if (!renderer_backend_create(typed_config->rendering_backend_api, &state_ptr->backend)){
         PRINT_ERROR("failed to create backend. Shutting down.");
         return false;
     }
@@ -55,7 +56,7 @@ b8 renderer_system_init(u64* memory_requirement, void* state, const char* applic
     state_ptr->backend.frame_number = 0;
 
     RENDERER_BACKEND_CONFIG renderer_config = {0};
-    renderer_config.application_name = application_name;
+    renderer_config.application_name = typed_config->application_name;
     // TODO: expose this to the application to configure.
     renderer_config.flags = RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT | RENDERER_CONFIG_FLAG_POWER_SAVING_BIT;
 

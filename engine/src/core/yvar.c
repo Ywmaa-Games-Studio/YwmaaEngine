@@ -22,7 +22,7 @@ static YVAR_SYSTEM_STATE* state_ptr;
 
 void yvar_register_console_commands(void);
 
-b8 yvar_init(u64* memory_requirement, void* memory) {
+b8 yvar_init(u64* memory_requirement, void* memory, void* config) {
     *memory_requirement = sizeof(YVAR_SYSTEM_STATE);
 
     if (!memory) {

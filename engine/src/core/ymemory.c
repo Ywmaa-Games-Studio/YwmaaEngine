@@ -131,7 +131,7 @@ b8 memory_system_init(MEMORY_SYSTEM_CONFIG config) {
     return true;
 }
 
-void memory_system_shutdown(void) {
+void memory_system_shutdown(void* state) {
     if (state_ptr) {
         // Destroy allocation mutex
         ymutex_destroy(&state_ptr->allocation_mutex);

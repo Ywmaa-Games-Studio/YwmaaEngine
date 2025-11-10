@@ -14,7 +14,7 @@ typedef struct TEXTURE_SYSTEM_CONFIG {
 /** @brief The default normal texture name. */
 #define DEFAULT_NORMAL_TEXTURE_NAME "default_NORM"
 
-b8 texture_system_init(u64* memory_requirement, void* state, TEXTURE_SYSTEM_CONFIG config);
+b8 texture_system_init(u64* memory_requirement, void* state, void* config);
 void texture_system_shutdown(void* state);
 
 TEXTURE* texture_system_acquire(const char* name, b8 auto_release);

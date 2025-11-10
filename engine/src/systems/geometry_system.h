@@ -26,7 +26,7 @@ typedef struct GEOMETRY_CONFIG {
 
 #define DEFAULT_GEOMETRY_NAME "default"
 
-b8 geometry_system_init(u64* memory_requirement, void* state, GEOMETRY_SYSTEM_CONFIG config);
+b8 geometry_system_init(u64* memory_requirement, void* state, void* config);
 void geometry_system_shutdown(void* state);
 
 /**

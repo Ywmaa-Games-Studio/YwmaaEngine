@@ -49,3 +49,5 @@ YAPI b8 engine_create(struct APPLICATION* game_instance);
  * @returns True on success; otherwise false.
  */
 YAPI b8 engine_run(void);
+
+void engine_on_event_system_initialized(void);

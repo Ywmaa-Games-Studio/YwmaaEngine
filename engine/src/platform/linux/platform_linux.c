@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l2297AMle>
+ *   <l3141PMle>
  * Auto updated?
  *   Yes
  *
@@ -32,12 +32,8 @@ static platform_backend active_backend = PLATFORM_BACKEND_NONE;
 void* state_ptr = NULL;
 
 // Main implementation that tries Wayland first, then X11
-b8 platform_system_startup(
-    u64* memory_requirement,
-    void* state,
-    const char* application_name,
-    i32 x, i32 y,
-    i32 width, i32 height) {
+b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
+    PLATFORM_SYSTEM_CONFIG* typed_config = (PLATFORM_SYSTEM_CONFIG*)config;
     
     // First call - just get memory requirements
     if (state == 0) {
@@ -61,7 +57,7 @@ b8 platform_system_startup(
     // Actual initialization - try Wayland first if enabled
     #ifdef WAYLAND_ENABLED
     PRINT_INFO("Attempting to start with Wayland...");
-    if (platform_wayland_system_startup(memory_requirement, state, application_name, x, y, width, height)) {
+    if (platform_wayland_system_startup(memory_requirement, state, typed_config->application_name, typed_config->x, typed_config->y, typed_config->width, typed_config->height)) {
         PRINT_INFO("Successfully initialized Wayland platform.");
         active_backend = PLATFORM_BACKEND_WAYLAND;
         return true;
@@ -71,7 +67,7 @@ b8 platform_system_startup(
     
     // Fall back to X11
     PRINT_INFO("Starting with X11...");
-    if (platform_x11_system_startup(memory_requirement, state, application_name, x, y, width, height)) {
+    if (platform_x11_system_startup(memory_requirement, state, typed_config->application_name, typed_config->x, typed_config->y, typed_config->width, typed_config->height)) {
         PRINT_INFO("Successfully initialized X11 platform.");
         active_backend = PLATFORM_BACKEND_X11;
         return true;

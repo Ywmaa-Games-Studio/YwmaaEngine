@@ -17,7 +17,7 @@ typedef struct RESOURCE_LOADER {
     void (*unload)(struct RESOURCE_LOADER* self, RESOURCE* resource);
 } RESOURCE_LOADER;
 
-b8 resource_system_init(u64* memory_requirement, void* state, RESOURCE_SYSTEM_CONFIG config);
+b8 resource_system_init(u64* memory_requirement, void* state, void* config);
 void resource_system_shutdown(void* state);
 
 YAPI b8 resource_system_register_loader(RESOURCE_LOADER loader);

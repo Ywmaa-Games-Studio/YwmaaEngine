@@ -29,8 +29,8 @@ typedef enum E_LOG_LEVEL {
  * @param state 0 if just requesting memory requirement, otherwise allocated block of memory.
  * @return b8 True on success; otherwise false.
  */
-b8 init_logging(u64* memory_requirement, void* state);
-void shutdown_logging(void* state);
+b8 logging_init(u64* memory_requirement, void* state, void* config);
+void logging_shutdown(void* state);
 
 YAPI void log_output(E_LOG_LEVEL level, const char* message, ...);
 

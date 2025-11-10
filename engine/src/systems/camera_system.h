@@ -22,10 +22,10 @@ typedef struct CAMERA_SYSTEM_CONFIG {
  *
  * @param memory_requirement A pointer to hold the memory requirement as it is calculated.
  * @param state A block of memory to hold the state or, if gathering the memory requirement, 0.
- * @param config The configuration for this system.
+ * @param config The configuration (CAMERA_SYSTEM_CONFIG) for this system.
  * @return True on success; otherwise false.
  */
-b8 camera_system_init(u64* memory_requirement, void* state, CAMERA_SYSTEM_CONFIG config);
+b8 camera_system_init(u64* memory_requirement, void* state, void* config);
 
 /**
  * @brief Shuts down the geometry Camera.

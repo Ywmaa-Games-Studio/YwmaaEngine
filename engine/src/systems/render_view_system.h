@@ -16,10 +16,10 @@ typedef struct RENDER_VIEW_SYSTEM_CONFIG {
  *
  * @param memory_requirement A pointer to hold the memory requirement in bytes.
  * @param state A block of memory to be used for the state.
- * @param config Configuration for the system.
+ * @param config Configuration (RENDER_VIEW_SYSTEM_CONFIG) for the system.
  * @return True on success; otherwise false.
  */
-b8 render_view_system_init(u64* memory_requirement, void* state, RENDER_VIEW_SYSTEM_CONFIG config);
+b8 render_view_system_init(u64* memory_requirement, void* state, void* config);
 
 /**
  * @brief Shuts the render view system down.

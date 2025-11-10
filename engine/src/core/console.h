@@ -16,7 +16,7 @@ typedef struct CONSOLE_COMMAND_CONTEXT {
 
 typedef void (*PFN_console_command)(CONSOLE_COMMAND_CONTEXT context);
 
-void console_init(u64* memory_requirement, void* memory);
+b8 console_init(u64* memory_requirement, void* memory, void* config);
 void console_shutdown(void* state);
 
 YAPI void console_register_consumer(void* inst, PFN_console_consumer_write callback);

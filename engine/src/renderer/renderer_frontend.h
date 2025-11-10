@@ -5,7 +5,12 @@
 struct SHADER;
 struct SHADER_UNIFORM;
 
-b8 renderer_system_init(u64* memory_requirement, void* state, const char* application_name, E_RENDERER_BACKEND_API renderer_backend_api);
+typedef struct RENDERER_SYSTEM_CONFIG {
+    char* application_name;
+    E_RENDERER_BACKEND_API rendering_backend_api;
+} RENDERER_SYSTEM_CONFIG;
+
+b8 renderer_system_init(u64* memory_requirement, void* state, void* config);
 void renderer_system_shutdown(void* state);
 
 E_RENDERER_BACKEND_API renderer_get_backend_api(void);

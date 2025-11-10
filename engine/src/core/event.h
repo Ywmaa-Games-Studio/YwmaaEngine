@@ -132,5 +132,10 @@ typedef enum E_SYSTEM_EVENT_CODE {
      */
     EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED = 0x16,
 
+    /**
+     * @brief An event fired by the yvar system when a yvar has been updated.
+     */
+    EVENT_CODE_YVAR_CHANGED = 0x17,
+
     MAX_EVENT_CODE = 0xFF
 } E_SYSTEM_EVENT_CODE;

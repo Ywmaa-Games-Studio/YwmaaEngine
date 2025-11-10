@@ -4,6 +4,8 @@
 #include <core/logger.h>
 #include <core/ymemory.h>
 #include <core/ystring.h>
+#include <core/yvar.h>
+#include <core/console.h>
 #include <renderer/renderer_frontend.h>
 #include "debug_console.h"
 
@@ -158,10 +160,19 @@ void game_on_debug_cam_position(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMA
         state->world_camera->position.z);
 }
 
-void game_on_debug_vsync_toggle(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
+static void toggle_vsync() {
     b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
     vsync_enabled = !vsync_enabled;
     renderer_flag_set_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
+}
+
+void game_on_debug_vsync_toggle(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
+    char cmd[30];
+    string_ncopy(cmd, "yvar_set_int vsync 0", 29);
+    b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
+    u32 length = string_length(cmd);
+    cmd[length - 1] = vsync_enabled ? '1' : '0';
+    console_execute_command(cmd);
 }
 
 void game_print_memory_metrics(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
@@ -174,6 +185,13 @@ void game_print_memory_metrics(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP
     PRINT_DEBUG("Allocations: %llu (%llu this frame)", state->alloc_count, state->alloc_count - state->prev_alloc_count);
 }
 
+static b8 game_on_yvar_changed(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT data) {
+    if (code == EVENT_CODE_YVAR_CHANGED && strings_equali(data.data.c, "vsync")) {
+        toggle_vsync();
+    }
+    return false;
+}
+
 void game_on_debug_console_history_forward(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
     debug_console_history_forward();
 }
@@ -183,6 +201,8 @@ void game_on_debug_console_history_back(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE typ
 }
 
 void game_setup_keymaps(APPLICATION* game_instance) {
+    event_register(EVENT_CODE_YVAR_CHANGED, 0, game_on_yvar_changed);
+
     // Global KEYMAP
     KEYMAP global_keymap = keymap_create();
     keymap_binding_add(&global_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_escape_callback);

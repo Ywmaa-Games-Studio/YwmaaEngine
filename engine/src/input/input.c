@@ -2,7 +2,7 @@
 #include "core/event.h"
 #include "core/ymemory.h"
 #include "core/logger.h"
-#include "core/keymap.h"
+#include "input/keymap.h"
 #include "data_structures/stack.h"
 
 typedef struct KEYBOARD_STATE {

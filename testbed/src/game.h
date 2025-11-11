@@ -9,7 +9,7 @@
 #include <resources/skybox.h>
 #include <resources/ui_text.h>
 #include <core/clock.h>
-#include <core/keymap.h>
+#include <input/keymap.h>
 
 typedef struct GAME_STATE {
     f32 delta_time;

@@ -50,4 +50,9 @@ YAPI b8 engine_create(struct APPLICATION* game_instance);
  */
 YAPI b8 engine_run(void);
 
+/**
+ * @brief A callback made when the event system is initialized,
+ * which internally allows the engine to begin listening for events
+ * required for initialization.
+ */
 void engine_on_event_system_initialized(void);

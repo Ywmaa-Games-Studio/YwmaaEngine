@@ -10,6 +10,7 @@
 #include "core/ythread.h"
 #include "core/ymutex.h"
 #include "data_structures/darray.h"
+#include "core/ymemory.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -20,19 +21,6 @@
 #include <errno.h>        // For error reporting
 #include <sys/sysinfo.h>  // Processor info
 
-// Include platform-specific Vulkan surface extensions
-#define VK_USE_PLATFORM_XCB_KHR
-#define VK_USE_PLATFORM_WAYLAND_KHR
-
-// Include Volk
-#define VOLK_IMPLEMENTATION
-#include "../../../thirdparty/volk/volk.h"
-
-// For Vulkan surface creation
-#include "renderer/vulkan/vulkan_types.inl"
-
-// For WebGPU surface creation
-#include "renderer/webgpu/webgpu_types.inl"
 
 // X11-specific platform functions
 b8 platform_x11_system_startup(
@@ -46,8 +34,7 @@ void platform_x11_system_shutdown(void* platform_state);
 
 b8 platform_x11_pump_messages(void);
 
-// X11-specific Vulkan surface creation
-b8 platform_x11_create_vulkan_surface(void* context_ptr, void* state_ptr);
+void platform_x11_get_handle_info(u64 *out_size, void *memory);
 
 // X11-specific WebGPU surface creation
 b8 platform_x11_create_webgpu_surface(void* context_ptr, void* state_ptr);
@@ -67,13 +54,10 @@ void platform_wayland_system_shutdown(void* platform_state);
 
 b8 platform_wayland_pump_messages(void);
 
-// Wayland-specific Vulkan surface creation
-b8 platform_wayland_create_vulkan_surface(void* context_ptr, void* state_ptr);
 
-// Wayland-specific WebGPU surface creation
-b8 platform_wayland_create_webgpu_surface(void* context_ptr, void* state_ptr);
+void platform_wayland_get_handle_info(u64 *out_size, void *memory);
 
 // Key translation
-E_KEYS translate_keysym(uint32_t key);
+E_KEYS translate_keysym(u32 key);
 
 #endif // defined(YPLATFORM_LINUX) && !defined(YPLATFORM_ANDROID) 

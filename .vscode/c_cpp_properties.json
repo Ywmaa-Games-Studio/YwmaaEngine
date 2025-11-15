@@ -4,6 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/engine/src/**",
+                "${workspaceFolder}/vulkan_renderer/src/**",
+                "${workspaceFolder}/webgpu_renderer/src/**",
                 "${VULKAN_SDK}/include"
             ],
             "defines": [

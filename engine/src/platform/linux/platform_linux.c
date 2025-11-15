@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l3141PMle>
+ *   <l3196AMle>
  * Auto updated?
  *   Yes
  *
@@ -20,13 +20,12 @@
 
 
 // Track which platform backend is active
-typedef enum {
-    PLATFORM_BACKEND_NONE,
-    PLATFORM_BACKEND_WAYLAND,
-    PLATFORM_BACKEND_X11
-} platform_backend;
 
-static platform_backend active_backend = PLATFORM_BACKEND_NONE;
+static E_PLATFORM_BACKEND active_backend = PLATFORM_BACKEND_NONE;
+
+E_PLATFORM_BACKEND platform_get_linux_active_display_protocol(void) {
+    return active_backend;
+}
 
 // Global state pointer that will be used by both backends
 void* state_ptr = NULL;
@@ -109,58 +108,6 @@ b8 platform_pump_messages(void) {
     }
     return false;
 }
-// Platform-specific function that returns required extension names based on the active backend
-void platform_get_required_extension_names(const char*** names_darray) {
-    // Return appropriate extensions based on active backend
-#ifdef WAYLAND_ENABLED
-    darray_push(*names_darray, &"VK_KHR_wayland_surface");
-#endif
-    darray_push(*names_darray, &"VK_KHR_xcb_surface");  // VK_KHR_xlib_surface?
-}
-
-// Vulkan surface creation based on active backend
-b8 platform_create_vulkan_surface(struct VULKAN_CONTEXT* context) {
-    if (!context) {
-        return false;
-    }
-    
-    switch (active_backend) {
-        case PLATFORM_BACKEND_WAYLAND:
-            #ifdef WAYLAND_ENABLED
-            return platform_wayland_create_vulkan_surface(context, state_ptr);
-            #endif
-            break;
-            
-        case PLATFORM_BACKEND_X11:
-        default:
-            return platform_x11_create_vulkan_surface(context, state_ptr);
-            break;
-    }
-    
-    return false;
-}
-
-// WebGPU surface creation based on active backend
-b8 platform_create_webgpu_surface(struct WEBGPU_CONTEXT* context) {
-    if (!context) {
-        return false;
-    }
-    
-    switch (active_backend) {
-        case PLATFORM_BACKEND_WAYLAND:
-            #ifdef WAYLAND_ENABLED
-            return platform_wayland_create_webgpu_surface(context, state_ptr);
-            #endif
-            break;
-            
-        case PLATFORM_BACKEND_X11:
-        default:
-            return platform_x11_create_webgpu_surface(context, state_ptr);
-            break;
-    }
-    
-    return false;
-}
 
 void* platform_allocate(u64 size, b8 aligned) {
     return malloc(size);
@@ -210,6 +157,22 @@ i32 platform_get_processor_count(void) {
     i32 processors_available = get_nprocs();
     PRINT_INFO("%i processor cores detected, %i cores available.", processor_count, processors_available);
     return processors_available;
+}
+
+void platform_get_handle_info(u64 *out_size, void *memory) {
+
+    switch (active_backend) {
+        case PLATFORM_BACKEND_WAYLAND:
+            #ifdef WAYLAND_ENABLED
+            platform_wayland_get_handle_info(out_size, memory);
+            #endif
+            break;
+            
+        case PLATFORM_BACKEND_X11:
+        default:
+            platform_x11_get_handle_info(out_size, memory);
+            break;
+    }
 }
 
 // NOTE: Begin threads.
@@ -428,15 +391,17 @@ b8 ymutex_unlock(YMUTEX* mutex) {
 #define X11_DYNAMIC_LOAD_IMPLEMENTATION
 #include "../../../thirdparty/x11_loader/X11_loader.h"
 
-typedef struct PLATFORM_STATE {
-    Display* display;
+
+typedef struct X11_HANDLE_INFO {
     xcb_connection_t* connection;
     xcb_window_t window;
+} X11_HANDLE_INFO;
+typedef struct PLATFORM_STATE {
+    Display* display;
+    X11_HANDLE_INFO handle;
     xcb_screen_t* screen;
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_win;
-    VkSurfaceKHR vulkan_surface;
-    WGPUSurface webgpu_surface;
 } PLATFORM_STATE;
 
 
@@ -486,20 +451,20 @@ b8 platform_x11_system_startup(
     }
 
     // Retrieve the connection from the display.
-    platform_state->connection = loader_XGetXCBConnection(platform_state->display);
-    if (!platform_state->connection) {
+    platform_state->handle.connection = loader_XGetXCBConnection(platform_state->display);
+    if (!platform_state->handle.connection) {
         PRINT_ERROR("Failed to get XCB connection from display");
         return false;
     }
 
     // TODO: Fix this check crashes
-    if (loader_xcb_connection_has_error(platform_state->connection)) {
+    if (loader_xcb_connection_has_error(platform_state->handle.connection)) {
         PRINT_ERROR("Failed to connect to X server via XCB.");
         return false;
     }
     
     // Get data from the X server
-    const struct xcb_setup_t* setup = loader_xcb_get_setup(platform_state->connection);
+    const struct xcb_setup_t* setup = loader_xcb_get_setup(platform_state->handle.connection);
 
     // Loop through screens using iterator
     xcb_screen_iterator_t it = loader_xcb_setup_roots_iterator(setup);
@@ -512,7 +477,7 @@ b8 platform_x11_system_startup(
     platform_state->screen = it.data;
 
     // Allocate a XID for the window to be created.
-    platform_state->window = loader_xcb_generate_id(platform_state->connection);
+    platform_state->handle.window = loader_xcb_generate_id(platform_state->handle.connection);
 
     // Register event types.
     // XCB_CW_BACK_PIXEL = filling then window bg with a single color
@@ -530,9 +495,9 @@ b8 platform_x11_system_startup(
 
     // Create the window
     loader_xcb_create_window(
-        platform_state->connection,
+        platform_state->handle.connection,
         XCB_COPY_FROM_PARENT,  // depth
-        platform_state->window,
+        platform_state->handle.window,
         platform_state->screen->root,            // parent
         x,                              //x
         y,                              //y
@@ -546,9 +511,9 @@ b8 platform_x11_system_startup(
 
     // Change the title
     loader_xcb_change_property(
-        platform_state->connection,
+        platform_state->handle.connection,
         XCB_PROP_MODE_REPLACE,
-        platform_state->window,
+        platform_state->handle.window,
         XCB_ATOM_WM_NAME,
         XCB_ATOM_STRING,
         8,  // data should be viewed 8 bits at a time
@@ -558,30 +523,30 @@ b8 platform_x11_system_startup(
     // Tell the server to notify when the window manager
     // attempts to destroy the window.
     xcb_intern_atom_cookie_t wm_delete_cookie = loader_xcb_intern_atom(
-        platform_state->connection,
+        platform_state->handle.connection,
         0,
         strlen("WM_DELETE_WINDOW"),
         "WM_DELETE_WINDOW");
     xcb_intern_atom_cookie_t wm_protocols_cookie = loader_xcb_intern_atom(
-        platform_state->connection,
+        platform_state->handle.connection,
         0,
         strlen("WM_PROTOCOLS"),
         "WM_PROTOCOLS");
     xcb_intern_atom_reply_t* wm_delete_reply = loader_xcb_intern_atom_reply(
-        platform_state->connection,
+        platform_state->handle.connection,
         wm_delete_cookie,
         NULL);
     xcb_intern_atom_reply_t* wm_protocols_reply = loader_xcb_intern_atom_reply(
-        platform_state->connection,
+        platform_state->handle.connection,
         wm_protocols_cookie,
         NULL);
     platform_state->wm_delete_win = wm_delete_reply->atom;
     platform_state->wm_protocols = wm_protocols_reply->atom;
 
     loader_xcb_change_property(
-        platform_state->connection,
+        platform_state->handle.connection,
         XCB_PROP_MODE_REPLACE,
-        platform_state->window,
+        platform_state->handle.window,
         wm_protocols_reply->atom,
         4,
         32,
@@ -589,7 +554,7 @@ b8 platform_x11_system_startup(
         &wm_delete_reply->atom);
 
     // Map the window to the screen
-    loader_xcb_map_window(platform_state->connection, platform_state->window);
+    loader_xcb_map_window(platform_state->handle.connection, platform_state->handle.window);
 
     // Fire initial resize event
     EVENT_CONTEXT context;
@@ -598,7 +563,7 @@ b8 platform_x11_system_startup(
     event_fire(EVENT_CODE_RESIZED, 0, context);
 
     // Flush the stream
-    i32 stream_result = loader_xcb_flush(platform_state->connection);
+    i32 stream_result = loader_xcb_flush(platform_state->handle.connection);
     if (stream_result <= 0) {
         PRINT_ERROR("An error occurred when flusing the stream: %d", stream_result);
         return false;
@@ -610,7 +575,7 @@ b8 platform_x11_system_startup(
 void platform_x11_system_shutdown(void* platform_state) {
     if (platform_state) {
         PLATFORM_STATE* state = (PLATFORM_STATE*)platform_state;
-        loader_xcb_destroy_window(state->connection, state->window);
+        loader_xcb_destroy_window(state->handle.connection, state->handle.window);
     }
 }
 
@@ -623,7 +588,7 @@ b8 platform_x11_pump_messages(void) {
         b8 quit_flagged = false;
 
         // Poll for events until null is returned.
-        while ((event = loader_xcb_poll_for_event(state->connection))) {
+        while ((event = loader_xcb_poll_for_event(state->handle.connection))) {
             // Input events
             switch (event->response_type & ~0x80) {
                 case XCB_KEY_PRESS:
@@ -709,68 +674,16 @@ b8 platform_x11_pump_messages(void) {
     return false;
 }
 
-// X11-specific Vulkan surface creation
-b8 platform_x11_create_vulkan_surface(void* context_ptr, void* state_ptr) {
-    if (!context_ptr || !state_ptr) {
-        return false;
-    }
-    
-    // Cast to the correct types for X11
-    struct VULKAN_CONTEXT* context = (struct VULKAN_CONTEXT*)context_ptr;
-    PLATFORM_STATE* platform_state = (PLATFORM_STATE*)state_ptr;
-    
-    xcb_connection_t* connection = platform_state->connection;
-    xcb_window_t window = platform_state->window;
-    
-    if (!connection) {
-        PRINT_ERROR("Invalid X11 connection for Vulkan surface creation");
-        return false;
-    }
-    
-    VkXcbSurfaceCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR};
-    create_info.connection = connection;
-    create_info.window = window;
-    
-    VkResult result = vkCreateXcbSurfaceKHR(
-        context->instance,
-        &create_info,
-        context->allocator,
-        &platform_state->vulkan_surface);
-    
-    if (result != VK_SUCCESS) {
-        PRINT_ERROR("Vulkan surface creation failed for X11.");
-        return false;
-    }
-    
-    context->surface = platform_state->vulkan_surface;
-    return true;
-}
+void platform_x11_get_handle_info(u64 *out_size, void *memory) {
 
-// X11-specific WebGPU surface creation
-b8 platform_x11_create_webgpu_surface(void* context_ptr, void* state_ptr) {
-    if (!context_ptr || !state_ptr) {
-        return false;
+    *out_size = sizeof(X11_HANDLE_INFO);
+    
+    if (!memory) {
+        return;
     }
-    
-    // Cast to the correct types
-    struct WEBGPU_CONTEXT* context = (struct WEBGPU_CONTEXT*)context_ptr;
     PLATFORM_STATE* platform_state = (PLATFORM_STATE*)state_ptr;
-    
-    // Create WebGPU surface descriptor
-    WGPUSurfaceSourceXCBWindow xcbDesc = {0};
-    xcbDesc.chain.sType = WGPUSType_SurfaceSourceXCBWindow;
-    xcbDesc.chain.next = NULL;
-    xcbDesc.connection = platform_state->connection;
-    xcbDesc.window = platform_state->window;
-    
-    WGPUSurfaceDescriptor descriptor = {0};
-    descriptor.nextInChain = (const WGPUChainedStruct*)&xcbDesc;
-    //descriptor.label = NULL;
-    
-    platform_state->webgpu_surface = wgpuInstanceCreateSurface(context->instance, &descriptor);
-    
-    context->surface = platform_state->webgpu_surface;
-    return true;
+
+    ycopy_memory(memory, &platform_state->handle, *out_size);
 }
 
 // Key translation
@@ -1074,12 +987,16 @@ E_KEYS translate_keycode(u32 x_keycode) {
 #include "wayland/wayland_loader/wayland_loader.h"
 #include "wayland/xdg-shell.h"
 
-
-typedef struct WAYLAND_PLATFORM_STATE {
+typedef struct WAYLAND_HANDLE_INFO {
     struct wl_display* display;
+    struct wl_surface* surface;
+} WAYLAND_HANDLE_INFO;
+typedef struct WAYLAND_PLATFORM_STATE {
+    WAYLAND_HANDLE_INFO handle;
+    
     struct wl_registry* registry;
     struct wl_compositor* compositor;
-    struct wl_surface* surface;
+    
     struct xdg_wm_base* xdg_wm_base;
     struct xdg_surface* xdg_surface;
     struct xdg_toplevel* xdg_toplevel;
@@ -1096,9 +1013,6 @@ typedef struct WAYLAND_PLATFORM_STATE {
     b8 closed;
     b8 resized;
     b8 has_focus;
-    
-    VkSurfaceKHR vulkan_surface;
-    WGPUSurface webgpu_surface;
 } WAYLAND_PLATFORM_STATE;
 
 // Wayland protocol handlers
@@ -1505,18 +1419,18 @@ b8 platform_wayland_system_startup(
     platform_state->height = height;
     
     // Connect to Wayland display
-    platform_state->display = WAYLAND_wl_display_connect(NULL);
-    if (!platform_state->display) {
+    platform_state->handle.display = WAYLAND_wl_display_connect(NULL);
+    if (!platform_state->handle.display) {
         PRINT_ERROR("Failed to connect to Wayland display");
         return false;
     }
     
     // Get Wayland registry
-    platform_state->registry = wl_display_get_registry(platform_state->display);
+    platform_state->registry = wl_display_get_registry(platform_state->handle.display);
     wl_registry_add_listener(platform_state->registry, &registry_listener, platform_state);
     
     // First roundtrip to get registry objects
-    WAYLAND_wl_display_roundtrip(platform_state->display);
+    WAYLAND_wl_display_roundtrip(platform_state->handle.display);
     
     // Check if we got the required interfaces
     if (!platform_state->compositor) {
@@ -1541,14 +1455,14 @@ b8 platform_wayland_system_startup(
     }
     
     // Create surfaces
-    platform_state->surface = wl_compositor_create_surface(platform_state->compositor);
-    if (!platform_state->surface) {
+    platform_state->handle.surface = wl_compositor_create_surface(platform_state->compositor);
+    if (!platform_state->handle.surface) {
         PRINT_ERROR("Failed to create Wayland surface");
         return false;
     }
     
     // Create XDG surface
-    platform_state->xdg_surface = xdg_wm_base_get_xdg_surface(platform_state->xdg_wm_base, platform_state->surface);
+    platform_state->xdg_surface = xdg_wm_base_get_xdg_surface(platform_state->xdg_wm_base, platform_state->handle.surface);
     if (!platform_state->xdg_surface) {
         PRINT_ERROR("Failed to create XDG surface");
         return false;
@@ -1573,10 +1487,10 @@ b8 platform_wayland_system_startup(
     }
     
     // Commit surface to apply changes
-    wl_surface_commit(platform_state->surface);
+    wl_surface_commit(platform_state->handle.surface);
     
     // Second roundtrip to get surface created
-    WAYLAND_wl_display_roundtrip(platform_state->display);
+    WAYLAND_wl_display_roundtrip(platform_state->handle.display);
 
     // Fire initial resize event
     EVENT_CONTEXT context;
@@ -1624,8 +1538,8 @@ void platform_wayland_system_shutdown(void* platform_state) {
         xdg_surface_destroy(state->xdg_surface);
     }
     
-    if (state->surface) {
-        wl_surface_destroy(state->surface);
+    if (state->handle.surface) {
+        wl_surface_destroy(state->handle.surface);
     }
     
     if (state->xdg_wm_base) {
@@ -1644,8 +1558,8 @@ void platform_wayland_system_shutdown(void* platform_state) {
         wl_registry_destroy(state->registry);
     }
     
-    if (state->display) {
-        WAYLAND_wl_display_disconnect(state->display);
+    if (state->handle.display) {
+        WAYLAND_wl_display_disconnect(state->handle.display);
     }
     
     PRINT_INFO("Wayland platform shutdown complete");
@@ -1658,23 +1572,23 @@ b8 platform_wayland_pump_messages(void) {
     
     WAYLAND_PLATFORM_STATE* state = (WAYLAND_PLATFORM_STATE*)state_ptr;
     
-    if (!state->display) {
+    if (!state->handle.display) {
         return false;
     }
     
     // Process all pending Wayland events
-    while (WAYLAND_wl_display_prepare_read(state->display) != 0) {
-        WAYLAND_wl_display_dispatch_pending(state->display);
+    while (WAYLAND_wl_display_prepare_read(state->handle.display) != 0) {
+        WAYLAND_wl_display_dispatch_pending(state->handle.display);
     }
     
-    WAYLAND_wl_display_flush(state->display);
+    WAYLAND_wl_display_flush(state->handle.display);
     
-    if (WAYLAND_wl_display_read_events(state->display) != 0) {
+    if (WAYLAND_wl_display_read_events(state->handle.display) != 0) {
         PRINT_ERROR("Failed to read Wayland events");
         return false;
     }
     
-    WAYLAND_wl_display_dispatch_pending(state->display);
+    WAYLAND_wl_display_dispatch_pending(state->handle.display);
     
     // Check if window was closed
     if (state->closed) {
@@ -1684,59 +1598,16 @@ b8 platform_wayland_pump_messages(void) {
     return true;
 }
 
-// Wayland-specific Vulkan surface creation
-b8 platform_wayland_create_vulkan_surface(void* context_ptr, void* state_ptr) {
-    if (!context_ptr || !state_ptr) {
-        return false;
-    }
+void platform_wayland_get_handle_info(u64 *out_size, void *memory) {
 
-    // Cast to the correct types
-    struct VULKAN_CONTEXT* context = (struct VULKAN_CONTEXT*)context_ptr;
-    WAYLAND_PLATFORM_STATE* platform_state = (WAYLAND_PLATFORM_STATE*)state_ptr;
+    *out_size = sizeof(WAYLAND_HANDLE_INFO);
     
-    VkWaylandSurfaceCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR};
-    create_info.display = platform_state->display;
-    create_info.surface = platform_state->surface;
-    
-    VkResult result = vkCreateWaylandSurfaceKHR(
-        context->instance,
-        &create_info,
-        context->allocator,
-        &platform_state->vulkan_surface);
-    
-    if (result != VK_SUCCESS) {
-        PRINT_ERROR("Vulkan Wayland surface creation failed.");
-        return false;
+    if (!memory) {
+        return;
     }
-    
-    context->surface = platform_state->vulkan_surface;
-    return true;
-}
+    WAYLAND_PLATFORM_STATE* platform_state = (WAYLAND_PLATFORM_STATE*)state_ptr;
 
-// Wayland-specific WebGPU surface creation
-b8 platform_wayland_create_webgpu_surface(void* context_ptr, void* state_ptr) {
-    if (!context_ptr || !state_ptr) {
-        return false;
-    }
-    
-    // Cast to the correct types
-    struct WEBGPU_CONTEXT* context = (struct WEBGPU_CONTEXT*)context_ptr;
-    WAYLAND_PLATFORM_STATE* platform_state = (WAYLAND_PLATFORM_STATE*)state_ptr;
-    
-    WGPUSurfaceSourceWaylandSurface waylandDesc = {0};
-    waylandDesc.chain.sType = WGPUSType_SurfaceSourceWaylandSurface;
-    waylandDesc.chain.next = NULL;
-    waylandDesc.display = platform_state->display;
-    waylandDesc.surface = platform_state->surface;
-    
-    WGPUSurfaceDescriptor descriptor = {0};
-    descriptor.nextInChain = (const WGPUChainedStruct*)&waylandDesc;
-    //descriptor.label = NULL;
-    
-    platform_state->webgpu_surface = wgpuInstanceCreateSurface(context->instance, &descriptor);
-    
-    context->surface = platform_state->webgpu_surface;
-    return true;
+    ycopy_memory(memory, &platform_state->handle, *out_size);
 }
 
 #endif // defined(YPLATFORM_LINUX) && defined(WAYLAND_ENABLED) && !defined(YPLATFORM_ANDROID)

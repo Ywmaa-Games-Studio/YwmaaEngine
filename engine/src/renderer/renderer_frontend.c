@@ -1,7 +1,5 @@
 #include "renderer_frontend.h"
 
-#include "renderer_backend.h"
-
 #include "core/logger.h"
 #include "core/ymemory.h"
 #include "core/yvar.h"
@@ -18,7 +16,7 @@
 #include "systems/camera_system.h"
 #include "systems/render_view_system.h"
 typedef struct RENDERER_SYSTEM_STATE {
-    RENDERER_BACKEND backend;
+    RENDERER_PLUGIN plugin;
     // The number of render targets. Typically lines up with the amount of swapchain images.
     u8 window_render_target_count;
     // The current window framebuffer width.
@@ -49,12 +47,8 @@ b8 renderer_system_init(u64* memory_requirement, void* state, void* config) {
     state_ptr->resizing = false;
     state_ptr->frames_since_resize = 0;
 
-    if (!renderer_backend_create(typed_config->rendering_backend_api, &state_ptr->backend)){
-        PRINT_ERROR("failed to create backend. Shutting down.");
-        return false;
-    }
-
-    state_ptr->backend.frame_number = 0;
+    state_ptr->plugin = typed_config->plugin;
+    state_ptr->plugin.frame_number = 0;
 
     RENDERER_BACKEND_CONFIG renderer_config = {0};
     renderer_config.application_name = typed_config->application_name;
@@ -65,7 +59,7 @@ b8 renderer_system_init(u64* memory_requirement, void* state, void* config) {
     yvar_create_int("vsync", (renderer_config.flags & RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? 1 : 0);
 
     // Initialize the backend.
-    if (!state_ptr->backend.init(&state_ptr->backend, &renderer_config, &state_ptr->window_render_target_count)) {
+    if (!state_ptr->plugin.init(&state_ptr->plugin, &renderer_config, &state_ptr->window_render_target_count)) {
         PRINT_ERROR("Renderer backend failed to initialize. Shutting down.");
         return false;
     }
@@ -75,14 +69,14 @@ b8 renderer_system_init(u64* memory_requirement, void* state, void* config) {
 
 void renderer_system_shutdown(void* state) {
     if (state_ptr) {
-        state_ptr->backend.shutdown(&state_ptr->backend);
+        state_ptr->plugin.shutdown(&state_ptr->plugin);
     }
     state_ptr = 0;
 }
 
 E_RENDERER_BACKEND_API renderer_get_backend_api(void) {
     if (state_ptr) {
-        return state_ptr->backend.backend_api;
+        return state_ptr->plugin.backend_api;
     } else {
         PRINT_ERROR("renderer system is not initialized!");
         return RENDERER_BACKEND_API_UNKNOWN;
@@ -103,7 +97,7 @@ void renderer_on_resized(u16 width, u16 height) {
 }
 
 b8 renderer_draw_frame(RENDER_PACKET* packet) {
-    state_ptr->backend.frame_number++;
+    state_ptr->plugin.frame_number++;
     // Make sure the window is not currently being resized by waiting a designated
     // number of frames after the last resize operation before performing the backend updates.
     if (state_ptr->resizing) {
@@ -114,7 +108,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
             f32 width = state_ptr->framebuffer_width;
             f32 height = state_ptr->framebuffer_height;
             render_view_system_on_window_resize(width, height);
-            state_ptr->backend.resized(&state_ptr->backend, width, height);
+            state_ptr->plugin.resized(&state_ptr->plugin, width, height);
 
             // Notify views of the resize.
             render_view_system_on_window_resize(width, height);
@@ -128,18 +122,18 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
     }
 
     // If the begin frame returned successfully, mid-frame operations may continue.
-    if (state_ptr->backend.begin_frame(&state_ptr->backend, packet->delta_time)) {
-        u8 attachment_index = state_ptr->backend.window_attachment_index_get();
+    if (state_ptr->plugin.begin_frame(&state_ptr->plugin, packet->delta_time)) {
+        u8 attachment_index = state_ptr->plugin.window_attachment_index_get();
         // Render each view.
         for (u32 i = 0; i < packet->view_count; ++i) {
-            if (!render_view_system_on_render(packet->views[i].view, &packet->views[i], state_ptr->backend.frame_number, attachment_index)) {
+            if (!render_view_system_on_render(packet->views[i].view, &packet->views[i], state_ptr->plugin.frame_number, attachment_index)) {
                 PRINT_ERROR("Error rendering view index %i.", i);
                 return false;
             }
         }
 
         // End the frame. If this fails, it is likely unrecoverable.
-        b8 result = state_ptr->backend.end_frame(&state_ptr->backend, packet->delta_time);
+        b8 result = state_ptr->plugin.end_frame(&state_ptr->plugin, packet->delta_time);
 
         if (!result) {
             PRINT_ERROR("renderer_end_frame failed. Application shutting down...");
@@ -151,134 +145,134 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
 }
 
 void renderer_viewport_set(Vector4 rect) {
-    state_ptr->backend.viewport_set(rect);
+    state_ptr->plugin.viewport_set(rect);
 }
 
 void renderer_viewport_reset(void) {
-    state_ptr->backend.viewport_reset();
+    state_ptr->plugin.viewport_reset();
 }
 
 void renderer_scissor_set(Vector4 rect) {
-    state_ptr->backend.scissor_set(rect);
+    state_ptr->plugin.scissor_set(rect);
 }
 
 void renderer_scissor_reset(void) {
-    state_ptr->backend.scissor_reset();
+    state_ptr->plugin.scissor_reset();
 }
 
 void renderer_texture_create(const u8* pixels, struct TEXTURE* texture) {
-    state_ptr->backend.texture_create(pixels, texture);
+    state_ptr->plugin.texture_create(pixels, texture);
 }
 
 void renderer_texture_destroy(struct TEXTURE* texture) {
     if (!state_ptr) {
         return;
     }
-    state_ptr->backend.texture_destroy(texture);
+    state_ptr->plugin.texture_destroy(texture);
 }
 
 void renderer_texture_create_writeable(TEXTURE* t) {
-    state_ptr->backend.texture_create_writeable(t);
+    state_ptr->plugin.texture_create_writeable(t);
 }
 
 void renderer_texture_write_data(TEXTURE* t, u32 offset, u32 size, const u8* pixels) {
-    state_ptr->backend.texture_write_data(t, offset, size, pixels);
+    state_ptr->plugin.texture_write_data(t, offset, size, pixels);
 }
 
 void renderer_texture_read_data(TEXTURE* t, u32 offset, u32 size, void** out_memory) {
-    state_ptr->backend.texture_read_data(t, offset, size, out_memory);
+    state_ptr->plugin.texture_read_data(t, offset, size, out_memory);
 }
 
 void renderer_texture_read_pixel(TEXTURE* t, u32 x, u32 y, u8** out_rgba) {
-    state_ptr->backend.texture_read_pixel(t, x, y, out_rgba);
+    state_ptr->plugin.texture_read_pixel(t, x, y, out_rgba);
 }
 
 void renderer_texture_resize(TEXTURE* t, u32 new_width, u32 new_height) {
-    state_ptr->backend.texture_resize(t, new_width, new_height);
+    state_ptr->plugin.texture_resize(t, new_width, new_height);
 }
 
 b8 renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
-    return state_ptr->backend.create_geometry(geometry, vertex_size, vertex_count, vertices, index_size, index_count, indices);
+    return state_ptr->plugin.create_geometry(geometry, vertex_size, vertex_count, vertices, index_size, index_count, indices);
 }
 
 void renderer_destroy_geometry(GEOMETRY* geometry) {
-    state_ptr->backend.destroy_geometry(geometry);
+    state_ptr->plugin.destroy_geometry(geometry);
 }
 
 void renderer_draw_geometry(GEOMETRY_RENDER_DATA* data) {
-    state_ptr->backend.draw_geometry(data);
+    state_ptr->plugin.draw_geometry(data);
 }
 
 b8 renderer_renderpass_begin(RENDERPASS* pass, RENDER_TARGET* target) {
-    return state_ptr->backend.renderpass_begin(pass, target);
+    return state_ptr->plugin.renderpass_begin(pass, target);
 }
 
 b8 renderer_renderpass_end(RENDERPASS* pass) {
-    return state_ptr->backend.renderpass_end(pass);
+    return state_ptr->plugin.renderpass_end(pass);
 }
 
 b8 renderer_shader_create(SHADER* s, const SHADER_CONFIG* config, RENDERPASS* pass, u8 stage_count, const char** stage_filenames, E_SHADER_STAGE* stages) {
-    return state_ptr->backend.shader_create(s, config, pass, stage_count, stage_filenames, stages);
+    return state_ptr->plugin.shader_create(s, config, pass, stage_count, stage_filenames, stages);
 }
 
 void renderer_shader_destroy(SHADER* s) {
-    state_ptr->backend.shader_destroy(s);
+    state_ptr->plugin.shader_destroy(s);
 }
 
 b8 renderer_shader_init(SHADER* s) {
-    return state_ptr->backend.shader_init(s);
+    return state_ptr->plugin.shader_init(s);
 }
 
 b8 renderer_shader_use(SHADER* s) {
-    return state_ptr->backend.shader_use(s);
+    return state_ptr->plugin.shader_use(s);
 }
 
 b8 renderer_shader_bind_globals(SHADER* s) {
-    return state_ptr->backend.shader_bind_globals(s);
+    return state_ptr->plugin.shader_bind_globals(s);
 }
 
 b8 renderer_shader_bind_instance(SHADER* s, u32 instance_id) {
-    return state_ptr->backend.shader_bind_instance(s, instance_id);
+    return state_ptr->plugin.shader_bind_instance(s, instance_id);
 }
 
 b8 renderer_shader_apply_globals(SHADER* s) {
-    return state_ptr->backend.shader_apply_globals(s);
+    return state_ptr->plugin.shader_apply_globals(s);
 }
 
 b8 renderer_shader_apply_instance(SHADER* s, b8 needs_update) {
-    return state_ptr->backend.shader_apply_instance(s, needs_update);
+    return state_ptr->plugin.shader_apply_instance(s, needs_update);
 }
 
 b8 renderer_shader_acquire_instance_resources(SHADER* s, TEXTURE_MAP** maps, u32* out_instance_id) {
-    return state_ptr->backend.shader_acquire_instance_resources(s, maps, out_instance_id);
+    return state_ptr->plugin.shader_acquire_instance_resources(s, maps, out_instance_id);
 }
 
 b8 renderer_shader_release_instance_resources(SHADER* s, u32 instance_id) {
-    return state_ptr->backend.shader_release_instance_resources(s, instance_id);
+    return state_ptr->plugin.shader_release_instance_resources(s, instance_id);
 }
 
 b8 renderer_set_uniform(SHADER* s, SHADER_UNIFORM* uniform, const void* value) {
-    return state_ptr->backend.shader_set_uniform(s, uniform, value);
+    return state_ptr->plugin.shader_set_uniform(s, uniform, value);
 }
 
 b8 renderer_shader_after_renderpass(SHADER* s) {
-    return state_ptr->backend.shader_after_renderpass(s);
+    return state_ptr->plugin.shader_after_renderpass(s);
 }
 
 b8 renderer_texture_map_acquire_resources(struct TEXTURE_MAP* map) {
-    return state_ptr->backend.texture_map_acquire_resources(map);
+    return state_ptr->plugin.texture_map_acquire_resources(map);
 }
 
 void renderer_texture_map_release_resources(struct TEXTURE_MAP* map) {
-    state_ptr->backend.texture_map_release_resources(map);
+    state_ptr->plugin.texture_map_release_resources(map);
 }
 
 void renderer_render_target_create(u8 attachment_count, RENDER_TARGET_ATTACHMENT* attachments, RENDERPASS* pass, u32 width, u32 height, RENDER_TARGET* out_target) {
-    state_ptr->backend.render_target_create(attachment_count, attachments, pass, width, height, out_target);
+    state_ptr->plugin.render_target_create(attachment_count, attachments, pass, width, height, out_target);
 }
 
 void renderer_render_target_destroy(RENDER_TARGET* target, b8 free_internal_memory) {
-    state_ptr->backend.render_target_destroy(target, free_internal_memory);
+    state_ptr->plugin.render_target_destroy(target, free_internal_memory);
 
     if (free_internal_memory) {
         yzero_memory(target, sizeof(RENDER_TARGET));
@@ -286,19 +280,19 @@ void renderer_render_target_destroy(RENDER_TARGET* target, b8 free_internal_memo
 }
 
 TEXTURE* renderer_window_attachment_get(u8 index) {
-    return state_ptr->backend.window_attachment_get(index);
+    return state_ptr->plugin.window_attachment_get(index);
 }
 
 TEXTURE* renderer_depth_attachment_get(u8 index) {
-    return state_ptr->backend.depth_attachment_get(index);
+    return state_ptr->plugin.depth_attachment_get(index);
 }
 
 u8 renderer_window_attachment_index_get(void) {
-    return state_ptr->backend.window_attachment_index_get();
+    return state_ptr->plugin.window_attachment_index_get();
 }
 
 u8 renderer_window_attachment_count_get(void) {
-    return state_ptr->backend.window_attachment_count_get();
+    return state_ptr->plugin.window_attachment_count_get();
 }
 
 b8 renderer_renderpass_create(const RENDERPASS_CONFIG* config, RENDERPASS* out_renderpass) {
@@ -337,7 +331,7 @@ b8 renderer_renderpass_create(const RENDERPASS_CONFIG* config, RENDERPASS* out_r
         }
     }
 
-    return state_ptr->backend.renderpass_create(config, out_renderpass);
+    return state_ptr->plugin.renderpass_create(config, out_renderpass);
 }
 
 void renderer_renderpass_destroy(RENDERPASS* pass) {
@@ -346,19 +340,19 @@ void renderer_renderpass_destroy(RENDERPASS* pass) {
         renderer_render_target_destroy(&pass->targets[i], true);
     }
     
-    state_ptr->backend.renderpass_destroy(pass);
+    state_ptr->plugin.renderpass_destroy(pass);
 }
 
 b8 renderer_is_multithreaded(void) {
-    return state_ptr->backend.is_multithreaded();
+    return state_ptr->plugin.is_multithreaded();
 }
 
 b8 renderer_flag_enabled(RENDERER_CONFIG_FLAGS flag) {
-    return state_ptr->backend.flag_enabled(flag);
+    return state_ptr->plugin.flag_enabled(flag);
 }
 
 void renderer_flag_set_enabled(RENDERER_CONFIG_FLAGS flag, b8 enabled) {
-    state_ptr->backend.flag_set_enabled(flag, enabled);
+    state_ptr->plugin.flag_set_enabled(flag, enabled);
 }
 
 
@@ -381,7 +375,7 @@ b8 renderer_renderbuffer_create(E_RENDERBUFFER_TYPE type, u64 total_size, b8 use
     }
 
     // Create the internal buffer from the backend.
-    if (!state_ptr->backend.renderbuffer_create_internal(out_buffer)) {
+    if (!state_ptr->plugin.renderbuffer_create_internal(out_buffer)) {
         PRINT_ERROR("Unable to create backing buffer for RENDER_BUFFER. Application cannot continue.");
         return false;
     }
@@ -398,7 +392,7 @@ void renderer_renderbuffer_destroy(RENDER_BUFFER* buffer) {
         }
 
         // Free up the backend resources.
-        state_ptr->backend.renderbuffer_destroy_internal(buffer);
+        state_ptr->plugin.renderbuffer_destroy_internal(buffer);
         buffer->internal_data = 0;
     }
 }
@@ -409,27 +403,27 @@ b8 renderer_renderbuffer_bind(RENDER_BUFFER* buffer, u64 offset) {
         return false;
     }
 
-    return state_ptr->backend.renderbuffer_bind(buffer, offset);
+    return state_ptr->plugin.renderbuffer_bind(buffer, offset);
 }
 
 b8 renderer_renderbuffer_unbind(RENDER_BUFFER* buffer) {
-    return state_ptr->backend.renderbuffer_unbind(buffer);
+    return state_ptr->plugin.renderbuffer_unbind(buffer);
 }
 
 void* renderer_renderbuffer_map_memory(RENDER_BUFFER* buffer, u64 offset, u64 size) {
-    return state_ptr->backend.renderbuffer_map_memory(buffer, offset, size);
+    return state_ptr->plugin.renderbuffer_map_memory(buffer, offset, size);
 }
 
 void renderer_renderbuffer_unmap_memory(RENDER_BUFFER* buffer, u64 offset, u64 size) {
-    state_ptr->backend.renderbuffer_unmap_memory(buffer, offset, size);
+    state_ptr->plugin.renderbuffer_unmap_memory(buffer, offset, size);
 }
 
 b8 renderer_renderbuffer_flush(RENDER_BUFFER* buffer, u64 offset, u64 size) {
-    return state_ptr->backend.renderbuffer_flush(buffer, offset, size);
+    return state_ptr->plugin.renderbuffer_flush(buffer, offset, size);
 }
 
 b8 renderer_renderbuffer_read(RENDER_BUFFER* buffer, u64 offset, u64 size, void** out_memory) {
-    return state_ptr->backend.renderbuffer_read(buffer, offset, size, out_memory);
+    return state_ptr->plugin.renderbuffer_read(buffer, offset, size, out_memory);
 }
 
 b8 renderer_renderbuffer_resize(RENDER_BUFFER* buffer, u64 new_total_size) {
@@ -457,7 +451,7 @@ b8 renderer_renderbuffer_resize(RENDER_BUFFER* buffer, u64 new_total_size) {
         buffer->freelist_block = new_block;
     }
 
-    b8 result = state_ptr->backend.renderbuffer_resize(buffer, new_total_size);
+    b8 result = state_ptr->plugin.renderbuffer_resize(buffer, new_total_size);
     if (result) {
         buffer->total_size = new_total_size;
     } else {
@@ -494,13 +488,13 @@ b8 renderer_renderbuffer_free(RENDER_BUFFER* buffer, u64 size, u64 offset) {
 }
 
 b8 renderer_renderbuffer_load_range(RENDER_BUFFER* buffer, u64 offset, u64 size, const void* data) {
-    return state_ptr->backend.renderbuffer_load_range(buffer, offset, size, data);
+    return state_ptr->plugin.renderbuffer_load_range(buffer, offset, size, data);
 }
 
 b8 renderer_renderbuffer_copy_range(RENDER_BUFFER* source, u64 source_offset, RENDER_BUFFER* dest, u64 dest_offset, u64 size) {
-    return state_ptr->backend.renderbuffer_copy_range(source, source_offset, dest, dest_offset, size);
+    return state_ptr->plugin.renderbuffer_copy_range(source, source_offset, dest, dest_offset, size);
 }
 
 b8 renderer_renderbuffer_draw(RENDER_BUFFER* buffer, u64 offset, u32 element_count, b8 bind_only) {
-    return state_ptr->backend.renderbuffer_draw(buffer, offset, element_count, bind_only);
+    return state_ptr->plugin.renderbuffer_draw(buffer, offset, element_count, bind_only);
 }

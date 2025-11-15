@@ -124,9 +124,9 @@ typedef enum E_RENDERER_BACKEND_API {
     RENDERER_BACKEND_API_DIRECTX
 } E_RENDERER_BACKEND_API;
 
-typedef struct RENDERER_BACKEND {
+typedef struct RENDERER_PLUGIN {
     struct PLATFORM_STATE* platform_state;  
-} RENDERER_BACKEND;
+} RENDERER_PLUGIN;
 ```
 Why ? This helps differentiating the struct name from the struct type, the name is in all snake_case, and the type is UPPER_CASE
 ### Commenting

@@ -1,18 +1,18 @@
 #pragma once
 
-#include "renderer/renderer_backend.h"
+#include "webgpu_renderer_plugin_main.h"
 #include "resources/resource_types.h"
 
 struct SHADER;
 struct SHADER_UNIFORM;
 
-b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count);
-void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend);
+b8 webgpu_renderer_backend_init(RENDERER_PLUGIN* backend, const RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count);
+void webgpu_renderer_backend_shutdown(RENDERER_PLUGIN* backend);
 
-void webgpu_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u16 height);
+void webgpu_renderer_backend_on_resized(RENDERER_PLUGIN* backend, u16 width, u16 height);
 
-b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time);
-b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time);
+b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* backend, f32 delta_time);
+b8 webgpu_renderer_backend_end_frame(RENDERER_PLUGIN* backend, f32 delta_time);
 void webgpu_renderer_viewport_set(Vector4 rect);
 void webgpu_renderer_viewport_reset(void);
 void webgpu_renderer_scissor_set(Vector4 rect);

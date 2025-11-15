@@ -3,7 +3,7 @@
 #include "webgpu_types.inl"
 
 #include "webgpu_backend.h"
-#include "webgpu_platform.h"
+#include "platform/webgpu_platform.h"
 #include "webgpu_swapchain.h"
 #include "webgpu_device.h"
 #include "webgpu_image.h"
@@ -29,7 +29,7 @@
 void webgpu_bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout);
 
 
-b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend);
+b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* backend);
 
 WGPUTextureView get_next_surface_texture_view(void);
 void get_depth_texture(WGPUTexture* out_depth_texture, WGPUTextureView* out_depth_texture_view, u32 width, u32 height);
@@ -37,7 +37,7 @@ void get_depth_texture(WGPUTexture* out_depth_texture, WGPUTextureView* out_dept
 static WEBGPU_CONTEXT context = {0};
 
 
-b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const  RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count) {
+b8 webgpu_renderer_backend_init(RENDERER_PLUGIN* backend, const  RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count) {
     // Just set some default values for the framebuffer for now.
     // It doesn't really matter what these are because they will be
     // overridden, but are needed for swapchain creation.
@@ -117,7 +117,7 @@ b8 webgpu_renderer_backend_init(RENDERER_BACKEND* backend, const  RENDERER_BACKE
     return true;
 }
 
-void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
+void webgpu_renderer_backend_shutdown(RENDERER_PLUGIN* backend) {
     // Destroy in the opposite order of creation.
 
     renderer_renderbuffer_destroy(&context.object_vertex_buffer);
@@ -136,7 +136,7 @@ void webgpu_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
 
 }
 
-void webgpu_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u16 height) {
+void webgpu_renderer_backend_on_resized(RENDERER_PLUGIN* backend, u16 width, u16 height) {
     // Update the "framebuffer size generation", a counter which indicates when the
     // framebuffer size has been updated.
     context.framebuffer_width = width;
@@ -146,7 +146,7 @@ void webgpu_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u1
     PRINT_INFO("WebGPU renderer backend->resized: w/h/gen: %i/%i/%llu", width, height, context.framebuffer_size_generation);
 }
 
-b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* backend, f32 delta_time) {
     context.frame_delta_time = delta_time;
     // Check if recreating swap chain and boot out.
     if (context.recreating_swapchain) {
@@ -200,7 +200,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     return true;
 }
 
-b8 webgpu_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+b8 webgpu_renderer_backend_end_frame(RENDERER_PLUGIN* backend, f32 delta_time) {
     
     WGPUCommandBufferDescriptor cmd_buffer_descriptor = {0};
     cmd_buffer_descriptor.nextInChain = NULL;
@@ -1829,7 +1829,7 @@ void webgpu_renderer_texture_map_release_resources(TEXTURE_MAP* map){
 }
 
 
-b8 wgpu_recreate_swapchain(RENDERER_BACKEND* backend) {
+b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* backend) {
     // If already being recreated, do not try again.
     if (context.recreating_swapchain) {
         PRINT_DEBUG("recreate_swapchain called when already recreating. Booting.");

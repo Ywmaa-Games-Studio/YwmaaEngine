@@ -34,6 +34,8 @@ typedef struct APPLICATION_CONFIG {
 
     /** @brief A darray of render view configurations. */
     RENDER_VIEW_CONFIG* render_views;    
+
+    RENDERER_PLUGIN renderer_plugin;
 } APPLICATION_CONFIG;
 
 /**

@@ -109,16 +109,11 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
         }),
     });
-    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang" });
-    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang/glslang" });
-    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang/SPIRV" });
     libengine.addIncludePath(.{ .cwd_relative = "engine/src" });
     if (target.result.os.tag == .linux) {
         libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers" });
         libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers/wayland" });
     }
-    // Vullkan Headers extracted from: https://github.com/hexops/vulkan-headers
-    libengine.addIncludePath(.{ .cwd_relative = "engine/thirdparty/vulkan_headers" });
 
     // Search for all C files in `src` and add them
     {
@@ -146,152 +141,12 @@ pub fn build(b: *std.Build) !void {
         libengine.linkFramework("QuartzCore");
     }
 
-    //In The Future I Should replace this with compiling WGPU from source to be able to statically link WGPU
-    var lib_file = b.path("engine/thirdparty/wgpu/bin");
-    if (target.result.os.tag == .linux) {
-        if (target.result.cpu.arch == .aarch64) {
-            if (target.result.abi == .android) {
-                lib_file = b.path("engine/thirdparty/wgpu/bin/linux-aarch64");
-            } else {
-                lib_file = b.path("engine/thirdparty/wgpu/bin/linux-aarch64");
-            }
-        } else if (target.result.cpu.arch == .x86_64) {
-            if (target.result.abi == .android) {
-                lib_file = b.path("engine/thirdparty/wgpu/bin/linux-x86_64");
-            } else {
-                lib_file = b.path("engine/thirdparty/wgpu/bin/linux-x86_64");
-            }
-        }
-    } else if (target.result.os.tag == .windows) {
-        if (target.result.cpu.arch == .aarch64) {
-            lib_file = b.path("engine/thirdparty/wgpu/bin/windows-i686-msvc");
-        } else if (target.result.cpu.arch == .x86_64) {
-            lib_file = b.path("engine/thirdparty/wgpu/bin/windows-x86_64-msvc");
-        }
-    } else if (target.result.os.tag == .macos) {
-        if (target.result.cpu.arch == .aarch64) {
-            lib_file = b.path("engine/thirdparty/wgpu/bin/macos-aarch64");
-        } else if (target.result.cpu.arch == .x86_64) {
-            lib_file = b.path("engine/thirdparty/wgpu/bin/macos-x86_64");
-        }
-    }
-
     libengine.root_module.addRPathSpecial("$ORIGIN");
     libengine.root_module.addRPathSpecial("$ORIGIN/lib");
     libengine.root_module.addRPathSpecial("$ORIGIN/../lib");
     libengine.root_module.addRPathSpecial(".");
 
-    if (target.result.os.tag == .windows) {
-        b.installDirectory(.{
-            .source_dir = lib_file,
-            .install_dir = .prefix,
-            .install_subdir = "bin/",
-            .include_extensions = &.{".dll"},
-        });
-        libengine.addLibraryPath(lib_file);
-        libengine.linkSystemLibrary2("wgpu_native.dll", .{
-            .use_pkg_config = .no,
-            .preferred_link_mode = .dynamic,
-        });
-        //libengine.linkSystemLibrary2("wgpu_native", .{
-        //    .use_pkg_config = .no,
-        //    .preferred_link_mode = .static,
-        //});
-    } else {
-        //b.installDirectory(.{
-        //    .source_dir = lib_file,
-        //    .install_dir = .prefix,
-        //    .install_subdir = "lib/",
-        //    .include_extensions = &.{ ".dylib", ".so" },
-        //});
-        libengine.addLibraryPath(lib_file);
-        libengine.linkSystemLibrary2("wgpu_native", .{
-            .use_pkg_config = .no,
-            .preferred_link_mode = .dynamic,
-        });
-    }
-
     libengine.linkLibC();
-
-    const glslang_lib = b.addLibrary(.{
-        .name = "glslang_compiler",
-        .linkage = .dynamic, // make it a shared library
-        .root_module = b.createModule(.{
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    glslang_lib.linkLibCpp();
-    glslang_lib.linkLibC();
-    glslang_lib.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang" });
-    glslang_lib.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang/glslang" });
-    glslang_lib.addIncludePath(.{ .cwd_relative = "engine/thirdparty/glslang/SPIRV" });
-    glslang_lib.addCSourceFiles(.{
-        .files = &[_][]const u8{
-            //"thirdparty/glslang/glslang/Include/glslang_c_interface.h"
-            //cinterface
-            "engine/thirdparty/glslang/glslang/CInterface/glslang_c_interface.cpp",
-
-            //Codegen
-            "engine/thirdparty/glslang/glslang/GenericCodeGen/Link.cpp",
-            "engine/thirdparty/glslang/glslang/GenericCodeGen/CodeGen.cpp",
-
-            //Preprocessor
-            "engine/thirdparty/glslang/glslang/MachineIndependent/preprocessor/Pp.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpAtom.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpContext.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpScanner.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpTokens.cpp",
-
-            "engine/thirdparty/glslang/glslang/MachineIndependent/limits.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/linkValidate.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/parseConst.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/ParseContextBase.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/ParseHelper.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/PoolAlloc.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/reflection.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/RemoveTree.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/Scan.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/ShaderLang.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/SpirvIntrinsics.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/SymbolTable.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/Versions.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/Intermediate.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/Constant.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/attribute.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/glslang_tab.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/InfoSink.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/Initialize.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/intermOut.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/IntermTraverse.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/propagateNoContraction.cpp",
-            "engine/thirdparty/glslang/glslang/MachineIndependent/iomapper.cpp",
-
-            //OsDependent
-            switch (target.result.os.tag) {
-                .linux => "engine/thirdparty/glslang/glslang/OSDependent/Unix/ossource.cpp",
-                .macos => "engine/thirdparty/glslang/glslang/OSDependent/Unix/ossource.cpp",
-                .windows => "engine/thirdparty/glslang/glslang/OSDependent/Windows/ossource.cpp",
-                else => return error.UnsupportedOs,
-            },
-
-            "engine/thirdparty/glslang/glslang/ResourceLimits/resource_limits_c.cpp",
-            "engine/thirdparty/glslang/glslang/ResourceLimits/ResourceLimits.cpp",
-
-            //SPIRV backend
-            "engine/thirdparty/glslang/SPIRV/CInterface/spirv_c_interface.cpp",
-            "engine/thirdparty/glslang/SPIRV/GlslangToSpv.cpp",
-            "engine/thirdparty/glslang/SPIRV/SpvPostProcess.cpp",
-            "engine/thirdparty/glslang/SPIRV/SPVRemapper.cpp",
-            "engine/thirdparty/glslang/SPIRV/SpvTools.cpp",
-            "engine/thirdparty/glslang/SPIRV/SpvBuilder.cpp",
-            "engine/thirdparty/glslang/SPIRV/Logger.cpp",
-            "engine/thirdparty/glslang/SPIRV/InReadableOrder.cpp",
-            "engine/thirdparty/glslang/SPIRV/doc.cpp",
-        },
-        .flags = &[_][]const u8{},
-    });
-    libengine.linkLibrary(glslang_lib);
 
     var exe: *std.Build.Step.Compile = if (target.result.abi.isAndroid()) b.addLibrary(.{
         .name = exe_name,
@@ -332,6 +187,229 @@ pub fn build(b: *std.Build) !void {
             }
         }
     }
+    //START ************ VULKAN RENDERER PLUGIN ************//
+    const vulkan_plugin = b.addLibrary(.{ //addStaticLibrary/addSharedLibrary
+        .linkage = .static, // make it a shared library
+        .name = "vulkan_plugin",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    // we are using stuff from the engine
+    vulkan_plugin.addIncludePath(.{ .cwd_relative = "engine/src" });
+    vulkan_plugin.addIncludePath(.{ .cwd_relative = "vulkan_renderer/src" });
+    vulkan_plugin.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers" });
+    vulkan_plugin.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers/wayland" });
+    // Vullkan Headers extracted from: https://github.com/hexops/vulkan-headers
+    vulkan_plugin.addIncludePath(.{ .cwd_relative = "vulkan_renderer/thirdparty/vulkan_headers" });
+    {
+        var dir = try std.fs.cwd().openDir("vulkan_renderer/src", .{ .iterate = true });
+
+        var walker = try dir.walk(b.allocator);
+        defer walker.deinit();
+
+        const allowed_exts = [_][]const u8{".c"};
+        while (try walker.next()) |entry| {
+            const ext = std.fs.path.extension(entry.basename);
+            const include_file = for (allowed_exts) |e| {
+                if (std.mem.eql(u8, ext, e))
+                    break true;
+            } else false;
+            if (include_file) {
+                std.debug.print("Vulkan Renderer Plugin: Found {s} file to compile: '{s}'. path: '{s}'\n", .{ ext, entry.basename, entry.path });
+                vulkan_plugin.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "vulkan_renderer/src", entry.path })), .flags = engine_flags.items });
+            }
+        }
+    }
+    vulkan_plugin.linkLibC();
+
+    const glslang_lib = b.addLibrary(.{
+        .name = "glslang_compiler",
+        .linkage = .static, // make it a shared library
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    glslang_lib.linkLibCpp();
+    glslang_lib.linkLibC();
+    glslang_lib.addIncludePath(.{ .cwd_relative = "vulkan_renderer/thirdparty/glslang" });
+    glslang_lib.addIncludePath(.{ .cwd_relative = "vulkan_renderer/thirdparty/glslang/glslang" });
+    glslang_lib.addIncludePath(.{ .cwd_relative = "vulkan_renderer/thirdparty/glslang/SPIRV" });
+    glslang_lib.addCSourceFiles(.{
+        .files = &[_][]const u8{
+            //"thirdparty/glslang/glslang/Include/glslang_c_interface.h"
+            //cinterface
+            "vulkan_renderer/thirdparty/glslang/glslang/CInterface/glslang_c_interface.cpp",
+
+            //Codegen
+            "vulkan_renderer/thirdparty/glslang/glslang/GenericCodeGen/Link.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/GenericCodeGen/CodeGen.cpp",
+
+            //Preprocessor
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/preprocessor/Pp.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpAtom.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpContext.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpScanner.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/preprocessor/PpTokens.cpp",
+
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/limits.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/linkValidate.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/parseConst.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/ParseContextBase.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/ParseHelper.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/PoolAlloc.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/reflection.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/RemoveTree.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/Scan.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/ShaderLang.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/SpirvIntrinsics.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/SymbolTable.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/Versions.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/Intermediate.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/Constant.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/attribute.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/glslang_tab.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/InfoSink.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/Initialize.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/intermOut.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/IntermTraverse.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/propagateNoContraction.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/MachineIndependent/iomapper.cpp",
+
+            //OsDependent
+            switch (target.result.os.tag) {
+                .linux => "vulkan_renderer/thirdparty/glslang/glslang/OSDependent/Unix/ossource.cpp",
+                .macos => "vulkan_renderer/thirdparty/glslang/glslang/OSDependent/Unix/ossource.cpp",
+                .windows => "vulkan_renderer/thirdparty/glslang/glslang/OSDependent/Windows/ossource.cpp",
+                else => return error.UnsupportedOs,
+            },
+
+            "vulkan_renderer/thirdparty/glslang/glslang/ResourceLimits/resource_limits_c.cpp",
+            "vulkan_renderer/thirdparty/glslang/glslang/ResourceLimits/ResourceLimits.cpp",
+
+            //SPIRV backend
+            "vulkan_renderer/thirdparty/glslang/SPIRV/CInterface/spirv_c_interface.cpp",
+            "vulkan_renderer/thirdparty/glslang/SPIRV/GlslangToSpv.cpp",
+            "vulkan_renderer/thirdparty/glslang/SPIRV/SpvPostProcess.cpp",
+            "vulkan_renderer/thirdparty/glslang/SPIRV/SPVRemapper.cpp",
+            "vulkan_renderer/thirdparty/glslang/SPIRV/SpvTools.cpp",
+            "vulkan_renderer/thirdparty/glslang/SPIRV/SpvBuilder.cpp",
+            "vulkan_renderer/thirdparty/glslang/SPIRV/Logger.cpp",
+            "vulkan_renderer/thirdparty/glslang/SPIRV/InReadableOrder.cpp",
+            "vulkan_renderer/thirdparty/glslang/SPIRV/doc.cpp",
+        },
+        .flags = &[_][]const u8{},
+    });
+    vulkan_plugin.addIncludePath(.{ .cwd_relative = "vulkan_renderer/thirdparty/glslang" });
+    vulkan_plugin.addIncludePath(.{ .cwd_relative = "vulkan_renderer/thirdparty/glslang/glslang" });
+    vulkan_plugin.addIncludePath(.{ .cwd_relative = "vulkan_renderer/thirdparty/glslang/SPIRV" });
+    vulkan_plugin.linkLibrary(glslang_lib);
+
+    exe.addIncludePath(.{ .cwd_relative = "vulkan_renderer/src" });
+    exe.linkLibrary(vulkan_plugin);
+    //END ************ VULKAN RENDERER PLUGIN ************//
+
+    //START ************ WEBGPU RENDERER PLUGIN ************//
+    const webgpu_plugin = b.addLibrary(.{ //addStaticLibrary/addSharedLibrary
+        .linkage = .static, // make it a shared library
+        .name = "webgpu_plugin",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    // we are using stuff from the engine
+    webgpu_plugin.addIncludePath(.{ .cwd_relative = "engine/src" });
+    webgpu_plugin.addIncludePath(.{ .cwd_relative = "webgpu_renderer/src" });
+    webgpu_plugin.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers" });
+    webgpu_plugin.addIncludePath(.{ .cwd_relative = "engine/thirdparty/linuxbsd_headers/wayland" });
+    {
+        var dir = try std.fs.cwd().openDir("webgpu_renderer/src", .{ .iterate = true });
+
+        var walker = try dir.walk(b.allocator);
+        defer walker.deinit();
+
+        const allowed_exts = [_][]const u8{".c"};
+        while (try walker.next()) |entry| {
+            const ext = std.fs.path.extension(entry.basename);
+            const include_file = for (allowed_exts) |e| {
+                if (std.mem.eql(u8, ext, e))
+                    break true;
+            } else false;
+            if (include_file) {
+                std.debug.print("Webgpu Renderer Plugin: Found {s} file to compile: '{s}'. path: '{s}'\n", .{ ext, entry.basename, entry.path });
+                webgpu_plugin.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "webgpu_renderer/src", entry.path })), .flags = engine_flags.items });
+            }
+        }
+    }
+    webgpu_plugin.linkLibC();
+    //In The Future I Should replace this with compiling WGPU from source to be able to statically link WGPU
+    var lib_file = b.path("webgpu_renderer/thirdparty/wgpu/bin");
+    if (target.result.os.tag == .linux) {
+        if (target.result.cpu.arch == .aarch64) {
+            if (target.result.abi == .android) {
+                lib_file = b.path("webgpu_renderer/thirdparty/wgpu/bin/linux-aarch64");
+            } else {
+                lib_file = b.path("webgpu_renderer/thirdparty/wgpu/bin/linux-aarch64");
+            }
+        } else if (target.result.cpu.arch == .x86_64) {
+            if (target.result.abi == .android) {
+                lib_file = b.path("webgpu_renderer/thirdparty/wgpu/bin/linux-x86_64");
+            } else {
+                lib_file = b.path("webgpu_renderer/thirdparty/wgpu/bin/linux-x86_64");
+            }
+        }
+    } else if (target.result.os.tag == .windows) {
+        if (target.result.cpu.arch == .aarch64) {
+            lib_file = b.path("webgpu_renderer/thirdparty/wgpu/bin/windows-i686-msvc");
+        } else if (target.result.cpu.arch == .x86_64) {
+            lib_file = b.path("webgpu_renderer/thirdparty/wgpu/bin/windows-x86_64-msvc");
+        }
+    } else if (target.result.os.tag == .macos) {
+        if (target.result.cpu.arch == .aarch64) {
+            lib_file = b.path("webgpu_renderer/thirdparty/wgpu/bin/macos-aarch64");
+        } else if (target.result.cpu.arch == .x86_64) {
+            lib_file = b.path("webgpu_renderer/thirdparty/wgpu/bin/macos-x86_64");
+        }
+    }
+
+    if (target.result.os.tag == .windows) {
+        std.debug.print("Webgpu Renderer Plugin: Dynamic Linking {s}\n", .{lib_file.getPath(b)});
+        b.installDirectory(.{
+            .source_dir = lib_file,
+            .install_dir = .prefix,
+            .install_subdir = "bin/",
+            .include_extensions = &.{".dll"},
+        });
+        exe.addLibraryPath(lib_file);
+        exe.linkSystemLibrary2("wgpu_native.dll", .{
+            .use_pkg_config = .no,
+            .preferred_link_mode = .dynamic,
+        });
+        //libengine.linkSystemLibrary2("wgpu_native", .{
+        //    .use_pkg_config = .no,
+        //    .preferred_link_mode = .static,
+        //});
+    } else {
+        //b.installDirectory(.{
+        //    .source_dir = lib_file,
+        //    .install_dir = .prefix,
+        //    .install_subdir = "lib/",
+        //    .include_extensions = &.{ ".dylib", ".so" },
+        //});
+        exe.addLibraryPath(lib_file);
+        exe.linkSystemLibrary2("wgpu_native", .{
+            .use_pkg_config = .no,
+            .preferred_link_mode = .dynamic,
+        });
+    }
+
+    exe.addIncludePath(.{ .cwd_relative = "webgpu_renderer/src" });
+    exe.linkLibrary(webgpu_plugin);
+    //END ************ WEBGPU RENDERER PLUGIN ************//
+
     exe.root_module.addRPathSpecial("$ORIGIN/Engine");
     exe.root_module.addRPathSpecial("$ORIGIN/../lib");
     exe.root_module.addRPathSpecial("$ORIGIN");

@@ -162,7 +162,8 @@ b8 register_known_systems_pre_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CON
     // Renderer system
     RENDERER_SYSTEM_CONFIG renderer_sys_config = {0};
     renderer_sys_config.application_name = app_config->name;
-    renderer_sys_config.rendering_backend_api = app_config->renderer_backend_api;
+    renderer_sys_config.plugin = app_config->renderer_plugin;
+
     if (!systems_manager_register(state, Y_SYSTEM_TYPE_RENDERER, renderer_system_init, renderer_system_shutdown, 0, &renderer_sys_config)) {
         PRINT_ERROR("Failed to register renderer system.");
         return false;

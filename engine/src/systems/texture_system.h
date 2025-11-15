@@ -17,7 +17,7 @@ typedef struct TEXTURE_SYSTEM_CONFIG {
 b8 texture_system_init(u64* memory_requirement, void* state, void* config);
 void texture_system_shutdown(void* state);
 
-TEXTURE* texture_system_acquire(const char* name, b8 auto_release);
+YAPI TEXTURE* texture_system_acquire(const char* name, b8 auto_release);
 
 /**
  * @brief Attempts to acquire a cubemap texture with the given name. If it has not yet been loaded,
@@ -38,7 +38,7 @@ TEXTURE* texture_system_acquire(const char* name, b8 auto_release);
  * Only takes effect the first time the texture is acquired.
  * @return A pointer to the loaded texture. Can be a pointer to the default texture if not found.
  */
-TEXTURE* texture_system_acquire_cube(const char* name, b8 auto_release);
+YAPI TEXTURE* texture_system_acquire_cube(const char* name, b8 auto_release);
 
 /**
  * @brief Attempts to acquire a writeable texture with the given name. This does not point to
@@ -52,9 +52,9 @@ TEXTURE* texture_system_acquire_cube(const char* name, b8 auto_release);
  * @param has_transparency Indicates if the texture will have transparency.
  * @return A pointer to the generated texture.
  */
-TEXTURE* texture_system_aquire_writeable(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency);
+YAPI TEXTURE* texture_system_aquire_writeable(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency);
 
-void texture_system_release(const char* name);
+YAPI void texture_system_release(const char* name);
 
 /**
  * @brief Wraps the provided internal data in a texture structure using the parameters
@@ -73,7 +73,7 @@ void texture_system_release(const char* name);
  * @param register_texture Indicates if the texture should be registered with the system.
  * @param out_texture An optional pointer to hold the wrapped texture. If null, a new pointer is allocated and returned instead.
  */
-void texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, b8 is_writeable, b8 register_texture, void* internal_data, TEXTURE* out_texture);
+YAPI void texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 channel_count, b8 has_transparency, b8 is_writeable, b8 register_texture, void* internal_data, TEXTURE* out_texture);
 
 /**
  * @brief Sets the internal data of a texture. Useful for replacing internal data from within the
@@ -83,7 +83,7 @@ void texture_system_wrap_internal(const char* name, u32 width, u32 height, u8 ch
  * @param internal_data A pointer to the internal data to be set.
  * @return True on success; otherwise false.
  */
-b8 texture_system_set_internal(TEXTURE* t, void* internal_data);
+YAPI b8 texture_system_set_internal(TEXTURE* t, void* internal_data);
 
 /**
  * @brief Resizes the given texture. May only be done on writeable textures.
@@ -95,7 +95,7 @@ b8 texture_system_set_internal(TEXTURE* t, void* internal_data);
  * @param regenerate_internal_data Indicates if the internal data should be regenerated.
  * @return True on success; otherwise false.
  */
-b8 texture_system_resize(TEXTURE* t, u32 width, u32 height, b8 regenerate_internal_data);
+YAPI b8 texture_system_resize(TEXTURE* t, u32 width, u32 height, b8 regenerate_internal_data);
 
 /**
  * @brief Writes the given data to the provided texture. May only be used on
@@ -107,9 +107,9 @@ b8 texture_system_resize(TEXTURE* t, u32 width, u32 height, b8 regenerate_intern
  * @param data A pointer to the data to be written.
  * @return True on success; otherwise false.
  */
-b8 texture_system_write_data(TEXTURE* t, u32 offset, u32 size, void* data);
+YAPI b8 texture_system_write_data(TEXTURE* t, u32 offset, u32 size, void* data);
 
-TEXTURE* texture_system_get_default_texture(void);
-TEXTURE* texture_system_get_default_diffuse_texture(void);
-TEXTURE* texture_system_get_default_specular_texture(void);
-TEXTURE* texture_system_get_default_normal_texture(void);
+YAPI TEXTURE* texture_system_get_default_texture(void);
+YAPI TEXTURE* texture_system_get_default_diffuse_texture(void);
+YAPI TEXTURE* texture_system_get_default_specular_texture(void);
+YAPI TEXTURE* texture_system_get_default_normal_texture(void);

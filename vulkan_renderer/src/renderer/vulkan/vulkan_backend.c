@@ -2,7 +2,7 @@
 
 #include "vulkan_backend.h"
 #include "vulkan_types.inl"
-#include "vulkan_platform.h"
+#include "platform/vulkan_platform.h"
 #include "vulkan_device.h"
 #include "vulkan_swapchain.h"
 #include "vulkan_command_buffer.h"
@@ -55,8 +55,8 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vk_debug_callback(
 
 i32 find_memory_index(u32 type_filter, u32 property_flags);
 
-void create_command_buffers(RENDERER_BACKEND* backend);
-b8 recreate_swapchain(RENDERER_BACKEND* backend);
+void create_command_buffers(RENDERER_PLUGIN* backend);
+b8 recreate_swapchain(RENDERER_PLUGIN* backend);
 b8 vulkan_create_shader_module(VULKAN_SHADER* shader, VULKAN_SHADER_STAGE_CONFIG config, VULKAN_SHADER_STAGE* shader_stage);
 b8 vulkan_buffer_copy_range_internal(VkBuffer source, u64 source_offset, VkBuffer dest, u64 dest_offset, u64 size);
 
@@ -224,7 +224,7 @@ b8 create_vulkan_allocator(VkAllocationCallbacks* callbacks) {
 }
 #endif  // YVULKAN_USE_CUSTOM_ALLOCATOR == 1
 
-b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count) {
+b8 vulkan_renderer_backend_init(RENDERER_PLUGIN* backend, const RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count) {
     VK_CHECK(volkInitialize());
 
     // Function pointers
@@ -363,7 +363,7 @@ b8 vulkan_renderer_backend_init(RENDERER_BACKEND* backend, const RENDERER_BACKEN
     return true;
 }
 
-void vulkan_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
+void vulkan_renderer_backend_shutdown(RENDERER_PLUGIN* backend) {
     vkDeviceWaitIdle(context.device.logical_device);
     // Destroy in the opposite order of creation.
 
@@ -439,7 +439,7 @@ void vulkan_renderer_backend_shutdown(RENDERER_BACKEND* backend) {
     }
 }
 
-void vulkan_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u16 height) {
+void vulkan_renderer_backend_on_resized(RENDERER_PLUGIN* backend, u16 width, u16 height) {
     // Update the "framebuffer size generation", a counter which indicates when the
     // framebuffer size has been updated.
     context.framebuffer_width = width;
@@ -449,7 +449,7 @@ void vulkan_renderer_backend_on_resized(RENDERER_BACKEND* backend, u16 width, u1
     PRINT_INFO("Vulkan renderer backend->resized: w/h/gen: %i/%i/%llu", width, height, context.framebuffer_size_generation);
 }
 
-b8 vulkan_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+b8 vulkan_renderer_backend_begin_frame(RENDERER_PLUGIN* backend, f32 delta_time) {
     context.frame_delta_time = delta_time;
     VULKAN_DEVICE* device = &context.device;
 
@@ -522,7 +522,7 @@ b8 vulkan_renderer_backend_begin_frame(RENDERER_BACKEND* backend, f32 delta_time
     return true;
 }
 
-b8 vulkan_renderer_backend_end_frame(RENDERER_BACKEND* backend, f32 delta_time) {
+b8 vulkan_renderer_backend_end_frame(RENDERER_PLUGIN* backend, f32 delta_time) {
     VULKAN_COMMAND_BUFFER* command_buffer = &context.graphics_command_buffers[context.image_index];
 
     vulkan_command_buffer_end(command_buffer);
@@ -842,7 +842,7 @@ i32 find_memory_index(u32 type_filter, u32 property_flags) {
     return -1;
 }
 
-void create_command_buffers(RENDERER_BACKEND* backend) {
+void create_command_buffers(RENDERER_PLUGIN* backend) {
     if (!context.graphics_command_buffers) {
         context.graphics_command_buffers = darray_reserve(VULKAN_COMMAND_BUFFER, context.swapchain.image_count);
         for (u32 i = 0; i < context.swapchain.image_count; ++i) {
@@ -868,7 +868,7 @@ void create_command_buffers(RENDERER_BACKEND* backend) {
     PRINT_DEBUG("Vulkan command buffers created.");
 }
 
-b8 recreate_swapchain(RENDERER_BACKEND* backend) {
+b8 recreate_swapchain(RENDERER_PLUGIN* backend) {
     // If already being recreated, do not try again.
     if (context.recreating_swapchain) {
         PRINT_DEBUG("recreate_swapchain called when already recreating. Booting.");

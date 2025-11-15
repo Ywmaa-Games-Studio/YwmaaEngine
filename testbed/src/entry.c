@@ -4,6 +4,9 @@
 
 #include "core/ymemory.h"
 
+#include <vulkan_renderer_plugin_main.h>
+#include <webgpu_renderer_plugin_main.h>
+
 // Define the function to create a game
 b8 create_application(APPLICATION* out_game) {
     // Application configuration.
@@ -25,6 +28,24 @@ b8 create_application(APPLICATION* out_game) {
     //PRINT_INFO(get_memory_usage_str());
 
     out_game->engine_state = 0;
+
+    switch (out_game->app_config.renderer_backend_api)
+    {
+        case RENDERER_BACKEND_API_VULKAN:
+            if (!vulkan_renderer_plugin_create(&out_game->render_plugin)) {
+                return false;
+            }
+            break;
+        case RENDERER_BACKEND_API_WEBGPU:
+            if (!webgpu_renderer_plugin_create(&out_game->render_plugin)) {
+                return false;
+            }
+            break;
+        
+        default:
+            return false;
+            break;
+    }
 
     return true;
 }

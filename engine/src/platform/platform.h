@@ -42,3 +42,24 @@ void platform_sleep(u64 ms);
  * @return The number of logical processor cores.
  */
 i32 platform_get_processor_count(void);
+/**
+ * @brief Obtains the required memory amount for platform-specific handle data,
+ * and optionally obtains a copy of that data. Call twice, once with memory=0
+ * to obtain size, then a second time where memory = allocated block.
+ *
+ * @param out_size A pointer to hold the memory requirement.
+ * @param memory Allocated block of memory.
+ */
+YAPI void platform_get_handle_info(u64* out_size, void* memory);
+
+// Linux platform layer
+#if defined(YPLATFORM_LINUX) && !defined(YPLATFORM_ANDROID)
+// Track which platform backend is active
+typedef enum E_PLATFORM_BACKEND {
+    PLATFORM_BACKEND_NONE,
+    PLATFORM_BACKEND_WAYLAND,
+    PLATFORM_BACKEND_X11
+} E_PLATFORM_BACKEND;
+
+YAPI E_PLATFORM_BACKEND platform_get_linux_active_display_protocol(void);
+#endif

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "defines.h"
+#include <defines.h>
 
 struct PLATFORM_STATE;
 struct WEBGPU_CONTEXT;

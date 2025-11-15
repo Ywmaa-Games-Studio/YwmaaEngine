@@ -230,19 +230,19 @@ typedef struct RENDERER_BACKEND_CONFIG {
     RENDERER_CONFIG_FLAGS flags;
 } RENDERER_BACKEND_CONFIG;
 
-typedef struct RENDERER_BACKEND {
+typedef struct RENDERER_PLUGIN {
     struct PLATFORM_STATE* platform_state;
     E_RENDERER_BACKEND_API backend_api;
     u64 frame_number;
 
-    b8 (*init)(struct RENDERER_BACKEND* backend, const RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count);
+    b8 (*init)(struct RENDERER_PLUGIN* backend, const RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count);
 
-    void (*shutdown)(struct RENDERER_BACKEND* backend);
+    void (*shutdown)(struct RENDERER_PLUGIN* backend);
 
-    void (*resized)(struct RENDERER_BACKEND* backend, u16 width, u16 height);
+    void (*resized)(struct RENDERER_PLUGIN* backend, u16 width, u16 height);
 
-    b8 (*begin_frame)(struct RENDERER_BACKEND* backend, f32 delta_time);
-    b8 (*end_frame)(struct RENDERER_BACKEND* backend, f32 delta_time);
+    b8 (*begin_frame)(struct RENDERER_PLUGIN* backend, f32 delta_time);
+    b8 (*end_frame)(struct RENDERER_PLUGIN* backend, f32 delta_time);
     
     /**
      * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
@@ -643,7 +643,7 @@ typedef struct RENDERER_BACKEND {
      * @return True on success; otherwise false.
      */
     b8 (*renderbuffer_draw)(RENDER_BUFFER* buffer, u64 offset, u32 element_count, b8 bind_only);
-} RENDERER_BACKEND;
+} RENDERER_PLUGIN;
 
 /** @brief Known render view types, which have logic associated with them. */
 typedef enum E_RENDER_VIEW_KNOWN_TYPE {

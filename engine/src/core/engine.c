@@ -71,6 +71,8 @@ b8 engine_create(APPLICATION* game_instance) {
     engine_state->is_running = false;
     engine_state->is_suspended = false;
 
+    game_instance->app_config.renderer_plugin = game_instance->render_plugin;
+
     if (!systems_manager_init(&engine_state->sys_manager_state, &game_instance->app_config)) {
         PRINT_ERROR("Systems manager failed to initialize. Aborting process.");
         return false;

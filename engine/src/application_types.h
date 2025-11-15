@@ -81,4 +81,7 @@ typedef struct APPLICATION {
 
     /** @brief Data which is built up, used and discarded every frame. */
     APP_FRAME_DATA frame_data;
+
+    // TODO: Move this to somewhere better...
+    RENDERER_PLUGIN render_plugin;
 } APPLICATION;

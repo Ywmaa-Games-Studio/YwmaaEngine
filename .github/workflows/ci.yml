@@ -99,7 +99,7 @@ jobs:
       - name: x86_64-windows -> x86_64-linux
         run: zig build -Dtarget=x86_64-linux -Doptimize=ReleaseFast
   x86_64-macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
     # to the branch.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository

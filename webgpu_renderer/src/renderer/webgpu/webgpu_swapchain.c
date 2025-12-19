@@ -26,7 +26,7 @@ void webgpu_swapchain_destroy(WEBGPU_CONTEXT* context){
     wgpuSurfaceUnconfigure(context->surface);
 }
 
-b8 webgpu_recreate_swapchain(WEBGPU_CONTEXT* context, RENDERER_PLUGIN* backend, u32 width, u32 height) {
+b8 webgpu_recreate_swapchain(WEBGPU_CONTEXT* context, RENDERER_PLUGIN* plugin, u32 width, u32 height) {
     webgpu_swapchain_destroy(context);
     
     // Re-init

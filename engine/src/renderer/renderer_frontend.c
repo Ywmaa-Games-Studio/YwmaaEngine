@@ -6,8 +6,7 @@
 #include "math/ymath.h"
 
 #include "resources/resource_types.h"
-#include "core/ystring.h"
-#include "core/event.h"
+#include "core/systems_manager.h"
 
 #include "systems/resource_system.h"
 #include "systems/texture_system.h"
@@ -31,15 +30,13 @@ typedef struct RENDERER_SYSTEM_STATE {
     u8 frames_since_resize;
 } RENDERER_SYSTEM_STATE;
 
-static RENDERER_SYSTEM_STATE* state_ptr;
-
 b8 renderer_system_init(u64* memory_requirement, void* state, void* config) {
     RENDERER_SYSTEM_CONFIG* typed_config = (RENDERER_SYSTEM_CONFIG*)config;
     *memory_requirement = sizeof(RENDERER_SYSTEM_STATE);
     if (state == 0) {
         return true;
     }
-    state_ptr = state;
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)state;
 
    // Default framebuffer size. Overridden when window is created.
     state_ptr->framebuffer_width = 1280;
@@ -68,13 +65,14 @@ b8 renderer_system_init(u64* memory_requirement, void* state, void* config) {
 }
 
 void renderer_system_shutdown(void* state) {
-    if (state_ptr) {
-        state_ptr->plugin.shutdown(&state_ptr->plugin);
+    if (state) {
+        RENDERER_SYSTEM_STATE* typed_state = (RENDERER_SYSTEM_STATE*)state;
+        typed_state->plugin.shutdown(&typed_state->plugin);
     }
-    state_ptr = 0;
 }
 
 E_RENDERER_BACKEND_API renderer_get_backend_api(void) {
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     if (state_ptr) {
         return state_ptr->plugin.backend_api;
     } else {
@@ -84,6 +82,7 @@ E_RENDERER_BACKEND_API renderer_get_backend_api(void) {
 }
 
 void renderer_on_resized(u16 width, u16 height) {
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     if (state_ptr) {
         // Flag as resizing and store the change, but wait to regenerate.
         state_ptr->resizing = true;
@@ -97,6 +96,7 @@ void renderer_on_resized(u16 width, u16 height) {
 }
 
 b8 renderer_draw_frame(RENDER_PACKET* packet) {
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     state_ptr->plugin.frame_number++;
     // Make sure the window is not currently being resized by waiting a designated
     // number of frames after the last resize operation before performing the backend updates.
@@ -123,7 +123,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
 
     // If the begin frame returned successfully, mid-frame operations may continue.
     if (state_ptr->plugin.begin_frame(&state_ptr->plugin, packet->delta_time)) {
-        u8 attachment_index = state_ptr->plugin.window_attachment_index_get();
+        u8 attachment_index = state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
         // Render each view.
         for (u32 i = 0; i < packet->view_count; ++i) {
             if (!render_view_system_on_render(packet->views[i].view, &packet->views[i], state_ptr->plugin.frame_number, attachment_index)) {
@@ -145,134 +145,166 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
 }
 
 void renderer_viewport_set(Vector4 rect) {
-    state_ptr->plugin.viewport_set(rect);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.viewport_set(&state_ptr->plugin, rect);
 }
 
 void renderer_viewport_reset(void) {
-    state_ptr->plugin.viewport_reset();
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.viewport_reset(&state_ptr->plugin);
 }
 
 void renderer_scissor_set(Vector4 rect) {
-    state_ptr->plugin.scissor_set(rect);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.scissor_set(&state_ptr->plugin, rect);
 }
 
 void renderer_scissor_reset(void) {
-    state_ptr->plugin.scissor_reset();
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.scissor_reset(&state_ptr->plugin);
 }
 
 void renderer_texture_create(const u8* pixels, struct TEXTURE* texture) {
-    state_ptr->plugin.texture_create(pixels, texture);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.texture_create(&state_ptr->plugin, pixels, texture);
 }
 
 void renderer_texture_destroy(struct TEXTURE* texture) {
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     if (!state_ptr) {
         return;
     }
-    state_ptr->plugin.texture_destroy(texture);
+    state_ptr->plugin.texture_destroy(&state_ptr->plugin, texture);
 }
 
 void renderer_texture_create_writeable(TEXTURE* t) {
-    state_ptr->plugin.texture_create_writeable(t);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.texture_create_writeable(&state_ptr->plugin, t);
 }
 
 void renderer_texture_write_data(TEXTURE* t, u32 offset, u32 size, const u8* pixels) {
-    state_ptr->plugin.texture_write_data(t, offset, size, pixels);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.texture_write_data(&state_ptr->plugin, t, offset, size, pixels);
 }
 
 void renderer_texture_read_data(TEXTURE* t, u32 offset, u32 size, void** out_memory) {
-    state_ptr->plugin.texture_read_data(t, offset, size, out_memory);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.texture_read_data(&state_ptr->plugin, t, offset, size, out_memory);
 }
 
 void renderer_texture_read_pixel(TEXTURE* t, u32 x, u32 y, u8** out_rgba) {
-    state_ptr->plugin.texture_read_pixel(t, x, y, out_rgba);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.texture_read_pixel(&state_ptr->plugin, t, x, y, out_rgba);
 }
 
 void renderer_texture_resize(TEXTURE* t, u32 new_width, u32 new_height) {
-    state_ptr->plugin.texture_resize(t, new_width, new_height);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.texture_resize(&state_ptr->plugin, t, new_width, new_height);
 }
 
 b8 renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
-    return state_ptr->plugin.create_geometry(geometry, vertex_size, vertex_count, vertices, index_size, index_count, indices);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.create_geometry(&state_ptr->plugin, geometry, vertex_size, vertex_count, vertices, index_size, index_count, indices);
 }
 
 void renderer_destroy_geometry(GEOMETRY* geometry) {
-    state_ptr->plugin.destroy_geometry(geometry);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.destroy_geometry(&state_ptr->plugin, geometry);
 }
 
 void renderer_draw_geometry(GEOMETRY_RENDER_DATA* data) {
-    state_ptr->plugin.draw_geometry(data);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.draw_geometry(&state_ptr->plugin, data);
 }
 
 b8 renderer_renderpass_begin(RENDERPASS* pass, RENDER_TARGET* target) {
-    return state_ptr->plugin.renderpass_begin(pass, target);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.renderpass_begin(&state_ptr->plugin, pass, target);
 }
 
 b8 renderer_renderpass_end(RENDERPASS* pass) {
-    return state_ptr->plugin.renderpass_end(pass);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.renderpass_end(&state_ptr->plugin, pass);
 }
 
 b8 renderer_shader_create(SHADER* s, const SHADER_CONFIG* config, RENDERPASS* pass, u8 stage_count, const char** stage_filenames, E_SHADER_STAGE* stages) {
-    return state_ptr->plugin.shader_create(s, config, pass, stage_count, stage_filenames, stages);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_create(&state_ptr->plugin, s, config, pass, stage_count, stage_filenames, stages);
 }
 
 void renderer_shader_destroy(SHADER* s) {
-    state_ptr->plugin.shader_destroy(s);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.shader_destroy(&state_ptr->plugin, s);
 }
 
 b8 renderer_shader_init(SHADER* s) {
-    return state_ptr->plugin.shader_init(s);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_init(&state_ptr->plugin, s);
 }
 
 b8 renderer_shader_use(SHADER* s) {
-    return state_ptr->plugin.shader_use(s);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_use(&state_ptr->plugin, s);
 }
 
 b8 renderer_shader_bind_globals(SHADER* s) {
-    return state_ptr->plugin.shader_bind_globals(s);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_bind_globals(&state_ptr->plugin, s);
 }
 
 b8 renderer_shader_bind_instance(SHADER* s, u32 instance_id) {
-    return state_ptr->plugin.shader_bind_instance(s, instance_id);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_bind_instance(&state_ptr->plugin, s, instance_id);
 }
 
 b8 renderer_shader_apply_globals(SHADER* s) {
-    return state_ptr->plugin.shader_apply_globals(s);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_apply_globals(&state_ptr->plugin, s);
 }
 
 b8 renderer_shader_apply_instance(SHADER* s, b8 needs_update) {
-    return state_ptr->plugin.shader_apply_instance(s, needs_update);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_apply_instance(&state_ptr->plugin, s, needs_update);
 }
 
 b8 renderer_shader_acquire_instance_resources(SHADER* s, TEXTURE_MAP** maps, u32* out_instance_id) {
-    return state_ptr->plugin.shader_acquire_instance_resources(s, maps, out_instance_id);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_acquire_instance_resources(&state_ptr->plugin, s, maps, out_instance_id);
 }
 
 b8 renderer_shader_release_instance_resources(SHADER* s, u32 instance_id) {
-    return state_ptr->plugin.shader_release_instance_resources(s, instance_id);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_release_instance_resources(&state_ptr->plugin, s, instance_id);
 }
 
 b8 renderer_set_uniform(SHADER* s, SHADER_UNIFORM* uniform, const void* value) {
-    return state_ptr->plugin.shader_set_uniform(s, uniform, value);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_set_uniform(&state_ptr->plugin, s, uniform, value);
 }
 
 b8 renderer_shader_after_renderpass(SHADER* s) {
-    return state_ptr->plugin.shader_after_renderpass(s);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.shader_after_renderpass(&state_ptr->plugin, s);
 }
 
 b8 renderer_texture_map_acquire_resources(struct TEXTURE_MAP* map) {
-    return state_ptr->plugin.texture_map_acquire_resources(map);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.texture_map_acquire_resources(&state_ptr->plugin, map);
 }
 
 void renderer_texture_map_release_resources(struct TEXTURE_MAP* map) {
-    state_ptr->plugin.texture_map_release_resources(map);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.texture_map_release_resources(&state_ptr->plugin, map);
 }
 
 void renderer_render_target_create(u8 attachment_count, RENDER_TARGET_ATTACHMENT* attachments, RENDERPASS* pass, u32 width, u32 height, RENDER_TARGET* out_target) {
-    state_ptr->plugin.render_target_create(attachment_count, attachments, pass, width, height, out_target);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.render_target_create(&state_ptr->plugin, attachment_count, attachments, pass, width, height, out_target);
 }
 
 void renderer_render_target_destroy(RENDER_TARGET* target, b8 free_internal_memory) {
-    state_ptr->plugin.render_target_destroy(target, free_internal_memory);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.render_target_destroy(&state_ptr->plugin, target, free_internal_memory);
 
     if (free_internal_memory) {
         yzero_memory(target, sizeof(RENDER_TARGET));
@@ -280,22 +312,27 @@ void renderer_render_target_destroy(RENDER_TARGET* target, b8 free_internal_memo
 }
 
 TEXTURE* renderer_window_attachment_get(u8 index) {
-    return state_ptr->plugin.window_attachment_get(index);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.window_attachment_get(&state_ptr->plugin, index);
 }
 
 TEXTURE* renderer_depth_attachment_get(u8 index) {
-    return state_ptr->plugin.depth_attachment_get(index);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.depth_attachment_get(&state_ptr->plugin, index);
 }
 
 u8 renderer_window_attachment_index_get(void) {
-    return state_ptr->plugin.window_attachment_index_get();
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
 }
 
 u8 renderer_window_attachment_count_get(void) {
-    return state_ptr->plugin.window_attachment_count_get();
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.window_attachment_count_get(&state_ptr->plugin);
 }
 
 b8 renderer_renderpass_create(const RENDERPASS_CONFIG* config, RENDERPASS* out_renderpass) {
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     if (!config) {
         PRINT_ERROR("Renderpass config is required.");
         return false;
@@ -331,32 +368,37 @@ b8 renderer_renderpass_create(const RENDERPASS_CONFIG* config, RENDERPASS* out_r
         }
     }
 
-    return state_ptr->plugin.renderpass_create(config, out_renderpass);
+    return state_ptr->plugin.renderpass_create(&state_ptr->plugin, config, out_renderpass);
 }
 
 void renderer_renderpass_destroy(RENDERPASS* pass) {
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     // Destroy its rendertargets.
     for (u32 i = 0; i < pass->render_target_count; ++i) {
         renderer_render_target_destroy(&pass->targets[i], true);
     }
     
-    state_ptr->plugin.renderpass_destroy(pass);
+    state_ptr->plugin.renderpass_destroy(&state_ptr->plugin, pass);
 }
 
 b8 renderer_is_multithreaded(void) {
-    return state_ptr->plugin.is_multithreaded();
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.is_multithreaded(&state_ptr->plugin);
 }
 
 b8 renderer_flag_enabled(RENDERER_CONFIG_FLAGS flag) {
-    return state_ptr->plugin.flag_enabled(flag);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.flag_enabled(&state_ptr->plugin, flag);
 }
 
 void renderer_flag_set_enabled(RENDERER_CONFIG_FLAGS flag, b8 enabled) {
-    state_ptr->plugin.flag_set_enabled(flag, enabled);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.flag_set_enabled(&state_ptr->plugin, flag, enabled);
 }
 
 
 b8 renderer_renderbuffer_create(E_RENDERBUFFER_TYPE type, u64 total_size, b8 use_freelist, RENDER_BUFFER* out_buffer) {
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     if (!out_buffer) {
         PRINT_ERROR("renderer_renderbuffer_create requires a valid pointer to hold the created buffer.");
         return false;
@@ -375,7 +417,7 @@ b8 renderer_renderbuffer_create(E_RENDERBUFFER_TYPE type, u64 total_size, b8 use
     }
 
     // Create the internal buffer from the backend.
-    if (!state_ptr->plugin.renderbuffer_create_internal(out_buffer)) {
+    if (!state_ptr->plugin.renderbuffer_create_internal(&state_ptr->plugin, out_buffer)) {
         PRINT_ERROR("Unable to create backing buffer for RENDER_BUFFER. Application cannot continue.");
         return false;
     }
@@ -384,6 +426,7 @@ b8 renderer_renderbuffer_create(E_RENDERBUFFER_TYPE type, u64 total_size, b8 use
 }
 
 void renderer_renderbuffer_destroy(RENDER_BUFFER* buffer) {
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     if (buffer) {
         if (buffer->freelist_memory_requirement > 0) {
             freelist_destroy(&buffer->buffer_freelist);
@@ -392,41 +435,48 @@ void renderer_renderbuffer_destroy(RENDER_BUFFER* buffer) {
         }
 
         // Free up the backend resources.
-        state_ptr->plugin.renderbuffer_destroy_internal(buffer);
+        state_ptr->plugin.renderbuffer_destroy_internal(&state_ptr->plugin, buffer);
         buffer->internal_data = 0;
     }
 }
 
 b8 renderer_renderbuffer_bind(RENDER_BUFFER* buffer, u64 offset) {
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     if (!buffer) {
         PRINT_ERROR("renderer_renderbuffer_bind requires a valid pointer to a buffer.");
         return false;
     }
 
-    return state_ptr->plugin.renderbuffer_bind(buffer, offset);
+    return state_ptr->plugin.renderbuffer_bind(&state_ptr->plugin, buffer, offset);
 }
 
 b8 renderer_renderbuffer_unbind(RENDER_BUFFER* buffer) {
-    return state_ptr->plugin.renderbuffer_unbind(buffer);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.renderbuffer_unbind(&state_ptr->plugin, buffer);
 }
 
 void* renderer_renderbuffer_map_memory(RENDER_BUFFER* buffer, u64 offset, u64 size) {
-    return state_ptr->plugin.renderbuffer_map_memory(buffer, offset, size);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.renderbuffer_map_memory(&state_ptr->plugin, buffer, offset, size);
 }
 
 void renderer_renderbuffer_unmap_memory(RENDER_BUFFER* buffer, u64 offset, u64 size) {
-    state_ptr->plugin.renderbuffer_unmap_memory(buffer, offset, size);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    state_ptr->plugin.renderbuffer_unmap_memory(&state_ptr->plugin, buffer, offset, size);
 }
 
 b8 renderer_renderbuffer_flush(RENDER_BUFFER* buffer, u64 offset, u64 size) {
-    return state_ptr->plugin.renderbuffer_flush(buffer, offset, size);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.renderbuffer_flush(&state_ptr->plugin, buffer, offset, size);
 }
 
 b8 renderer_renderbuffer_read(RENDER_BUFFER* buffer, u64 offset, u64 size, void** out_memory) {
-    return state_ptr->plugin.renderbuffer_read(buffer, offset, size, out_memory);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.renderbuffer_read(&state_ptr->plugin, buffer, offset, size, out_memory);
 }
 
 b8 renderer_renderbuffer_resize(RENDER_BUFFER* buffer, u64 new_total_size) {
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     // Sanity check.
     if (new_total_size <= buffer->total_size) {
         PRINT_ERROR("renderer_renderbuffer_resize requires that new size be larger than the old. Not doing this could lead to data loss.");
@@ -451,7 +501,7 @@ b8 renderer_renderbuffer_resize(RENDER_BUFFER* buffer, u64 new_total_size) {
         buffer->freelist_block = new_block;
     }
 
-    b8 result = state_ptr->plugin.renderbuffer_resize(buffer, new_total_size);
+    b8 result = state_ptr->plugin.renderbuffer_resize(&state_ptr->plugin, buffer, new_total_size);
     if (result) {
         buffer->total_size = new_total_size;
     } else {
@@ -488,13 +538,16 @@ b8 renderer_renderbuffer_free(RENDER_BUFFER* buffer, u64 size, u64 offset) {
 }
 
 b8 renderer_renderbuffer_load_range(RENDER_BUFFER* buffer, u64 offset, u64 size, const void* data) {
-    return state_ptr->plugin.renderbuffer_load_range(buffer, offset, size, data);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.renderbuffer_load_range(&state_ptr->plugin, buffer, offset, size, data);
 }
 
 b8 renderer_renderbuffer_copy_range(RENDER_BUFFER* source, u64 source_offset, RENDER_BUFFER* dest, u64 dest_offset, u64 size) {
-    return state_ptr->plugin.renderbuffer_copy_range(source, source_offset, dest, dest_offset, size);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.renderbuffer_copy_range(&state_ptr->plugin, source, source_offset, dest, dest_offset, size);
 }
 
 b8 renderer_renderbuffer_draw(RENDER_BUFFER* buffer, u64 offset, u32 element_count, b8 bind_only) {
-    return state_ptr->plugin.renderbuffer_draw(buffer, offset, element_count, bind_only);
+    RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
+    return state_ptr->plugin.renderbuffer_draw(&state_ptr->plugin, buffer, offset, element_count, bind_only);
 }

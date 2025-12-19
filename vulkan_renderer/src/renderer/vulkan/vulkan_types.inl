@@ -426,7 +426,7 @@ typedef struct VULKAN_CONTEXT {
     /** @brief Indicates if multi-threading is supported by this device. */
     b8 multithreading_enabled;
 
-    i32 (*find_memory_index)(u32 type_filter, u32 property_flags);
+    i32 (*find_memory_index)(struct VULKAN_CONTEXT* context, u32 type_filter, u32 property_flags);
 
 #if defined(_DEBUG)
     VkDebugUtilsMessengerEXT debug_messenger;

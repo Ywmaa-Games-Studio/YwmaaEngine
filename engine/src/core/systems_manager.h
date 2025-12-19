@@ -138,3 +138,5 @@ YAPI b8 systems_manager_register(
     PFN_system_shutdown shutdown,
     PFN_system_update update,
     void* config);
+
+YAPI void* systems_manager_get_state(u16 type);

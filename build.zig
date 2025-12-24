@@ -342,9 +342,7 @@ pub fn build(b: *std.Build) !void {
     vulkan_plugin.root_module.addRPathSpecial("$ORIGIN/Engine");
     vulkan_plugin.root_module.addRPathSpecial("$ORIGIN/../lib");
     vulkan_plugin.root_module.addRPathSpecial("$ORIGIN");
-    if (target.result.os.tag == .windows) {
-        vulkan_plugin.linkLibrary(libengine);
-    }
+    vulkan_plugin.linkLibrary(libengine);
     //END ************ VULKAN RENDERER PLUGIN ************//
 
     //START ************ WEBGPU RENDERER PLUGIN ************//

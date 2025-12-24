@@ -841,7 +841,7 @@ b8 platform_unwatch_file(u32 watch_id) {
     return unregister_watch(watch_id);
 }
 
-void platform_update_watches() {
+void platform_update_watches(void) {
     if (!state_ptr || !state_ptr->watches) {
         return;
     }

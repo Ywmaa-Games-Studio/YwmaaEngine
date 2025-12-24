@@ -412,7 +412,6 @@ pub fn build(b: *std.Build) !void {
     }
 
     if (target.result.os.tag == .windows) {
-        webgpu_plugin.linkLibrary(libengine);
         std.debug.print("Webgpu Renderer Plugin: Dynamic Linking {s}\n", .{lib_file.getPath(b)});
         b.installDirectory(.{
             .source_dir = lib_file,
@@ -442,6 +441,7 @@ pub fn build(b: *std.Build) !void {
             .preferred_link_mode = .dynamic,
         });
     }
+    webgpu_plugin.linkLibrary(libengine);
     //END ************ WEBGPU RENDERER PLUGIN ************//
 
     exe.root_module.addRPathSpecial("$ORIGIN/Engine");

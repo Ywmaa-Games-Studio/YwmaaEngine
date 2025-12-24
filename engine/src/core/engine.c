@@ -45,7 +45,7 @@ b8 engine_create(APPLICATION* game_instance) {
 
     // Memory system must be the first thing to be stood up.
     MEMORY_SYSTEM_CONFIG memory_system_config = {0};
-    memory_system_config.total_alloc_size = MEBIBYTES(1024);
+    memory_system_config.total_alloc_size = GIBIBYTES(2);
     if (!memory_system_init(memory_system_config)) {
         PRINT_ERROR("Failed to initialize memory system; shutting down.");
         return false;
@@ -63,7 +63,7 @@ b8 engine_create(APPLICATION* game_instance) {
     //should I make the linear allocator switch to malloc instead of using the engine's allocator?
     // mainly the reasons for this is that we won't track its allocations, it is almost static
     // and it consumes the large pool
-    game_instance->state = yallocate(game_instance->state_memory_requirement, MEMORY_TAG_GAME);
+    //game_instance->state = yallocate(game_instance->state_memory_requirement, MEMORY_TAG_GAME);
 
     game_instance->engine_state = yallocate_aligned(sizeof(ENGINE_STATE_T), 8, MEMORY_TAG_ENGINE);
     engine_state = game_instance->engine_state;
@@ -79,10 +79,12 @@ b8 engine_create(APPLICATION* game_instance) {
     }
 
     // Perform the game's boot sequence.
+    game_instance->stage = APPLICATION_STAGE_BOOTING;
     if (!game_instance->boot(game_instance)) {
         PRINT_ERROR("Game boot sequence failed; aborting application.");
         return false;
     }
+    game_instance->stage = APPLICATION_STAGE_BOOT_COMPLETE;
 
     if (!systems_manager_post_boot_init(&engine_state->sys_manager_state, &game_instance->app_config)) {
         PRINT_ERROR("Post-boot system manager initialization failed!");
@@ -93,10 +95,12 @@ b8 engine_create(APPLICATION* game_instance) {
     PRINT_INFO("Ywmaa Engine v. %s", YVERSION);
 
     // Initialize the game.
+    game_instance->stage = APPLICATION_STAGE_INITIALIZING;
     if (!engine_state->game_instance->init(engine_state->game_instance)) {
         PRINT_ERROR("Game failed to initialize.");
         return false;
     }
+    game_instance->stage = APPLICATION_STAGE_INITIALIZED;
 
     // Call resize once to ensure the proper size has been set.
     renderer_on_resized(engine_state->width, engine_state->height);
@@ -105,7 +109,8 @@ b8 engine_create(APPLICATION* game_instance) {
     return true;
 }
 
-b8 engine_run(void) {
+b8 engine_run(APPLICATION* game_instance) {
+    game_instance->stage = APPLICATION_STAGE_RUNNING;
     engine_state->is_running = true;
     clock_start(&engine_state->clock);
     clock_update(&engine_state->clock);
@@ -194,6 +199,7 @@ b8 engine_run(void) {
     }
 
     engine_state->is_running = false;
+    game_instance->stage = APPLICATION_STAGE_SHUTTING_DOWN;
 
     // Shut down the game.
     engine_state->game_instance->shutdown(engine_state->game_instance);
@@ -203,6 +209,8 @@ b8 engine_run(void) {
 
     // Shut down all systems.
     systems_manager_shutdown(&engine_state->sys_manager_state);
+
+    game_instance->stage = APPLICATION_STAGE_UNINITIALIZED;
 
     return true;
 }

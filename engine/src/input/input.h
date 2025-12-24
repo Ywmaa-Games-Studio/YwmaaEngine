@@ -160,7 +160,7 @@ typedef enum E_KEYS {
     DEFINE_KEY(BACKSLASH, 0xDC),
     DEFINE_KEY(RBRACKET, 0xDD),
 
-    KEYS_MAX_KEYS
+    KEYS_MAX_KEYS = 0xFF
 } E_KEYS;
 
 /**
@@ -210,4 +210,4 @@ YAPI const char* input_keycode_str(E_KEYS key);
 
 YAPI void input_keymap_push(const struct KEYMAP* map);
 
-YAPI void input_keymap_pop(void);
+YAPI b8 input_keymap_pop(void);

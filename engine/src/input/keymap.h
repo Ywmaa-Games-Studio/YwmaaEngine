@@ -134,3 +134,10 @@ YAPI void keymap_binding_add(KEYMAP* map, E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE t
  * @param callback The callback to be made from the biding. Required.
  */
 YAPI void keymap_binding_remove(KEYMAP* map, E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, PFN_keybind_callback callback);
+
+/**
+ * @brief Clears all bindings from the given keymap.
+ * 
+ * @param map A pointer to the map to be cleared.
+ */
+YAPI void keymap_clear(KEYMAP* map);

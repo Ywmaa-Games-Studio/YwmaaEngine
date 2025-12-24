@@ -25,7 +25,7 @@ void keymap_binding_add(KEYMAP* map, E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, 
             node = node->next;
         }
 
-        KEYMAP_BINDING* new_entry = yallocate_aligned(sizeof(KEYMAP_BINDING), 8, MEMORY_TAG_UNKNOWN);
+        KEYMAP_BINDING* new_entry = yallocate_aligned(sizeof(KEYMAP_BINDING), 8, MEMORY_TAG_KEYMAP);
         new_entry->callback = callback;
         new_entry->modifiers = modifiers;
         new_entry->type = type;
@@ -54,6 +54,23 @@ void keymap_binding_remove(KEYMAP* map, E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE typ
             }
             previous = node;
             node = node->next;
+        }
+    }
+}
+
+void keymap_clear(KEYMAP* map) {
+    if (map) {
+        for (u32 i = 0; i < KEYS_MAX_KEYS; ++i) {
+            KEYMAP_ENTRY* entry = &map->entries[i];
+            KEYMAP_BINDING* node = entry->bindings;
+            KEYMAP_BINDING* previous = entry->bindings;
+            while (node) {
+                // Remove all nodes
+                previous->next = node->next;
+                yfree(node);
+                previous = node;
+                node = node->next;
+            }
         }
     }
 }

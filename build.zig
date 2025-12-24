@@ -187,10 +187,43 @@ pub fn build(b: *std.Build) !void {
             }
         }
     }
+    //START ************ GAME LIB ************//
+    const testbed_lib = b.addLibrary(.{ //addStaticLibrary/addSharedLibrary
+        .linkage = .dynamic, // make it a shared library
+        .name = "testbed_lib",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    // we are using stuff from the engine
+    testbed_lib.addIncludePath(.{ .cwd_relative = "engine/src" });
+    testbed_lib.addIncludePath(.{ .cwd_relative = "testbed_lib/src" });
+    {
+        var dir = try std.fs.cwd().openDir("testbed_lib/src", .{ .iterate = true });
+
+        var walker = try dir.walk(b.allocator);
+        defer walker.deinit();
+
+        const allowed_exts = [_][]const u8{".c"};
+        while (try walker.next()) |entry| {
+            const ext = std.fs.path.extension(entry.basename);
+            const include_file = for (allowed_exts) |e| {
+                if (std.mem.eql(u8, ext, e))
+                    break true;
+            } else false;
+            if (include_file) {
+                std.debug.print("Testbed Lib: Found {s} file to compile: '{s}'. path: '{s}'\n", .{ ext, entry.basename, entry.path });
+                testbed_lib.addCSourceFile(.{ .file = b.path(b.pathJoin(&.{ "testbed_lib/src", entry.path })), .flags = engine_flags.items });
+            }
+        }
+    }
+    testbed_lib.linkLibrary(libengine);
+    //END ************ GAME LIB ************//
     //START ************ VULKAN RENDERER PLUGIN ************//
     const vulkan_plugin = b.addLibrary(.{ //addStaticLibrary/addSharedLibrary
-        .linkage = .static, // make it a shared library
-        .name = "vulkan_plugin",
+        .linkage = .dynamic, // make it a shared library
+        .name = "vulkan_renderer",
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
@@ -226,7 +259,7 @@ pub fn build(b: *std.Build) !void {
 
     const glslang_lib = b.addLibrary(.{
         .name = "glslang_compiler",
-        .linkage = .static, // make it a shared library
+        .linkage = .dynamic, // make it a shared library
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
@@ -306,15 +339,18 @@ pub fn build(b: *std.Build) !void {
     vulkan_plugin.addIncludePath(.{ .cwd_relative = "vulkan_renderer/thirdparty/glslang/glslang" });
     vulkan_plugin.addIncludePath(.{ .cwd_relative = "vulkan_renderer/thirdparty/glslang/SPIRV" });
     vulkan_plugin.linkLibrary(glslang_lib);
-
-    exe.addIncludePath(.{ .cwd_relative = "vulkan_renderer/src" });
-    exe.linkLibrary(vulkan_plugin);
+    vulkan_plugin.root_module.addRPathSpecial("$ORIGIN/Engine");
+    vulkan_plugin.root_module.addRPathSpecial("$ORIGIN/../lib");
+    vulkan_plugin.root_module.addRPathSpecial("$ORIGIN");
+    if (target.result.os.tag == .windows) {
+        vulkan_plugin.linkLibrary(libengine);
+    }
     //END ************ VULKAN RENDERER PLUGIN ************//
 
     //START ************ WEBGPU RENDERER PLUGIN ************//
     const webgpu_plugin = b.addLibrary(.{ //addStaticLibrary/addSharedLibrary
-        .linkage = .static, // make it a shared library
-        .name = "webgpu_plugin",
+        .linkage = .dynamic, // make it a shared library
+        .name = "webgpu_renderer",
         .root_module = b.createModule(.{
             .target = target,
             .optimize = optimize,
@@ -376,6 +412,7 @@ pub fn build(b: *std.Build) !void {
     }
 
     if (target.result.os.tag == .windows) {
+        webgpu_plugin.linkLibrary(libengine);
         std.debug.print("Webgpu Renderer Plugin: Dynamic Linking {s}\n", .{lib_file.getPath(b)});
         b.installDirectory(.{
             .source_dir = lib_file,
@@ -383,8 +420,8 @@ pub fn build(b: *std.Build) !void {
             .install_subdir = "bin/",
             .include_extensions = &.{".dll"},
         });
-        exe.addLibraryPath(lib_file);
-        exe.linkSystemLibrary2("wgpu_native.dll", .{
+        webgpu_plugin.addLibraryPath(lib_file);
+        webgpu_plugin.linkSystemLibrary2("wgpu_native.dll", .{
             .use_pkg_config = .no,
             .preferred_link_mode = .dynamic,
         });
@@ -399,15 +436,12 @@ pub fn build(b: *std.Build) !void {
         //    .install_subdir = "lib/",
         //    .include_extensions = &.{ ".dylib", ".so" },
         //});
-        exe.addLibraryPath(lib_file);
-        exe.linkSystemLibrary2("wgpu_native", .{
+        webgpu_plugin.addLibraryPath(lib_file);
+        webgpu_plugin.linkSystemLibrary2("wgpu_native", .{
             .use_pkg_config = .no,
             .preferred_link_mode = .dynamic,
         });
     }
-
-    exe.addIncludePath(.{ .cwd_relative = "webgpu_renderer/src" });
-    exe.linkLibrary(webgpu_plugin);
     //END ************ WEBGPU RENDERER PLUGIN ************//
 
     exe.root_module.addRPathSpecial("$ORIGIN/Engine");
@@ -417,7 +451,10 @@ pub fn build(b: *std.Build) !void {
     exe.linkLibrary(libengine);
 
     b.installArtifact(libengine); //use this when the engine is compiled as a shared library
-    b.installArtifact(glslang_lib); //use this when the engine is compiled as a shared library
+    b.installArtifact(glslang_lib); //use this when the glslang_lib is compiled as a shared library
+    b.installArtifact(webgpu_plugin); //use this when the webgpu_plugin is compiled as a shared library
+    b.installArtifact(vulkan_plugin); //use this when the vulkan_plugin is compiled as a shared library
+    b.installArtifact(testbed_lib); //use this when the game is compiled as a shared library
 
     b.installArtifact(exe);
     if (target.result.abi == .android) {

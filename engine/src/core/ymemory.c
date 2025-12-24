@@ -58,7 +58,9 @@ static const char* memory_tag_strings[MEMORY_TAG_MAX_TAGS] = {
     "WEBGPU     ",
     "GPU_LOCAL  ",
     "BITMAP_FONT",
-    "SYSTEM_FONT"};
+    "SYSTEM_FONT",
+    "KEYMAP     ",
+    "HASHTABLE  "};
 
 typedef struct MEMORY_SYSTEM_STATE {
     MEMORY_SYSTEM_CONFIG config;
@@ -94,7 +96,7 @@ b8 memory_system_init(MEMORY_SYSTEM_CONFIG config) {
     }
 
     // Call the platform allocator to get the memory for the whole system, including the state.
-    void* block = platform_allocate(alloc_requirement, false);
+    void* block = platform_allocate(alloc_requirement, true);
     if (!block) {
         PRINT_ERROR("Memory system allocation failed and the system cannot continue.");
         return false;

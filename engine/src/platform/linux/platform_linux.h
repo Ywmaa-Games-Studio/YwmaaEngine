@@ -11,16 +11,22 @@
 #include "core/ymutex.h"
 #include "data_structures/darray.h"
 #include "core/ymemory.h"
+#include "core/asserts.h"
+#include "core/ystring.h"
 
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #include <pthread.h>
 #include <errno.h>        // For error reporting
 #include <sys/sysinfo.h>  // Processor info
+#include <sys/stat.h>
+#include <sys/sendfile.h>
 
+#include <fcntl.h>
+#include <limits.h>
+#include <unistd.h>
 
 // X11-specific platform functions
 b8 platform_x11_system_startup(

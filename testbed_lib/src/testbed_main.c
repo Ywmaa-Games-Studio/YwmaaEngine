@@ -1,4 +1,5 @@
-#include "game.h"
+#include "testbed_main.h"
+#include "game_state.h"
 
 #include <core/logger.h>
 #include <core/ystring.h>
@@ -29,10 +30,12 @@
 // TODO: end temp
 
 b8 configure_render_views(APPLICATION_CONFIG* config);
+void application_register_events(struct APPLICATION* application_instance);
+void application_unregister_events(struct APPLICATION* application_instance);
 
-b8 game_on_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
-    APPLICATION* game_instance = (APPLICATION*)listener_inst;
-    GAME_STATE* state = (GAME_STATE*)game_instance->state;
+b8 application_on_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
+    APPLICATION* application_instance = (APPLICATION*)listener_inst;
+    GAME_STATE* state = (GAME_STATE*)application_instance->state;
 
     switch (code) {
         case EVENT_CODE_OBJECT_HOVER_ID_CHANGED: {
@@ -44,9 +47,9 @@ b8 game_on_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT cont
     return false;
 }
 
-b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT data) {
-    APPLICATION* game_instance = (APPLICATION*)listener_inst;
-    GAME_STATE* state = (GAME_STATE*)game_instance->state;
+b8 application_on_debug_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT data) {
+    APPLICATION* application_instance = (APPLICATION*)listener_inst;
+    GAME_STATE* state = (GAME_STATE*)application_instance->state;
 
     if (code == EVENT_CODE_DEBUG0) {
         const char* names[3] = {
@@ -98,7 +101,7 @@ b8 game_on_debug_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEX
     return false;
 }
 
-b8 game_on_key(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
+b8 application_on_key(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
     // if (code == EVENT_CODE_KEY_PRESSED) {
     //     u16 key_code = context.data.u16[0];
     //     if (key_code == KEY_A) {
@@ -119,15 +122,18 @@ b8 game_on_key(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT contex
     return false;
 }
 
-b8 game_boot(struct APPLICATION* game_instance) {
+b8 application_boot(struct APPLICATION* application_instance) {
     PRINT_INFO("Booting testbed...");
 
-    debug_console_create();
+    // Allocate the game state.
+    application_instance->state = yallocate_aligned(sizeof(GAME_STATE), 8, MEMORY_TAG_GAME);
+
+    debug_console_create(&((GAME_STATE*)application_instance->state)->debug_console);
 
     // Setup the frame allocator.
-    linear_allocator_create(MEBIBYTES(64), 0, &game_instance->frame_allocator);
+    linear_allocator_create(MEBIBYTES(64), 0, &application_instance->frame_allocator);
 
-    APPLICATION_CONFIG* config = &game_instance->app_config;
+    APPLICATION_CONFIG* config = &application_instance->app_config;
 
     // Configure fonts.
     config->font_config.auto_release = false;
@@ -167,19 +173,21 @@ b8 game_boot(struct APPLICATION* game_instance) {
     }
 
     // Keymaps
-    game_setup_keymaps(game_instance);
+    game_setup_keymaps(application_instance);
     // Console commands
-    game_setup_commands(game_instance);
+    game_setup_commands(application_instance);
 
     return true;
 }
 
-b8 game_init(APPLICATION* game_instance) {
-    PRINT_DEBUG("game_init() called!");
+b8 application_init(APPLICATION* application_instance) {
+    PRINT_DEBUG("application_init() called!");
 
-    debug_console_load();
+    application_register_events(application_instance);
 
-    GAME_STATE* state = (GAME_STATE*)game_instance->state;
+    debug_console_load(&((GAME_STATE*)application_instance->state)->debug_console);
+
+    GAME_STATE* state = (GAME_STATE*)application_instance->state;
 
     // TODO: temp load/prepare stuff
 
@@ -191,7 +199,7 @@ b8 game_init(APPLICATION* game_instance) {
         return false;
     }
     // Move debug text to new bottom of screen.
-    ui_text_set_position(&state->test_text, Vector3_create(20, game_instance->app_config.start_height - 75, 0));
+    ui_text_set_position(&state->test_text, Vector3_create(20, application_instance->app_config.start_height - 75, 0));
 
     if(!ui_text_create(UI_TEXT_TYPE_BITMAP, "JetBrainsMono", 22, "و الشويه كلاااااام و كلام و الكلام العربى فى سطر لا جديد ههههه", &state->test_sys_text)) {
         PRINT_ERROR("Failed to load basic ui system text.");
@@ -332,16 +340,7 @@ b8 game_init(APPLICATION* game_instance) {
     state->world_camera = camera_system_get_default();
     camera_position_set(state->world_camera, (Vector3){10.5f, 5.0f, 9.5f});
 
-    // TODO: temp
-    event_register(EVENT_CODE_DEBUG0, game_instance, game_on_debug_event);
-    event_register(EVENT_CODE_DEBUG1, game_instance, game_on_debug_event);
-    event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_instance, game_on_event);
-    // TODO: end temp
-
-    event_register(EVENT_CODE_KEY_PRESSED, game_instance, game_on_key);
-    event_register(EVENT_CODE_KEY_RELEASED, game_instance, game_on_key);
-
-    yzero_memory(&game_instance->frame_data, sizeof(APP_FRAME_DATA));
+    yzero_memory(&application_instance->frame_data, sizeof(APP_FRAME_DATA));
 
     yzero_memory(&state->update_clock, sizeof(clock));
     yzero_memory(&state->render_clock, sizeof(clock));
@@ -349,8 +348,8 @@ b8 game_init(APPLICATION* game_instance) {
     return true;
 }
 
-void game_shutdown(APPLICATION* game_instance) {
-    GAME_STATE* state = (GAME_STATE*)game_instance->state;
+void application_shutdown(APPLICATION* application_instance) {
+    GAME_STATE* state = (GAME_STATE*)application_instance->state;
 
     // TODO: Temp
     skybox_destroy(&state->sb);
@@ -359,32 +358,24 @@ void game_shutdown(APPLICATION* game_instance) {
     ui_text_destroy(&state->test_text);
     ui_text_destroy(&state->test_sys_text);
 
-    debug_console_unload();
-
-    event_unregister(EVENT_CODE_DEBUG0, game_instance, game_on_debug_event);
-    event_unregister(EVENT_CODE_DEBUG1, game_instance, game_on_debug_event);
-    event_unregister(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, game_instance, game_on_event);
-    // TODO: end temp
-
-    event_unregister(EVENT_CODE_KEY_PRESSED, game_instance, game_on_key);
-    event_unregister(EVENT_CODE_KEY_RELEASED, game_instance, game_on_key);
+    debug_console_unload(&state->debug_console);
 }
 
-b8 game_update(APPLICATION* game_instance, f32 delta_time) {
+b8 application_update(APPLICATION* application_instance, f32 delta_time) {
     // Ensure this is cleaned up to avoid leaking memory.
     // TODO: Need a version of this that uses the frame allocator.
-    if (game_instance->frame_data.world_geometries) {
-        darray_destroy(game_instance->frame_data.world_geometries);
-        game_instance->frame_data.world_geometries = 0;
+    if (application_instance->frame_data.world_geometries) {
+        darray_destroy(application_instance->frame_data.world_geometries);
+        application_instance->frame_data.world_geometries = 0;
     }
 
     // Reset the frame allocator
-    linear_allocator_free_all(&game_instance->frame_allocator);
+    linear_allocator_free_all(&application_instance->frame_allocator);
 
     // Clear frame data
-    yzero_memory(&game_instance->frame_data, sizeof(APP_FRAME_DATA));
+    yzero_memory(&application_instance->frame_data, sizeof(APP_FRAME_DATA));
 
-    GAME_STATE* state = (GAME_STATE*)game_instance->state;
+    GAME_STATE* state = (GAME_STATE*)application_instance->state;
 
     clock_start(&state->update_clock);
     state->delta_time = delta_time;
@@ -394,7 +385,7 @@ b8 game_update(APPLICATION* game_instance, f32 delta_time) {
     state->alloc_count = get_memory_alloc_count();
 
     // Perform a small rotation on the first mesh.
-    Quaternion rotation = Quaternion_from_axis_angle((Vector3){0, 1, 0}, 0.5f * delta_time, false);
+    Quaternion rotation = Quaternion_from_axis_angle((Vector3){0, 1, 0}, -0.5f * delta_time, false);
     transform_rotate(&state->meshes[0].transform, rotation);
 
     // Perform a similar rotation on the second mesh, if it exists.
@@ -429,7 +420,7 @@ b8 game_update(APPLICATION* game_instance, f32 delta_time) {
     state->camera_frustum = frustum_create(&state->world_camera->position, &forward, &right, &up, (f32)state->width / state->height, deg_to_rad(45.0f), 0.1f, 1000.0f);
 
     // NOTE: starting at a reasonable default to avoid too many reallocs.
-    game_instance->frame_data.world_geometries = darray_reserve(GEOMETRY_RENDER_DATA, 512);
+    application_instance->frame_data.world_geometries = darray_reserve(GEOMETRY_RENDER_DATA, 512);
     u32 draw_count = 0;
     for (u32 i = 0; i < 10; ++i) {
         Mesh* m = &state->meshes[i];
@@ -459,7 +450,7 @@ b8 game_update(APPLICATION* game_instance, f32 delta_time) {
                 //         data.model = model;
                 //         data.geometry = g;
                 //         data.unique_id = m->unique_id;
-                //         darray_push(game_inst->frame_data.world_geometries, data);
+                //         darray_push(application_instance->frame_data.world_geometries, data);
 
                 //         draw_count++;
                 //     }
@@ -485,7 +476,7 @@ b8 game_update(APPLICATION* game_instance, f32 delta_time) {
                         data.model = model;
                         data.geometry = g;
                         data.unique_id = m->unique_id;
-                        darray_push(game_instance->frame_data.world_geometries, data);
+                        darray_push(application_instance->frame_data.world_geometries, data);
 
                         draw_count++;
                     }
@@ -519,7 +510,7 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
     ui_text_set_text(&state->test_text, text_buffer);
 
-    debug_console_update();
+    debug_console_update(&((GAME_STATE*)application_instance->state)->debug_console);
 
     clock_update(&state->update_clock);
     state->last_update_elapsed = state->update_clock.elapsed;
@@ -527,8 +518,8 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
     return true;
 }
 
-b8 game_render(APPLICATION* game_instance, struct RENDER_PACKET* packet, f32 delta_time) {
-    GAME_STATE* state = (GAME_STATE*)game_instance->state;
+b8 application_render(APPLICATION* application_instance, struct RENDER_PACKET* packet, f32 delta_time) {
+    GAME_STATE* state = (GAME_STATE*)application_instance->state;
 
     clock_start(&state->render_clock);
 
@@ -536,19 +527,19 @@ b8 game_render(APPLICATION* game_instance, struct RENDER_PACKET* packet, f32 del
 
     // TODO: Read from frame config.
     packet->view_count = 4;
-    packet->views = linear_allocator_allocate(&game_instance->frame_allocator, sizeof(RENDER_VIEW_PACKET) * packet->view_count);
+    packet->views = linear_allocator_allocate(&application_instance->frame_allocator, sizeof(RENDER_VIEW_PACKET) * packet->view_count);
 
     // Skybox
     SKYBOX_PACKET_DATA skybox_data = {0};
     skybox_data.sb = &state->sb;
-    if (!render_view_system_build_packet(render_view_system_get("skybox"), &game_instance->frame_allocator, &skybox_data, &packet->views[0])) {
+    if (!render_view_system_build_packet(render_view_system_get("skybox"), &application_instance->frame_allocator, &skybox_data, &packet->views[0])) {
         PRINT_ERROR("Failed to build packet for view 'skybox'.");
         return false;
     }
 
     // World
     // TODO: performs a lookup on every frame.
-    if (!render_view_system_build_packet(render_view_system_get("world"), &game_instance->frame_allocator, game_instance->frame_data.world_geometries, &packet->views[1])) {
+    if (!render_view_system_build_packet(render_view_system_get("world"), &application_instance->frame_allocator, application_instance->frame_data.world_geometries, &packet->views[1])) {
         PRINT_ERROR("Failed to build packet for view 'world_opaque'.");
         return false;
     }
@@ -558,7 +549,7 @@ b8 game_render(APPLICATION* game_instance, struct RENDER_PACKET* packet, f32 del
 
     u32 ui_mesh_count = 0;
     u32 max_ui_meshes = 10;
-    Mesh** ui_meshes = linear_allocator_allocate(&game_instance->frame_allocator, sizeof(Mesh*) * max_ui_meshes);
+    Mesh** ui_meshes = linear_allocator_allocate(&application_instance->frame_allocator, sizeof(Mesh*) * max_ui_meshes);
 
     for (u32 i = 0; i < max_ui_meshes; ++i) {
         if (state->ui_meshes[i].generation != INVALID_ID_U8) {
@@ -570,20 +561,20 @@ b8 game_render(APPLICATION* game_instance, struct RENDER_PACKET* packet, f32 del
     ui_packet.mesh_data.mesh_count = ui_mesh_count;
     ui_packet.mesh_data.meshes = ui_meshes;
     ui_packet.text_count = 2;
-    UI_TEXT* debug_console_text = debug_console_get_text();
-    b8 render_debug_conole = debug_console_text && debug_console_visible();
+    UI_TEXT* debug_console_text = debug_console_get_text(&state->debug_console);
+    b8 render_debug_conole = debug_console_text && debug_console_visible(&state->debug_console);
     if (render_debug_conole) {
         ui_packet.text_count += 2;
     }
-    UI_TEXT** texts = linear_allocator_allocate(&game_instance->frame_allocator, sizeof(UI_TEXT*) * ui_packet.text_count);
+    UI_TEXT** texts = linear_allocator_allocate(&application_instance->frame_allocator, sizeof(UI_TEXT*) * ui_packet.text_count);
     texts[0] = &state->test_text;
     texts[1] = &state->test_sys_text;
     if (render_debug_conole) {
         texts[2] = debug_console_text;
-        texts[3] = debug_console_get_entry_text();
+        texts[3] = debug_console_get_entry_text(&state->debug_console);
     }
     ui_packet.texts = texts;
-    if (!render_view_system_build_packet(render_view_system_get("ui"), &game_instance->frame_allocator, &ui_packet, &packet->views[2])) {
+    if (!render_view_system_build_packet(render_view_system_get("ui"), &application_instance->frame_allocator, &ui_packet, &packet->views[2])) {
         PRINT_ERROR("Failed to build packet for view 'ui'.");
         return false;
     }
@@ -591,11 +582,11 @@ b8 game_render(APPLICATION* game_instance, struct RENDER_PACKET* packet, f32 del
     // Pick uses both world and ui packet data.
     PICK_PACKET_DATA pick_packet = {0};
     pick_packet.ui_mesh_data = ui_packet.mesh_data;
-    pick_packet.world_mesh_data = game_instance->frame_data.world_geometries;
+    pick_packet.world_mesh_data = application_instance->frame_data.world_geometries;
     pick_packet.texts = ui_packet.texts;
     pick_packet.text_count = ui_packet.text_count;
 
-    if (!render_view_system_build_packet(render_view_system_get("pick"), &game_instance->frame_allocator, &pick_packet, &packet->views[3])) {
+    if (!render_view_system_build_packet(render_view_system_get("pick"), &application_instance->frame_allocator, &pick_packet, &packet->views[3])) {
         PRINT_ERROR("Failed to build packet for view 'ui'.");
         return false;
     }
@@ -606,8 +597,12 @@ b8 game_render(APPLICATION* game_instance, struct RENDER_PACKET* packet, f32 del
     return true;
 }
 
-void game_on_resize(APPLICATION* game_instance, u32 width, u32 height) {
-    GAME_STATE* state = (GAME_STATE*)game_instance->state;
+void application_on_resize(APPLICATION* application_instance, u32 width, u32 height) {
+    if (!application_instance->state) {
+        return;
+    }
+
+    GAME_STATE* state = (GAME_STATE*)application_instance->state;
 
     state->width = width;
     state->height = height;
@@ -616,6 +611,64 @@ void game_on_resize(APPLICATION* game_instance, u32 width, u32 height) {
     // Move debug text to new bottom of screen.
     ui_text_set_position(&state->test_text, Vector3_create(20, state->height - 75, 0));
     // TODO: end temp
+}
+
+void application_lib_on_unload(struct APPLICATION* application_instance) {
+    application_unregister_events(application_instance);
+    debug_console_on_lib_unload(&((GAME_STATE*)application_instance->state)->debug_console);
+    game_remove_commands(application_instance);
+    game_remove_keymaps(application_instance);
+}
+
+void application_lib_on_load(struct APPLICATION* application_instance) {
+    application_register_events(application_instance);
+    if ((GAME_STATE*)application_instance->state) {
+        debug_console_on_lib_load(&((GAME_STATE*)application_instance->state)->debug_console, application_instance->stage >= APPLICATION_STAGE_BOOT_COMPLETE);
+    }
+    if (application_instance->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
+        game_setup_commands(application_instance);
+        game_setup_keymaps(application_instance);
+    }
+}
+
+static void toggle_vsync(void) {
+    b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
+    vsync_enabled = !vsync_enabled;
+    renderer_flag_set_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
+}
+
+static b8 application_on_yvar_changed(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT data) {
+    if (code == EVENT_CODE_YVAR_CHANGED && strings_equali(data.data.c, "vsync")) {
+        toggle_vsync();
+    }
+    return false;
+}
+
+void application_register_events(struct APPLICATION* application_instance) {
+    if (application_instance->stage >= APPLICATION_STAGE_BOOT_COMPLETE) {
+        // TODO: temp
+        event_register(EVENT_CODE_DEBUG0, application_instance, application_on_debug_event);
+        event_register(EVENT_CODE_DEBUG1, application_instance, application_on_debug_event);
+        event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, application_instance, application_on_event);
+        // TODO: end temp
+
+        event_register(EVENT_CODE_KEY_PRESSED, application_instance, application_on_key);
+        event_register(EVENT_CODE_KEY_RELEASED, application_instance, application_on_key);
+
+        event_register(EVENT_CODE_YVAR_CHANGED, 0, application_on_yvar_changed);
+    }
+}
+
+void application_unregister_events(struct APPLICATION* application_instance) {
+    event_unregister(EVENT_CODE_DEBUG0, application_instance, application_on_debug_event);
+    event_unregister(EVENT_CODE_DEBUG1, application_instance, application_on_debug_event);
+    event_unregister(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, application_instance, application_on_event);
+    // TODO: end temp
+
+    event_unregister(EVENT_CODE_KEY_PRESSED, application_instance, application_on_key);
+    event_unregister(EVENT_CODE_KEY_RELEASED, application_instance, application_on_key);
+
+    event_unregister(EVENT_CODE_YVAR_CHANGED, 0, application_on_yvar_changed);
 }
 
 b8 configure_render_views(APPLICATION_CONFIG* config) {

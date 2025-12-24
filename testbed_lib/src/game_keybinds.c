@@ -1,4 +1,5 @@
 #include "game_keybinds.h"
+#include "game_state.h"
 
 #include <core/event.h>
 #include <core/logger.h>
@@ -11,7 +12,7 @@
 
 void game_on_escape_callback(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
     PRINT_DEBUG("game_on_escape_callback");
-    event_fire(EVENT_CODE_APPLICATION_QUIT, 0, (EVENT_CONTEXT){});
+    event_fire(EVENT_CODE_APPLICATION_QUIT, 0, (EVENT_CONTEXT){0});
 }
 
 void game_on_yaw(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
@@ -86,10 +87,10 @@ void game_on_console_change_visibility(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type
     APPLICATION* game_instance = (APPLICATION*)user_data;
     GAME_STATE* state = (GAME_STATE*)game_instance->state;
 
-    b8 console_visible = debug_console_visible();
+    b8 console_visible = debug_console_visible(&state->debug_console);
     console_visible = !console_visible;
 
-    debug_console_visible_set(console_visible);
+    debug_console_visible_set(&state->debug_console, console_visible);
     if (console_visible) {
         input_keymap_push(&state->console_keymap);
     } else {
@@ -116,36 +117,43 @@ void game_on_set_render_mode_normals(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, 
 }
 
 void game_on_load_scene(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    event_fire(EVENT_CODE_DEBUG1, (APPLICATION*)user_data, (EVENT_CONTEXT){});
+    event_fire(EVENT_CODE_DEBUG1, (APPLICATION*)user_data, (EVENT_CONTEXT){0});
 }
 
 void game_on_console_scroll(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
     if (key == KEY_PAGEUP) {
-        debug_console_move_up();
+        debug_console_move_up(user_data);
     } else if (key == KEY_PAGEDOWN) {
-        debug_console_move_down();
+        debug_console_move_down(user_data);
     }
 }
 
 void game_on_console_scroll_hold(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    APPLICATION* game_instance = (APPLICATION*)user_data;
-    GAME_STATE* state = (GAME_STATE*)game_instance->state;
+    GAME_STATE* state = (GAME_STATE*)user_data;
 
     static f32 accumulated_time = 0.0f;
     accumulated_time += state->delta_time;
     if (accumulated_time >= 0.1f) {
         if (key == KEY_PAGEUP) {
-            debug_console_move_up();
+            debug_console_move_up(user_data);
         } else if (key == KEY_PAGEDOWN) {
-            debug_console_move_down();
+            debug_console_move_down(user_data);
         }
         accumulated_time = 0.0f;
     }
 }
 
+void game_on_console_history_back(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
+    debug_console_history_back(user_data);
+}
+
+void game_on_console_history_forward(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
+    debug_console_history_forward(user_data);
+}
+
 void game_on_debug_texture_swap(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
     PRINT_DEBUG("Swapping texture!");
-    EVENT_CONTEXT context = {};
+    EVENT_CONTEXT context = {0};
     event_fire(EVENT_CODE_DEBUG0, user_data, context);
 }
 
@@ -158,12 +166,6 @@ void game_on_debug_cam_position(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMA
         state->world_camera->position.x,
         state->world_camera->position.y,
         state->world_camera->position.z);
-}
-
-static void toggle_vsync() {
-    b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
-    vsync_enabled = !vsync_enabled;
-    renderer_flag_set_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
 }
 
 void game_on_debug_vsync_toggle(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
@@ -185,23 +187,15 @@ void game_print_memory_metrics(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP
     PRINT_DEBUG("Allocations: %llu (%llu this frame)", state->alloc_count, state->alloc_count - state->prev_alloc_count);
 }
 
-static b8 game_on_yvar_changed(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT data) {
-    if (code == EVENT_CODE_YVAR_CHANGED && strings_equali(data.data.c, "vsync")) {
-        toggle_vsync();
-    }
-    return false;
-}
-
 void game_on_debug_console_history_forward(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    debug_console_history_forward();
+    debug_console_history_forward(user_data);
 }
 
 void game_on_debug_console_history_back(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    debug_console_history_back();
+    debug_console_history_back(user_data);
 }
 
 void game_setup_keymaps(APPLICATION* game_instance) {
-    event_register(EVENT_CODE_YVAR_CHANGED, 0, game_on_yvar_changed);
 
     // Global KEYMAP
     KEYMAP global_keymap = keymap_create();
@@ -249,11 +243,28 @@ void game_setup_keymaps(APPLICATION* game_instance) {
     keymap_binding_add(&state->console_keymap, KEY_GRAVE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_change_visibility);
     keymap_binding_add(&state->console_keymap, KEY_ESCAPE, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_change_visibility);
 
-    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll);
-    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll);
-    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll_hold);
-    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_console_scroll_hold);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_scroll);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_scroll);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEUP, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_scroll_hold);
+    keymap_binding_add(&state->console_keymap, KEY_PAGEDOWN, KEYMAP_BIND_TYPE_HOLD, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_scroll_hold);
 
-    keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_debug_console_history_back);
-    keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_debug_console_history_forward);
+    keymap_binding_add(&state->console_keymap, KEY_UP, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_history_back);
+    keymap_binding_add(&state->console_keymap, KEY_DOWN, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, &state->debug_console, game_on_console_history_forward);
+
+    // If this was done with the console open, push its keymap.
+    b8 console_visible = debug_console_visible(&state->debug_console);
+    if (console_visible) {
+        input_keymap_push(&state->console_keymap);
+    }
+}
+
+void game_remove_keymaps(APPLICATION* game_instance) {
+    // Pop all keymaps
+    while (input_keymap_pop()) {
+    }
+
+    GAME_STATE* state = ((GAME_STATE*)game_instance->state);
+
+    // Remove all bindings for the console keymap, since that's the only one we hold onto.
+    keymap_clear(&state->console_keymap);
 }

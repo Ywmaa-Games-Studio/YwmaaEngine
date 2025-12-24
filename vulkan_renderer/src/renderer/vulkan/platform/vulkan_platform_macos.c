@@ -1,4 +1,4 @@
-#include "platform/platform.h"
+#include <platform/platform.h>
 
 #if defined(YPLATFORM_APPLE)
 

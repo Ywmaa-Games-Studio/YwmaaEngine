@@ -137,5 +137,19 @@ typedef enum E_SYSTEM_EVENT_CODE {
      */
     EVENT_CODE_YVAR_CHANGED = 0x17,
 
+    /**
+     * @brief An event fired when a watched file has been written to.
+     * Context usage:
+     * u32 watch_id = context.data.u32[0];
+     */
+    EVENT_CODE_WATCHED_FILE_WRITTEN = 0X18,
+
+    /**
+     * @brief An event fired when a watched file has been removed.
+     * Context usage:
+     * u32 watch_id = context.data.u32[0];
+     */
+    EVENT_CODE_WATCHED_FILE_DELETED = 0x19,
+
     MAX_EVENT_CODE = 0xFF
 } E_SYSTEM_EVENT_CODE;

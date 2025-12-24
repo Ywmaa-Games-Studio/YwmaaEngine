@@ -9,10 +9,10 @@
 
  * @return True if successful; otherwise false.
  */
-YAPI b8 vulkan_renderer_plugin_create(RENDERER_PLUGIN* out_plugin);
+YAPI b8 plugin_create(RENDERER_PLUGIN* out_plugin);
 /**
  * @brief Destroys the given renderer backend.
  * 
  * @param renderer_backend A pointer to the plugin to be destroyed.
  */
-YAPI void vulkan_renderer_plugin_destroy(RENDERER_PLUGIN* plugin);
+YAPI void plugin_destroy(RENDERER_PLUGIN* plugin);

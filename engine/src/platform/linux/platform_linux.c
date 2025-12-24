@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l3196AMle>
+ *   <l3572PMle>
  * Auto updated?
  *   Yes
  *
@@ -18,6 +18,16 @@
 // Linux platform layer - coordinator for Wayland/X11 fallback
 #if defined(YPLATFORM_LINUX) && !defined(YPLATFORM_ANDROID)
 
+typedef struct LINUX_FILE_WATCH {
+    u32 id;
+    const char *file_path;
+    long last_write_time;
+} LINUX_FILE_WATCH;
+
+// darray
+static LINUX_FILE_WATCH* file_watches;
+
+void platform_update_watches(void);
 
 // Track which platform backend is active
 
@@ -28,7 +38,7 @@ E_PLATFORM_BACKEND platform_get_linux_active_display_protocol(void) {
 }
 
 // Global state pointer that will be used by both backends
-void* state_ptr = NULL;
+static void* state_ptr = NULL;
 
 // Main implementation that tries Wayland first, then X11
 b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
@@ -94,6 +104,8 @@ void platform_system_shutdown(void* platform_state) {
 }
 
 b8 platform_pump_messages(void) {
+    // Update watches.
+    platform_update_watches();
     switch (active_backend) {
         case PLATFORM_BACKEND_WAYLAND:
             #ifdef WAYLAND_ENABLED
@@ -160,7 +172,6 @@ i32 platform_get_processor_count(void) {
 }
 
 void platform_get_handle_info(u64 *out_size, void *memory) {
-
     switch (active_backend) {
         case PLATFORM_BACKEND_WAYLAND:
             #ifdef WAYLAND_ENABLED
@@ -172,6 +183,230 @@ void platform_get_handle_info(u64 *out_size, void *memory) {
         default:
             platform_x11_get_handle_info(out_size, memory);
             break;
+    }
+}
+
+const char* platform_dynamic_library_extension(void) {
+    return ".so";
+}
+
+const char *platform_dynamic_library_prefix(void) {
+    return "./lib";
+}
+
+E_PLATFORM_ERROR_CODE platform_copy_file(const char* source, const char* dest, b8 overwrite_if_exists) {
+    E_PLATFORM_ERROR_CODE ret_code = PLATFORM_ERROR_SUCCESS;
+    i32 source_fd = -1;
+    i32 dest_fd = -1;
+
+    // Obtain a file descriptor for the source file.
+    source_fd = open(source, O_RDONLY);
+    if (source_fd == -1) {
+        if (errno == ENOENT) {
+            PRINT_ERROR("Source file does not exist: %s", source);
+        }
+        return PLATFORM_ERROR_FILE_NOT_FOUND;
+    }
+
+    // Stat the file to obtain it's attributes (e.g. size).
+    struct stat source_stat;
+    i32 result = fstat(source_fd, &source_stat);
+    if (result != 0) {
+        if (errno == ENOENT) {
+            PRINT_ERROR("Source file does not exist: %s", source);
+        }
+        ret_code = PLATFORM_ERROR_FILE_NOT_FOUND;
+        goto close_handles;
+    }
+
+    u64 size = (u64)source_stat.st_size;
+
+    // Obtain a file descriptor for the source file.
+    dest_fd = open(dest, O_WRONLY | O_CREAT);
+    if (dest_fd == -1) {
+        if (errno == ENOENT) {
+            PRINT_ERROR("Destination file could not be created: %s", dest);
+        }
+
+        ret_code = PLATFORM_ERROR_FILE_LOCKED;
+        goto close_handles;
+    }
+
+    // Copy the data. Iterate to handle large files, since Linux has a limit
+    // on the amount that can be copied at once.
+    while (size > 0) {
+        ssize_t sent = sendfile(dest_fd, source_fd, NULL, (size >= SSIZE_MAX ? SSIZE_MAX : (size_t)size));
+        if (sent < 0) {
+            if (errno != EINVAL && errno != ENOSYS) {
+                ret_code = PLATFORM_ERROR_UNKNOWN;
+                goto close_handles;
+            } else {
+                break;
+            }
+        } else {
+            YASSERT((size_t)sent <= size);
+            size -= (size_t)sent;
+        }
+    }
+
+    // Copy file times. Stat the source file again to make sure it's up to date.
+    result = fstat(source_fd, &source_stat);
+    if (result != 0) {
+        ret_code = PLATFORM_ERROR_FILE_NOT_FOUND;
+        goto close_handles;
+    } else {
+        struct timespec dest_times[2];
+
+        // Access time
+        dest_times[0] = source_stat.st_atim;
+
+        // Modification time
+        dest_times[1] = source_stat.st_mtim;
+
+        result = futimens(dest_fd, dest_times);
+        // If an error is returned, treat as the destination file being locked.
+        if (result != 0) {
+            ret_code = PLATFORM_ERROR_FILE_LOCKED;
+            goto close_handles;
+        }
+    }
+
+    // Copy permissions.
+    result = fchmod(dest_fd, source_stat.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+    // If an error is returned, treat as the destination file being locked.
+    if (result != 0) {
+        ret_code = PLATFORM_ERROR_FILE_LOCKED;
+        goto close_handles;
+    }
+
+close_handles:
+    if (source_fd != -1) {
+        result = close(source_fd);
+        if (result != 0) {
+            PRINT_ERROR("Error closing source file: %s", source);
+        }
+    }
+    if (dest_fd != -1) {
+        result = close(dest_fd);
+        if (result != 0) {
+            PRINT_ERROR("Error closing destination file: %s", source);
+        }
+    }
+
+    return ret_code;
+}
+
+static b8 register_watch(const char *file_path, u32 *out_watch_id) {
+    if (!state_ptr || !file_path || !out_watch_id) {
+        if (out_watch_id) {
+            *out_watch_id = INVALID_ID;
+        }
+        return false;
+    }
+    *out_watch_id = INVALID_ID;
+
+    if (!file_watches) {
+        file_watches = darray_create(LINUX_FILE_WATCH);
+    }
+
+    struct stat info;
+    int result = stat(file_path, &info);
+    if(result != 0) {
+        if(errno == ENOENT) {
+            // File doesn't exist. TODO: report?
+        }
+        return false;
+    }
+
+    u32 count = darray_length(file_watches);
+    for (u32 i = 0; i < count; ++i) {
+        LINUX_FILE_WATCH *w = &file_watches[i];
+        if (w->id == INVALID_ID) {
+            // Found a free slot to use.
+            w->id = i;
+            w->file_path = string_duplicate(file_path);
+            w->last_write_time = info.st_mtime;
+            *out_watch_id = i;
+            return true;
+        }
+    }
+
+    // If no empty slot is available, create and push a new entry.
+    LINUX_FILE_WATCH w = {0};
+    w.id = count;
+    w.file_path = string_duplicate(file_path);
+    w.last_write_time = info.st_mtime;
+    *out_watch_id = count;
+    darray_push(file_watches, w);
+
+    return true;
+}
+
+static b8 unregister_watch(u32 watch_id) {
+    if (!state_ptr || !file_watches) {
+        return false;
+    }
+
+    u32 count = darray_length(file_watches);
+    if (count == 0 || watch_id > (count - 1)) {
+        return false;
+    }
+
+    LINUX_FILE_WATCH *w = &file_watches[watch_id];
+    w->id = INVALID_ID;
+    yfree((void *)w->file_path);
+    w->file_path = 0;
+    yzero_memory(&w->last_write_time, sizeof(long));
+
+    return true;
+}
+
+b8 platform_watch_file(const char *file_path, u32 *out_watch_id) {
+    return register_watch(file_path, out_watch_id);
+}
+
+b8 platform_unwatch_file(u32 watch_id) {
+    return unregister_watch(watch_id);
+}
+
+void platform_update_watches(void) {
+    if (!state_ptr || !file_watches) {
+        return;
+    }
+
+    u32 count = darray_length(file_watches);
+    for (u32 i = 0; i < count; ++i) {
+        LINUX_FILE_WATCH *f = &file_watches[i];
+        if (f->id != INVALID_ID) {
+
+            struct stat info;
+            int result = stat(f->file_path, &info);
+            if(result != 0) {
+                if(errno == ENOENT) {
+                    // File doesn't exist. Which means it was deleted. Remove the watch.
+                    EVENT_CONTEXT context = {0};
+                    context.data.u32[0] = f->id;
+                    event_fire(EVENT_CODE_WATCHED_FILE_DELETED, 0, context);
+                    PRINT_INFO("File watch id %d has been removed.", f->id);
+                    unregister_watch(f->id);
+                    continue;
+                } else {
+                    PRINT_WARNING("Some other error occurred on file watch id %d", f->id);
+                }
+                // NOTE: some other error has occurred. TODO: Handle?
+                continue;
+            }
+
+            // Check the file time to see if it has been changed and update/notify if so.
+            if (info.st_mtime - f->last_write_time != 0) {
+                PRINT_TRACE("File update found.");
+                f->last_write_time = info.st_mtime;
+                // Notify listeners.
+                EVENT_CONTEXT context = {0};
+                context.data.u32[0] = f->id;
+                event_fire(EVENT_CODE_WATCHED_FILE_WRITTEN, 0, context);
+            }
+        }
     }
 }
 
@@ -336,7 +571,7 @@ b8 ymutex_lock(YMUTEX* mutex) {
     switch (result) {
         case 0:
             // Success, everything else is a failure.
-            // KTRACE("Obtained mutex lock.");
+            // PRINT_TRACE("Obtained mutex lock.");
             return true;
         case EOWNERDEAD:
             PRINT_ERROR("Owning thread terminated while mutex still active.");
@@ -364,7 +599,7 @@ b8 ymutex_unlock(YMUTEX* mutex) {
         i32 result = pthread_mutex_unlock((pthread_mutex_t*)mutex->internal_data);
         switch (result) {
             case 0:
-                // KTRACE("Freed mutex lock.");
+                // PRINT_TRACE("Freed mutex lock.");
                 return true;
             case EOWNERDEAD:
                 PRINT_ERROR("Unable to unlock mutex: owning thread terminated while mutex still active.");
@@ -403,7 +638,6 @@ typedef struct PLATFORM_STATE {
     xcb_atom_t wm_protocols;
     xcb_atom_t wm_delete_win;
 } PLATFORM_STATE;
-
 
 // Key translation
 E_KEYS translate_keycode(u32 x_keycode);

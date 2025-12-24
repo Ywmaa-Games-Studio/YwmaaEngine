@@ -232,12 +232,14 @@ b8 load_y_mesh_file(FILE_HANDLE* y_mesh_file, GEOMETRY_CONFIG** out_geometries_d
         filesystem_read(y_mesh_file, sizeof(u32), &m_name_length, &bytes_read);
         filesystem_read(y_mesh_file, sizeof(char) * m_name_length, g.material_name, &bytes_read);
 
+        u64 extent_size = sizeof(Vector3);
+
         // Center
-        filesystem_read(y_mesh_file, sizeof(Vertex3D), &g.center, &bytes_read);
+        filesystem_read(y_mesh_file, extent_size, &g.center, &bytes_read);
 
         // Extents (min/max)
-        filesystem_read(y_mesh_file, sizeof(Vertex3D), &g.min_extents, &bytes_read);
-        filesystem_read(y_mesh_file, sizeof(Vertex3D), &g.max_extents, &bytes_read);
+        filesystem_read(y_mesh_file, extent_size, &g.min_extents, &bytes_read);
+        filesystem_read(y_mesh_file, extent_size, &g.max_extents, &bytes_read);
 
         // Add to the output array.
         darray_push(*out_geometries_darray, g);
@@ -261,7 +263,7 @@ b8 write_y_mesh_file(const char* path, const char* name, u32 geometry_count, GEO
 
     // Version
     u64 written = 0;
-    u16 version = 0x0001U;
+    u16 version = 0x0002U;
     filesystem_write(&f, sizeof(u16), &version, &written);
 
     // Name length
@@ -298,11 +300,11 @@ b8 write_y_mesh_file(const char* path, const char* name, u32 geometry_count, GEO
         filesystem_write(&f, sizeof(char) * m_name_length, g->material_name, &written);
 
         // Center
-        filesystem_write(&f, sizeof(Vertex3D), &g->center, &written);
+        filesystem_write(&f, sizeof(Vector3), &g->center, &written);
 
         // Extents (min/max)
-        filesystem_write(&f, sizeof(Vertex3D), &g->min_extents, &written);
-        filesystem_write(&f, sizeof(Vertex3D), &g->max_extents, &written);
+        filesystem_write(&f, sizeof(Vector3), &g->min_extents, &written);
+        filesystem_write(&f, sizeof(Vector3), &g->max_extents, &written);
     }
 
     filesystem_close(&f);

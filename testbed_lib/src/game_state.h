@@ -11,6 +11,8 @@
 #include <core/clock.h>
 #include <input/keymap.h>
 
+#include "debug_console.h"
+
 typedef struct GAME_STATE {
     f32 delta_time;
     Camera* world_camera;
@@ -37,6 +39,8 @@ typedef struct GAME_STATE {
     UI_TEXT test_text;
     UI_TEXT test_sys_text;
 
+    DEBUG_CONSOLE_STATE debug_console;
+
     // The unique identifier of the currently hovered-over object.
     u32 hovered_object_id;
 
@@ -46,17 +50,3 @@ typedef struct GAME_STATE {
     u64 prev_alloc_count;
     // TODO: end temp
 } GAME_STATE;
-
-struct RENDER_PACKET;
-
-b8 game_boot(struct APPLICATION* game_instance);
-
-b8 game_init(APPLICATION* game_instance);
-
-b8 game_update(APPLICATION* game_instance, f32 delta_time);
-
-b8 game_render(APPLICATION* game_instance, struct RENDER_PACKET* packet, f32 delta_time);
-
-void game_on_resize(APPLICATION* game_instance, u32 width, u32 height);
-
-void game_shutdown(APPLICATION* game_inst);

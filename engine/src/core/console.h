@@ -63,7 +63,16 @@ void console_shutdown(void* state);
  * @param inst Instance information to pass along with the consumer.
  * @param callback The callback to be made on console write.
  */
-YAPI void console_register_consumer(void* inst, PFN_console_consumer_write callback);
+YAPI void console_register_consumer(void* inst, PFN_console_consumer_write callback, u8* out_consumer_id);
+
+/**
+ * @brief Updates the instance and callback for the consumer with the given identifier.
+ *
+ * @param consumer_id The identifier of the consumer to update.
+ * @param inst The consumer instance.
+ * @param callback The new callback function.
+ */
+YAPI void console_update_consumer(u8 consumer_id, void* inst, PFN_console_consumer_write callback);
 
 /**
  * @brief Called internally by the logging system to write a new line
@@ -83,6 +92,14 @@ void console_write_line(E_LOG_LEVEL level, const char* message);
  * @return True on success; otherwise false.
  */
 YAPI b8 console_register_command(const char* command, u8 arg_count, PFN_console_command func);
+
+/**
+ * @brief Unregisters the given command.
+ *
+ * @param command The name of the command to be unregistered.
+ * @return True on success; otherwise false.
+ */
+YAPI b8 console_unregister_command(const char* command);
 
 /**
  * @brief Executes a console command.

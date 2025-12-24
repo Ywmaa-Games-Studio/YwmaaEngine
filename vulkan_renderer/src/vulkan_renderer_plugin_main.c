@@ -3,7 +3,7 @@
 #include "renderer/vulkan/vulkan_backend.h"
 #include <core/ymemory.h>
 
-b8 vulkan_renderer_plugin_create(RENDERER_PLUGIN* out_renderer_backend) {
+b8 plugin_create(RENDERER_PLUGIN* out_renderer_backend) {
     out_renderer_backend->backend_api = RENDERER_BACKEND_API_VULKAN;
     
     out_renderer_backend->init = vulkan_renderer_backend_init;
@@ -77,6 +77,6 @@ b8 vulkan_renderer_plugin_create(RENDERER_PLUGIN* out_renderer_backend) {
     return true;
 }
 
-void vulkan_renderer_plugin_destroy(RENDERER_PLUGIN* renderer_backend) {
+void plugin_destroy(RENDERER_PLUGIN* renderer_backend) {
     yzero_memory(renderer_backend, sizeof(renderer_backend));
 }

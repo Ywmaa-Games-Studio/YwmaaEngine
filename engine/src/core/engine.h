@@ -48,9 +48,10 @@ YAPI b8 engine_create(struct APPLICATION* game_instance);
 
 /**
  * @brief Starts the main engine loop.
+ * @param game_instance A pointer to the application instance associated with the engine
  * @returns True on success; otherwise false.
  */
-YAPI b8 engine_run(void);
+YAPI b8 engine_run(struct APPLICATION* game_instance);
 
 /**
  * @brief A callback made when the event system is initialized,

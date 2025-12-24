@@ -9,7 +9,7 @@
 #include "core/ythread.h"
 #include "core/ymutex.h"
 #include "core/ymemory.h"
-
+#include "core/ystring.h"
 #include "data_structures/darray.h"
 
 #define WIN32_LEAN_AND_MEAN
@@ -21,15 +21,27 @@ typedef struct WIN32_HANDLE_INFO {
     HINSTANCE h_instance;
     HWND hwnd;
 } WIN32_HANDLE_INFO;
+
+typedef struct WIN32_FILE_WATCH {
+    u32 id;
+    const char *file_path;
+    FILETIME last_write_time;
+} WIN32_FILE_WATCH;
 typedef struct PLATFORM_STATE {
     WIN32_HANDLE_INFO handle;
+    CONSOLE_SCREEN_BUFFER_INFO std_output_csbi;
+    CONSOLE_SCREEN_BUFFER_INFO err_output_csbi;
+    // darray
+    WIN32_FILE_WATCH *watches;
 } PLATFORM_STATE;
 
 static PLATFORM_STATE *state_ptr;
 
-    // Clock
-    f64 clock_frequency;
-    LARGE_INTEGER start_time;
+// Clock
+static f64 clock_frequency;
+static LARGE_INTEGER start_time;
+
+void platform_update_watches(void);
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 
@@ -48,6 +60,9 @@ b8 platform_system_startup(u64 *memory_requirement, void *state, void *config) {
     }
     state_ptr = state;
     state_ptr->handle.h_instance = GetModuleHandleA(0);
+
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &state_ptr->std_output_csbi);
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_ERROR_HANDLE), &state_ptr->err_output_csbi);
 
     // Setup and register window class.
     HICON icon = LoadIcon(state_ptr->handle.h_instance, IDI_APPLICATION);
@@ -141,15 +156,18 @@ b8 platform_pump_messages(void) {
             DispatchMessageA(&message);
         }
     }
+    platform_update_watches();
     return true;
 }
 
 void *platform_allocate(u64 size, b8 aligned) {
-    return malloc(size);
+    // return malloc(size);
+    return (void *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size);
 }
 
 void platform_free(void *block, b8 aligned) {
-    free(block);
+    // free(block);
+    HeapFree(GetProcessHeap(), 0, block);
 }
 
 void *platform_zero_memory(void *block, u64 size) {
@@ -173,6 +191,14 @@ void platform_console_write(const char *message, u8 color) {
     u64 length = strlen(message);
     LPDWORD number_written = 0;
     WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), message, (DWORD)length, (LPDWORD)number_written, 0);
+
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (state_ptr) {
+        csbi = state_ptr->std_output_csbi;
+    } else {
+        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    }
+    SetConsoleTextAttribute(console_handle, csbi.wAttributes);
 }
 
 f64 platform_get_absolute_time(void) {
@@ -329,6 +355,239 @@ b8 ymutex_unlock(YMUTEX *mutex) {
 }
 
 // NOTE: End mutexes.
+
+b8 platform_dynamic_library_load(const char *name, DYNAMIC_LIBRARY *out_library) {
+    if (!out_library) {
+        return false;
+    }
+    yzero_memory(out_library, sizeof(DYNAMIC_LIBRARY));
+    if (!name) {
+        return false;
+    }
+
+    char filename[MAX_PATH];
+    yzero_memory(filename, sizeof(char) * MAX_PATH);
+    string_format(filename, "%s.dll", name);
+
+    HMODULE library = LoadLibraryA(filename);
+    // try ../lib/ path
+    //if (!library) {
+    //    yzero_memory(filename, sizeof(char) * MAX_PATH);
+    //    string_format(filename, "../lib/%s.dll", name);
+    //    library = LoadLibraryA(filename);
+    //}
+    if (!library) {
+        return false;
+    }
+
+    out_library->name = string_duplicate(name);
+    out_library->filename = string_duplicate(filename);
+
+    out_library->internal_data_size = sizeof(HMODULE);
+    out_library->internal_data = library;
+
+    out_library->functions = darray_create(DYNAMIC_LIBRARY_FUNCTION);
+
+    return true;
+}
+
+b8 platform_dynamic_library_unload(DYNAMIC_LIBRARY *library) {
+    if (!library) {
+        return false;
+    }
+
+    HMODULE internal_module = (HMODULE)library->internal_data;
+    if (!internal_module) {
+        return false;
+    }
+
+
+    if (library->name) {
+        yfree((void *)library->name);
+    }
+
+    if (library->filename) {
+        yfree((void *)library->filename);
+    }
+
+    if (library->functions) {
+        u32 count = darray_length(library->functions);
+        for (u32 i = 0; i < count; ++i) {
+            DYNAMIC_LIBRARY_FUNCTION *f = &library->functions[i];
+            if (f->name) {
+                yfree((void *)f->name);
+            }
+        }
+
+        darray_destroy(library->functions);
+        library->functions = 0;
+    }
+
+    BOOL result = FreeLibrary(internal_module);
+    if (result == 0) {
+        return false;
+    }
+
+    yzero_memory(library, sizeof(DYNAMIC_LIBRARY));
+
+    return true;
+}
+
+b8 platform_dynamic_library_load_function(const char *name, DYNAMIC_LIBRARY *library) {
+    if (!name || !library) {
+        return false;
+    }
+
+    if (!library->internal_data) {
+        return false;
+    }
+
+    FARPROC f_addr = GetProcAddress((HMODULE)library->internal_data, name);
+    if (!f_addr) {
+        return false;
+    }
+
+    DYNAMIC_LIBRARY_FUNCTION f = {0};
+    f.pfn = (void *)(intptr_t)f_addr;
+    f.name = string_duplicate(name);
+    darray_push(library->functions, f);
+
+    return true;
+}
+
+const char *platform_dynamic_library_extension(void) {
+    return ".dll";
+}
+
+const char *platform_dynamic_library_prefix(void) {
+    return "";
+}
+
+E_PLATFORM_ERROR_CODE platform_copy_file(const char *source, const char *dest, b8 overwrite_if_exists) {
+    BOOL result = CopyFileA(source, dest, !overwrite_if_exists);
+    if (!result) {
+        DWORD err = GetLastError();
+        if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND) {
+            return PLATFORM_ERROR_FILE_NOT_FOUND;
+        } else if (err == ERROR_SHARING_VIOLATION) {
+            return PLATFORM_ERROR_FILE_LOCKED;
+        } else {
+            return PLATFORM_ERROR_UNKNOWN;
+        }
+    }
+    return PLATFORM_ERROR_SUCCESS;
+}
+
+static b8 register_watch(const char *file_path, u32 *out_watch_id) {
+    if (!state_ptr || !file_path || !out_watch_id) {
+        if (out_watch_id) {
+            *out_watch_id = INVALID_ID;
+        }
+        return false;
+    }
+    *out_watch_id = INVALID_ID;
+
+    if (!state_ptr->watches) {
+        state_ptr->watches = darray_create(WIN32_FILE_WATCH);
+    }
+
+    WIN32_FIND_DATAA data;
+    HANDLE file_handle = FindFirstFileA(file_path, &data);
+    if (file_handle == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+    BOOL result = FindClose(file_handle);
+    if (result == 0) {
+        return false;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    for (u32 i = 0; i < count; ++i) {
+        WIN32_FILE_WATCH *w = &state_ptr->watches[i];
+        if (w->id == INVALID_ID) {
+            // Found a free slot to use.
+            w->id = i;
+            w->file_path = string_duplicate(file_path);
+            w->last_write_time = data.ftLastWriteTime;
+            *out_watch_id = i;
+            return true;
+        }
+    }
+
+    // If no empty slot is available, create and push a new entry.
+    WIN32_FILE_WATCH w = {0};
+    w.id = count;
+    w.file_path = string_duplicate(file_path);
+    w.last_write_time = data.ftLastWriteTime;
+    *out_watch_id = count;
+    darray_push(state_ptr->watches, w);
+
+    return true;
+}
+
+static b8 unregister_watch(u32 watch_id) {
+    if (!state_ptr || !state_ptr->watches) {
+        return false;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    if (count == 0 || watch_id > (count - 1)) {
+        return false;
+    }
+
+    WIN32_FILE_WATCH *w = &state_ptr->watches[watch_id];
+    w->id = INVALID_ID;
+    yfree((void *)w->file_path);
+    w->file_path = 0;
+    yzero_memory(&w->last_write_time, sizeof(FILETIME));
+
+    return true;
+}
+
+b8 platform_watch_file(const char *file_path, u32 *out_watch_id) {
+    return register_watch(file_path, out_watch_id);
+}
+
+b8 platform_unwatch_file(u32 watch_id) {
+    return unregister_watch(watch_id);
+}
+
+void platform_update_watches(void) {
+    if (!state_ptr || !state_ptr->watches) {
+        return;
+    }
+
+    u32 count = darray_length(state_ptr->watches);
+    for (u32 i = 0; i < count; ++i) {
+        WIN32_FILE_WATCH *f = &state_ptr->watches[i];
+        if (f->id != INVALID_ID) {
+            WIN32_FIND_DATAA data;
+            HANDLE file_handle = FindFirstFileA(f->file_path, &data);
+            if (file_handle == INVALID_HANDLE_VALUE) {
+                // This means the file has been deleted, remove from watch.
+                EVENT_CONTEXT context = {0};
+                context.data.u32[0] = f->id;
+                event_fire(EVENT_CODE_WATCHED_FILE_DELETED, 0, context);
+                PRINT_INFO("File watch id %d has been removed.", f->id);
+                unregister_watch(f->id);
+                continue;
+            }
+            BOOL result = FindClose(file_handle);
+            if (result == 0) {
+                continue;
+            }
+
+            // Check the file time to see if it has been changed and update/notify if so.
+            if (CompareFileTime(&data.ftLastWriteTime, &f->last_write_time) != 0) {
+                f->last_write_time = data.ftLastWriteTime;
+                // Notify listeners.
+                EVENT_CONTEXT context = {0};
+                context.data.u32[0] = f->id;
+                event_fire(EVENT_CODE_WATCHED_FILE_WRITTEN, 0, context);
+            }
+        }
+    }
+}
 
 E_KEYS split_code_left_right(b8 pressed, i32 in_left, i32 in_right, E_KEYS out_left, E_KEYS out_right) {
     E_KEYS key = KEYS_MAX_KEYS;

@@ -7,6 +7,7 @@
 
 // Externally-defined function to create a application.
 extern b8 create_application(APPLICATION* out_app);
+extern b8 init_application(APPLICATION* app);
 void run_benchmarks();
 
 /**
@@ -19,7 +20,7 @@ int engine_main(E_RENDERER_BACKEND_API renderer_backend_api) {
     return 0; */
     
     // Request the application instance from the application.
-    APPLICATION application_instance;
+    APPLICATION application_instance = {0};
     application_instance.app_config.renderer_backend_api = renderer_backend_api;
     if (!create_application(&application_instance)) {
         PRINT_ERROR("Could not create application!");
@@ -34,12 +35,17 @@ int engine_main(E_RENDERER_BACKEND_API renderer_backend_api) {
 
     // Initialization.
     if (!engine_create(&application_instance)) {
-        PRINT_INFO("Application failed to create!.");
+        PRINT_INFO("Engine failed to create!.");
         return 1;
     }
 
+    if (!init_application(&application_instance)) {
+        PRINT_ERROR("Could not initialize application!");
+        return -1;
+    }
+
     // Begin the engine loop.
-    if(!engine_run()) {
+    if(!engine_run(&application_instance)) {
         PRINT_INFO("Application did not shutdown gracefully.");
         return 2;
     }

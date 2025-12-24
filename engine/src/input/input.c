@@ -609,13 +609,12 @@ void input_keymap_push(const KEYMAP* map) {
     }
 }
 
-void input_keymap_pop(void) {
+b8 input_keymap_pop(void) {
     if (state_ptr) {
         // Pop the KEYMAP from the stack, then re-apply the stack.
         KEYMAP popped = {0};
-        if (!stack_pop(&state_ptr->keymap_stack, &popped)) {
-            PRINT_ERROR("Failed to pop KEYMAP!");
-            return;
-        }
+        return stack_pop(&state_ptr->keymap_stack, &popped);
     }
+
+    return false;
 }

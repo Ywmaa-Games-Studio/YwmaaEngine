@@ -2,51 +2,32 @@
 
 layout(location = 0) out vec4 out_color;
 
-layout(set = 1, binding = 0) uniform local_uniform_object {
-    vec4 diffuse_color;
-    float shiness;
-} object_ubo;
-
 struct directional_light {
-    vec3 direction;
     vec4 color;
+    vec4 direction;
 };
 
 struct point_light {
-    vec3 position;
     vec4 color;
+    vec4 position;
     // Usually 1, make sure denominator never gets smaller than 1
     float constant_f;
     // Reduces light intensity linearly
     float linear;
     // Makes the light fall off slower at longer distances.
     float quadratic;
+    float padding;
 };
 
-// TODO: feed in from cpu
-directional_light dir_light = {
-    vec3(-0.57735, -0.57735, 0.57735),
-    //vec3(1, 0, 0),
-    vec4(0.6, 0.6, 0.6, 1.0)
-};
+const int MAX_POINT_LIGHTS = 10;
 
-// TODO: feed in from cpu
-point_light p_light_0 = {
-    vec3(-5.5, 0.0, -5.5),
-    vec4(0.0, 1.0, 0.0, 1.0),
-    1.0, // constant_f
-    0.35, // Linear
-    0.44  // Quadratic
-};
-
-// TODO: feed in from cpu
-point_light p_light_1 = {
-    vec3(5.5, 0.0, -5.5),
-    vec4(1.0, 0.0, 0.0, 1.0),
-    1.0, // constant_f
-    0.35, // Linear
-    0.44  // Quadratic
-};
+layout(set = 1, binding = 0) uniform local_uniform_object {
+    vec4 diffuse_color;
+    directional_light dir_light;
+    point_light p_lights[MAX_POINT_LIGHTS];
+    int num_p_lights;
+    float shiness;
+} object_ubo;
 
 // Samplers
 // Samplers, diffuse, spec
@@ -82,21 +63,28 @@ void main() {
     // Update the normal to use a sample from the normal map.
     vec3 local_normal = 2.0 * texture(samplers[SAMP_NORMAL], in_dto.tex_coord).rgb - 1.0;
     normal = normalize(TBN * local_normal);
-    if(in_mode == 0 || in_mode == 1) {
+    if(in_mode == 0 || in_mode == 1) { // lighting mode
         vec3 view_direction = normalize(in_dto.view_position - in_dto.frag_position);
-        out_color = calculate_directional_light(dir_light, normal, view_direction);
 
-        out_color += calculate_point_light(p_light_0, normal, in_dto.frag_position, view_direction);
-        out_color += calculate_point_light(p_light_1, normal, in_dto.frag_position, view_direction);
-    } else if(in_mode == 2) {
+        // Directional lighting calculation
+        out_color = calculate_directional_light(object_ubo.dir_light, normal, view_direction);
+
+        // point lights calculations
+
+        for(int i = 0; i < object_ubo.num_p_lights; ++i) {
+            out_color += calculate_point_light(object_ubo.p_lights[i], normal, in_dto.frag_position, view_direction);
+        }
+
+        //out_color += calculate_point_light(p_light_0, normal, in_dto.frag_position, view_direction);
+    } else if(in_mode == 2) { // normal maps debugging view
         out_color = vec4(abs(normal), 1.0);
     }
 }
 
 vec4 calculate_directional_light(directional_light light, vec3 normal, vec3 view_direction) {
-    float diffuse_factor = max(dot(normal, -light.direction), 0.0);
+    float diffuse_factor = max(dot(normal, -light.direction.xyz), 0.0);
 
-    vec3 half_direction = normalize(view_direction - light.direction);
+    vec3 half_direction = normalize(view_direction - light.direction.xyz);
     float specular_factor = pow(max(dot(half_direction, normal), 0.0), object_ubo.shiness);
 
     vec4 diff_samp = texture(samplers[SAMP_DIFFUSE], in_dto.tex_coord);
@@ -114,14 +102,14 @@ vec4 calculate_directional_light(directional_light light, vec3 normal, vec3 view
 }
 
 vec4 calculate_point_light(point_light light, vec3 normal, vec3 frag_position, vec3 view_direction) {
-    vec3 light_direction =  normalize(light.position - frag_position);
+    vec3 light_direction =  normalize(light.position.xyz - frag_position);
     float diff = max(dot(normal, light_direction), 0.0);
 
     vec3 reflect_direction = reflect(-light_direction, normal);
     float spec = pow(max(dot(view_direction, reflect_direction), 0.0), object_ubo.shiness);
 
     // Calculate attenuation, or light falloff over distance.
-    float distance = length(light.position - frag_position);
+    float distance = length(light.position.xyz - frag_position);
     float attenuation = 1.0 / (light.constant_f + light.linear * distance + light.quadratic * (distance * distance));
 
     vec4 ambient = in_dto.ambient;

@@ -20,6 +20,7 @@
 #include "systems/render_view_system.h"
 #include "systems/material_system.h"
 #include "systems/geometry_system.h"
+#include "systems/light_system.h"
 
 static b8 register_known_systems_pre_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CONFIG* app_config);
 static b8 register_known_systems_post_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CONFIG* app_config);
@@ -308,6 +309,12 @@ b8 register_known_systems_post_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CO
     geometry_sys_config.max_geometry_count = 4096;
     if (!systems_manager_register(state, Y_SYSTEM_TYPE_GEOMETRY, geometry_system_init, geometry_system_shutdown, 0, &geometry_sys_config)) {
         PRINT_ERROR("Failed to register geometry system.");
+        return false;
+    }
+
+    // Light system.
+    if (!systems_manager_register(state, Y_SYSTEM_TYPE_LIGHT, light_system_init, light_system_shutdown, 0, 0)) {
+        PRINT_ERROR("Failed to register light system.");
         return false;
     }
 

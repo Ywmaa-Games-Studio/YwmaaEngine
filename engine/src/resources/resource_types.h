@@ -338,7 +338,7 @@ typedef struct SHADER_UNIFORM_CONFIG {
     /** @brief The name of the uniform. */
     char* name;
     /** @brief The size of the uniform. */
-    u8 size;
+    u16 size;
     /** @brief The location of the uniform. */
     u32 location;
     /** @brief The type of the uniform. */

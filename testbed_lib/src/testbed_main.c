@@ -24,6 +24,7 @@
 #include <systems/geometry_system.h>
 #include <systems/material_system.h>
 #include <systems/render_view_system.h>
+#include <systems/light_system.h>
 #include "debug_console.h"
 #include "game_commands.h"
 #include "game_keybinds.h"
@@ -94,6 +95,16 @@ b8 application_on_debug_event(u16 code, void* sender, void* listener_inst, EVENT
             if (!mesh_load_from_resource("Duck", state->duck_mesh)) {
                 PRINT_ERROR("Failed to load duck mesh!");
             }
+        }
+        return true;
+    } else if (code == EVENT_CODE_DEBUG2) {
+        if (state->models_loaded) {
+            PRINT_DEBUG("Unloading models...");
+            mesh_unload(state->car_mesh);
+            mesh_unload(state->sponza_mesh);
+            mesh_unload(state->helmet_mesh);
+            mesh_unload(state->duck_mesh);
+            state->models_loaded = false;
         }
         return true;
     }
@@ -284,6 +295,40 @@ b8 application_init(APPLICATION* application_instance) {
     state->duck_mesh->unique_id = identifier_aquire_new_id(state->duck_mesh);
     state->duck_mesh->transform = transform_from_position_rotation_scale((Vector3){0.0f, 15.0f, 0.0f}, Quaternion_identity(), (Vector3){0.025f, 0.025f, 0.025f});
     mesh_count++;
+
+    // TODO: HACK: moving lighting code to CPU
+    state->dir_light = (DIRECTIONAL_LIGHT){
+        (Vector4){0.4f, 0.4f, 0.2f, 1.0f},
+        (Vector4){-0.57735f, -0.57735f, -0.57735f, 0.0f}};
+
+    light_system_add_directional(&state->dir_light);
+
+    state->p_lights[0].colour = (Vector4){1.0f, 0.0f, 0.0f, 1.0f};
+    state->p_lights[0].position = (Vector4){-5.5f, 0.0f, -5.5f, 0.0f};
+    state->p_lights[0].constant_f = 1.0f;
+    state->p_lights[0].linear = 0.35f;
+    state->p_lights[0].quadratic = 0.44f;
+    state->p_lights[0].padding = 0;
+
+    light_system_add_point(&state->p_lights[0]);
+
+    state->p_lights[1].colour = (Vector4){0.0f, 1.0f, 0.0f, 1.0f};
+    state->p_lights[1].position = (Vector4){5.5f, 0.0f, -5.5f, 0.0f};
+    state->p_lights[1].constant_f = 1.0f;
+    state->p_lights[1].linear = 0.35f;
+    state->p_lights[1].quadratic = 0.44f;
+    state->p_lights[1].padding = 0;
+
+    light_system_add_point(&state->p_lights[1]);
+
+    state->p_lights[2].colour = (Vector4){0.0f, 0.0f, 1.0f, 1.0f};
+    state->p_lights[2].position = (Vector4){5.5f, 0.0f, 5.5f, 0.0f};
+    state->p_lights[2].constant_f = 1.0f;
+    state->p_lights[2].linear = 0.35f;
+    state->p_lights[2].quadratic = 0.44f;
+    state->p_lights[2].padding = 0;
+
+    light_system_add_point(&state->p_lights[2]);
 
     // Load up some test UI geometry.
     GEOMETRY_CONFIG ui_config;
@@ -485,6 +530,9 @@ b8 application_update(APPLICATION* application_instance, f32 delta_time) {
         }
     }
 
+    state->p_lights[1].colour = (Vector4){0.0f, 1.0f, 1.0f, 1.0f};
+    state->p_lights[1].position.x -= 0.005f;
+
     char* vsync_text = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
     char text_buffer[2048];
     string_format(
@@ -649,6 +697,7 @@ void application_register_events(struct APPLICATION* application_instance) {
         // TODO: temp
         event_register(EVENT_CODE_DEBUG0, application_instance, application_on_debug_event);
         event_register(EVENT_CODE_DEBUG1, application_instance, application_on_debug_event);
+        event_register(EVENT_CODE_DEBUG2, application_instance, application_on_debug_event);
         event_register(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, application_instance, application_on_event);
         // TODO: end temp
 
@@ -662,6 +711,7 @@ void application_register_events(struct APPLICATION* application_instance) {
 void application_unregister_events(struct APPLICATION* application_instance) {
     event_unregister(EVENT_CODE_DEBUG0, application_instance, application_on_debug_event);
     event_unregister(EVENT_CODE_DEBUG1, application_instance, application_on_debug_event);
+    event_unregister(EVENT_CODE_DEBUG2, application_instance, application_on_debug_event);
     event_unregister(EVENT_CODE_OBJECT_HOVER_ID_CHANGED, application_instance, application_on_event);
     // TODO: end temp
 

@@ -9,6 +9,7 @@
 #include "systems/texture_system.h"
 #include "systems/resource_system.h"
 #include "systems/shader_system.h"
+#include "systems/light_system.h"
 
 // enable debug logging for this file
 //#define DEBUG_LOG 1
@@ -24,6 +25,9 @@ typedef struct MATERIAL_SHADER_UNIFORM_LOCATIONS {
     u16 normal_texture;
     u16 model;
     u32 render_mode;
+    u16 dir_light;
+    u16 p_lights;
+    u16 num_p_lights;
 } MATERIAL_SHADER_UNIFORM_LOCATIONS;
 
 typedef struct UI_SHADER_UNIFORM_LOCATIONS {
@@ -235,6 +239,9 @@ MATERIAL* material_system_acquire_from_config(MATERIAL_CONFIG config) {
                 state_ptr->material_locations.shiness = shader_system_uniform_index(s, "shiness");
                 state_ptr->material_locations.model = shader_system_uniform_index(s, "model");
                 state_ptr->material_locations.render_mode = shader_system_uniform_index(s, "mode");
+                state_ptr->material_locations.dir_light = shader_system_uniform_index(s, "dir_light");
+                state_ptr->material_locations.p_lights = shader_system_uniform_index(s, "p_lights");
+                state_ptr->material_locations.num_p_lights = shader_system_uniform_index(s, "num_p_lights");
             } else if (state_ptr->ui_shader_id == INVALID_ID && strings_equal(config.shader_name, "shader.builtin.ui")) {
                 state_ptr->ui_shader_id = s->id;
                 state_ptr->ui_locations.projection = shader_system_uniform_index(s, "projection");
@@ -368,6 +375,44 @@ b8 material_system_apply_instance(MATERIAL* m, b8 needs_update) {
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.specular_texture, &m->specular_map));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.normal_texture, &m->normal_map));
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.shiness, &m->shiness));
+            // // TODO: HACK: moving lighting code to CPU
+            // static directional_light dir_light = {
+            //     (vec4){0.4f, 0.4f, 0.2f, 1.0f},
+            //     (vec4){-0.57735f, -0.57735f, -0.57735f, 0.0f}};
+
+            // static i32 p_light_count = 3;
+            // static point_light p_lights[10] = {0};
+
+            // p_lights[0].colour = (vec4){1.0f, 0.0f, 0.0f, 1.0f};
+            // p_lights[0].position = (vec4){-5.5f, 0.0f, -5.5f, 0.0f};
+            // p_lights[0].constant_f = 1.0f;
+            // p_lights[0].linear = 0.35f;
+            // p_lights[0].quadratic = 0.44f;
+            // p_lights[0].padding = 0;
+
+            // p_lights[1].colour = (vec4){0.0f, 1.0f, 0.0f, 1.0f};
+            // p_lights[1].position = (vec4){5.5f, 0.0f, -5.5f, 0.0f};
+            // p_lights[1].constant_f = 1.0f;
+            // p_lights[1].linear = 0.35f;
+            // p_lights[1].quadratic = 0.44f;
+            // p_lights[1].padding = 0;
+
+            // p_lights[2].colour = (vec4){0.0f, 0.0f, 1.0f, 1.0f};
+            // p_lights[2].position = (vec4){5.5f, 0.0f, 5.5f, 0.0f};
+            // p_lights[2].constant_f = 1.0f;
+            // p_lights[2].linear = 0.35f;
+            // p_lights[2].quadratic = 0.44f;
+            // p_lights[2].padding = 0;
+
+            DIRECTIONAL_LIGHT* dir_light = light_system_directional_light_get();
+            i32 p_light_count = light_system_point_light_count();
+            // TODO: frame allocator?
+            POINT_LIGHT* p_lights = yallocate(sizeof(POINT_LIGHT) * p_light_count, MEMORY_TAG_ARRAY);
+            light_system_point_lights_get(p_lights);
+
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.dir_light, dir_light));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.p_lights, p_lights));
+            MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->material_locations.num_p_lights, &p_light_count));
         } else if (m->shader_id == state_ptr->ui_shader_id) {
             // UI shader
             MATERIAL_APPLY_OR_FAIL(shader_system_uniform_set_by_index(state_ptr->ui_locations.diffuse_color, &m->diffuse_color));

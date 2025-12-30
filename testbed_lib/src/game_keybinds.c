@@ -120,6 +120,10 @@ void game_on_load_scene(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFI
     event_fire(EVENT_CODE_DEBUG1, (APPLICATION*)user_data, (EVENT_CONTEXT){0});
 }
 
+void game_on_unload_scene(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
+    event_fire(EVENT_CODE_DEBUG2, (APPLICATION*)user_data, (EVENT_CONTEXT){0});
+}
+
 void game_on_console_scroll(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
     if (key == KEY_PAGEUP) {
         debug_console_move_up(user_data);
@@ -228,6 +232,7 @@ void game_setup_keymaps(APPLICATION* game_instance) {
     keymap_binding_add(&testbed_keymap, KEY_2, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_set_render_mode_normals);
 
     keymap_binding_add(&testbed_keymap, KEY_L, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_load_scene);
+    keymap_binding_add(&testbed_keymap, KEY_U, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_unload_scene);
 
     keymap_binding_add(&testbed_keymap, KEY_T, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_debug_texture_swap);
     keymap_binding_add(&testbed_keymap, KEY_P, KEYMAP_BIND_TYPE_PRESS, KEYMAP_MODIFIER_NONE_BIT, game_instance, game_on_debug_cam_position);

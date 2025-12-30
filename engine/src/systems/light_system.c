@@ -1,0 +1,114 @@
+#include "light_system.h"
+
+#include "core/logger.h"
+#include "core/systems_manager.h"
+
+#define MAX_POINT_LIGHTS 10
+
+typedef struct LIGHT_SYSTEM_STATE {
+    DIRECTIONAL_LIGHT* dir_light;
+    POINT_LIGHT* p_lights[MAX_POINT_LIGHTS];
+} LIGHT_SYSTEM_STATE;
+
+b8 light_system_init(u64* memory_requirement, void* memory, void* config) {
+    *memory_requirement = sizeof(LIGHT_SYSTEM_STATE);
+    if (!memory) {
+        return true;
+    }
+
+    // NOTE: perform config/init here.
+    return true;
+}
+
+void light_system_shutdown(void* state) {
+    if (state) {
+        // NOTE: perform teardown here.
+    }
+}
+
+b8 light_system_add_directional(DIRECTIONAL_LIGHT* light) {
+    if (!light) {
+        return false;
+    }
+    LIGHT_SYSTEM_STATE* state = systems_manager_get_state(Y_SYSTEM_TYPE_LIGHT);
+    state->dir_light = light;
+    return true;
+}
+
+b8 light_system_add_point(POINT_LIGHT* light) {
+    if (!light) {
+        return false;
+    }
+    LIGHT_SYSTEM_STATE* state = systems_manager_get_state(Y_SYSTEM_TYPE_LIGHT);
+    for (u32 i = 0; i < MAX_POINT_LIGHTS; ++i) {
+        if (!state->p_lights[i]) {
+            state->p_lights[i] = light;
+            return true;
+        }
+    }
+
+    // We're full, so fail.
+    PRINT_ERROR("light_system_add_point already has the max of %u lights. Light not added.", MAX_POINT_LIGHTS);
+    return false;
+}
+
+b8 light_system_remove_directional(DIRECTIONAL_LIGHT* light) {
+    if (!light) {
+        return false;
+    }
+    LIGHT_SYSTEM_STATE* state = systems_manager_get_state(Y_SYSTEM_TYPE_LIGHT);
+    if (state->dir_light == light) {
+        state->dir_light = 0;
+        return true;
+    }
+
+    return false;
+}
+
+b8 light_system_remove_point(POINT_LIGHT* light) {
+    if (!light) {
+        return false;
+    }
+    LIGHT_SYSTEM_STATE* state = systems_manager_get_state(Y_SYSTEM_TYPE_LIGHT);
+    for (u32 i = 0; i < MAX_POINT_LIGHTS; ++i) {
+        if (state->p_lights[i] == light) {
+            state->p_lights[i] = 0;
+            return true;
+        }
+    }
+
+    PRINT_ERROR("light_system_remove_point does not have a light that matches the one passed, thus it cannot be removed.");
+    return false;
+}
+
+DIRECTIONAL_LIGHT* light_system_directional_light_get(void) {
+    LIGHT_SYSTEM_STATE* state = systems_manager_get_state(Y_SYSTEM_TYPE_LIGHT);
+    return state->dir_light;
+}
+
+i32 light_system_point_light_count(void) {
+    LIGHT_SYSTEM_STATE* state = systems_manager_get_state(Y_SYSTEM_TYPE_LIGHT);
+    i32 count = 0;
+    for (u32 i = 0; i < MAX_POINT_LIGHTS; ++i) {
+        if (state->p_lights[i]) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+b8 light_system_point_lights_get(POINT_LIGHT* p_lights) {
+    if (!p_lights) {
+        return false;
+    }
+    LIGHT_SYSTEM_STATE* state = systems_manager_get_state(Y_SYSTEM_TYPE_LIGHT);
+    for (u32 i = 0, j = 0; i < MAX_POINT_LIGHTS; ++i) {
+        if (state->p_lights[i]) {
+            p_lights[j] = *(state->p_lights[i]);
+            j++;
+        }
+    }
+
+    return true;
+}

@@ -10,6 +10,7 @@
 #include <resources/ui_text.h>
 #include <core/clock.h>
 #include <input/keymap.h>
+#include <systems/light_system.h>
 
 #include "debug_console.h"
 
@@ -34,6 +35,9 @@ typedef struct GAME_STATE {
     Mesh* helmet_mesh;
     Mesh* duck_mesh;
     b8 models_loaded;
+
+    DIRECTIONAL_LIGHT dir_light;
+    POINT_LIGHT p_lights[3];
 
     Mesh ui_meshes[10];
     UI_TEXT test_text;

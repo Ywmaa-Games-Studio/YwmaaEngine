@@ -67,4 +67,10 @@ YAPI b8 engine_run(struct APPLICATION* game_instance);
  */
 void engine_on_event_system_initialized(void);
 
+/**
+ * @brief Obtains a constant pointer to the current frame data.
+ * 
+ * @param game_instance A pointer to the application instance.
+ * @return A constant pointer to the current frame data.
+ */
 YAPI const struct FRAME_DATA* engine_frame_data_get(struct APPLICATION* game_instance);

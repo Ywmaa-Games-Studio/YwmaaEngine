@@ -172,13 +172,15 @@ void game_on_console_scroll_hold(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYM
 }
 
 void game_on_console_history_back(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    DEBUG_CONSOLE_STATE* state = (DEBUG_CONSOLE_STATE*)user_data;
-    debug_console_history_back(state);
+    APPLICATION* game_instance = (APPLICATION*)user_data;
+    TESTBED_GAME_STATE* state = (TESTBED_GAME_STATE*)game_instance->state;
+    debug_console_history_back(&state->debug_console);
 }
 
 void game_on_console_history_forward(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {
-    DEBUG_CONSOLE_STATE* state = (DEBUG_CONSOLE_STATE*)user_data;
-    debug_console_history_forward(state);
+    APPLICATION* game_instance = (APPLICATION*)user_data;
+    TESTBED_GAME_STATE* state = (TESTBED_GAME_STATE*)game_instance->state;
+    debug_console_history_forward(&state->debug_console);
 }
 
 void game_on_debug_texture_swap(E_KEYS key, E_KEYMAP_ENTRY_BIND_TYPE type, KEYMAP_MODIFIER modifiers, void* user_data) {

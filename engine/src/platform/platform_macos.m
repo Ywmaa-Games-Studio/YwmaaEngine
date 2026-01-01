@@ -636,7 +636,7 @@ void ythread_sleep(YTHREAD* thread, u64 ms) {
     platform_sleep(ms);
 }
 
-u64 get_thread_id(void) {
+u64 platform_current_thread_id(void) {
     return (u64)pthread_self();
 }
 // NOTE: End threads.
@@ -1253,4 +1253,4 @@ void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags) {
     }
 }
 
-#endif // SLN_PLATFORM_MACOS
+#endif

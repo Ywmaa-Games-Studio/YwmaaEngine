@@ -295,7 +295,7 @@ void ythread_sleep(YTHREAD *thread, u64 ms) {
     platform_sleep(ms);
 }
 
-u64 get_thread_id(void) {
+u64 platform_current_thread_id(void) {
     return (u64)GetCurrentThreadId();
 }
 

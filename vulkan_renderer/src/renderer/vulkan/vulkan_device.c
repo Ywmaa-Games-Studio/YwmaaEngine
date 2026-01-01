@@ -16,10 +16,10 @@ typedef struct VULKAN_PHYSICAL_DEVICE_REQUIREMENTS {
 } VULKAN_PHYSICAL_DEVICE_REQUIREMENTS;
 
 typedef struct VULKAN_PHYSICAL_DEVICE_QUEUE_FAMILY_INFO {
-    u32 graphics_family_index;
-    u32 present_family_index;
-    u32 compute_family_index;
-    u32 transfer_family_index;
+    i32 graphics_family_index;
+    i32 present_family_index;
+    i32 compute_family_index;
+    i32 transfer_family_index;
 } VULKAN_PHYSICAL_DEVICE_QUEUE_FAMILY_INFO;
 
 void create_logical_device(VULKAN_CONTEXT* context);

@@ -52,4 +52,4 @@ b8 ythread_is_active(YTHREAD* thread);
  */
 void ythread_sleep(YTHREAD* thread, u64 ms);
 
-u64 get_thread_id(void);
+u64 platform_current_thread_id(void);

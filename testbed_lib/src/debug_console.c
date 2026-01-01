@@ -271,6 +271,9 @@ void debug_console_move_up(DEBUG_CONSOLE_STATE* state) {
 
 void debug_console_move_down(DEBUG_CONSOLE_STATE* state) {
     if (state) {
+        if(state->line_offset == 0) {
+            return;
+        }
         state->dirty = true;
         u32 line_count = darray_length(state->lines);
         // Don't bother with trying an offset, just reset and boot out.

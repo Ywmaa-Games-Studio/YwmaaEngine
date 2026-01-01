@@ -11,14 +11,14 @@ typedef struct COMMAND_HISTORY_ENTRY {
 typedef struct DEBUG_CONSOLE_STATE {
     u8 console_consumer_id;
     // Number of lines displayed at once.
-    i32 line_display_count;
+    u32 line_display_count;
     // Number of lines offset from bottom of list.
-    i32 line_offset;
+    u32 line_offset;
     // darray
     char** lines;
     // darray
     COMMAND_HISTORY_ENTRY* history;
-    i32 history_offset;
+    u32 history_offset;
 
     b8 dirty;
     b8 visible;

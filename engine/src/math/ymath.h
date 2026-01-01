@@ -494,7 +494,7 @@ YINLINE Vector3 Vector3_cross(Vector3 vector_0, Vector3 vector_1) {
  * @param tolerance The difference tolerance. Typically Y_FLOAT_EPSILON or similar.
  * @return True if within tolerance; otherwise false. 
  */
-YINLINE const b8 Vector3_compare(Vector3 vector_0, Vector3 vector_1, f32 tolerance) {
+YINLINE b8 Vector3_compare(Vector3 vector_0, Vector3 vector_1, f32 tolerance) {
     if (yabs(vector_0.x - vector_1.x) > tolerance) {
         return false;
     }
@@ -735,7 +735,7 @@ YINLINE f32 Vector4_dot_f32(
  * @param tolerance The difference tolerance. Typically K_FLOAT_EPSILON or similar.
  * @return True if within tolerance; otherwise false. 
  */
-YINLINE const b8 Vector4_compare(Vector4 vector_0, Vector4 vector_1, f32 tolerance) {
+YINLINE b8 Vector4_compare(Vector4 vector_0, Vector4 vector_1, f32 tolerance) {
     if (yabs(vector_0.x - vector_1.x) > tolerance) {
         return false;
     }

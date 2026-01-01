@@ -172,7 +172,7 @@ b8 job_system_init(u64* job_system_memory_requirement, void* state, void* config
         state_ptr->pending_results[i].id = INVALID_ID_U16;
     }
 
-    PRINT_DEBUG("Main thread id is: %#x", get_thread_id());
+    PRINT_DEBUG("Main thread id is: %#x", platform_current_thread_id());
 
     PRINT_DEBUG("Spawning %i job threads.", state_ptr->thread_count);
 

@@ -29,7 +29,7 @@ typedef struct range {
 } range;
 
 // Properly define static assertions.
-#if defined(__clang__) || defined(__gcc__)
+#if defined(__clang__) || defined(__GNUC__)
 #define STATIC_ASSERT _Static_assert
 #else
 #define STATIC_ASSERT static_assert
@@ -133,7 +133,7 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
                                                                       : value);
 
 // Inlining
-#if defined(__clang__) || defined(__gcc__)
+#if defined(__clang__) || defined(__GNUC__)
 #define YINLINE __attribute__((always_inline)) inline
 #define YNOINLINE __attribute__((noinline))
 #elif defined(_MSC_VER)

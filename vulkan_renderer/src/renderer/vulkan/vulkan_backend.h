@@ -5,14 +5,15 @@
 
 struct SHADER;
 struct SHADER_UNIFORM;
+struct FRAME_DATA;
 
 b8 vulkan_renderer_backend_init(RENDERER_PLUGIN* backend, const RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count);
 void vulkan_renderer_backend_shutdown(RENDERER_PLUGIN* backend);
 
 void vulkan_renderer_backend_on_resized(RENDERER_PLUGIN* backend, u16 width, u16 height);
 
-b8 vulkan_renderer_backend_begin_frame(RENDERER_PLUGIN* backend, f32 delta_time);
-b8 vulkan_renderer_backend_end_frame(RENDERER_PLUGIN* backend, f32 delta_time);
+b8 vulkan_renderer_backend_begin_frame(RENDERER_PLUGIN* backend, const struct FRAME_DATA* p_frame_data);
+b8 vulkan_renderer_backend_end_frame(RENDERER_PLUGIN* backend, const struct FRAME_DATA* p_frame_data);
 void vulkan_renderer_viewport_set(RENDERER_PLUGIN* backend, Vector4 rect);
 void vulkan_renderer_viewport_reset(RENDERER_PLUGIN* backend);
 void vulkan_renderer_scissor_set(RENDERER_PLUGIN* backend, Vector4 rect);

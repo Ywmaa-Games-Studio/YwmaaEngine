@@ -4,6 +4,7 @@
 
 struct SHADER;
 struct SHADER_UNIFORM;
+struct FRAME_DATA;
 
 typedef struct RENDERER_SYSTEM_CONFIG {
     char* application_name;
@@ -17,7 +18,7 @@ YAPI E_RENDERER_BACKEND_API renderer_get_backend_api(void);
 
 YAPI void renderer_on_resized(u16 width, u16 height);
 
-YAPI b8 renderer_draw_frame(RENDER_PACKET* packet);
+YAPI b8 renderer_draw_frame(RENDER_PACKET* packet, const struct FRAME_DATA* p_frame_data);
 
 /**
  * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.

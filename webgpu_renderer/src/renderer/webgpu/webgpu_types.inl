@@ -224,8 +224,6 @@ typedef struct WEBGPU_SHADER {
 } WEBGPU_SHADER;
 
 typedef struct WEBGPU_CONTEXT {
-    f32 frame_delta_time;
-
     // The framebuffer's current width.
     u32 framebuffer_width;
 

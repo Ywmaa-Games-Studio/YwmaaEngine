@@ -1,15 +1,10 @@
 #pragma once
 
 #include "core/engine.h"
-#include "memory/linear_allocator.h"
 #include "platform/platform.h"
 
 struct RENDER_PACKET;
-
-typedef struct APP_FRAME_DATA {
-    // A darray of world geometries to be rendered this frame.
-    GEOMETRY_RENDER_DATA* world_geometries;
-} APP_FRAME_DATA;
+struct FRAME_DATA;
 
 /** @brief Represents the various stages of application lifecycle. */
 typedef enum E_APPLICATION_STAGE {
@@ -55,19 +50,19 @@ typedef struct APPLICATION {
     /** 
      * @brief Function pointer to APPLICATION's update function. 
      * @param app_instance A pointer to the APPLICATION instance.
-     * @param delta_time The time in seconds since the last frame.
+     * @param p_frame_data A constant pointer to the current frame's data.
      * @returns True on success; otherwise false.
      * */
-    b8 (*update)(struct APPLICATION* app_instance, f32 delta_time);
+    b8 (*update)(struct APPLICATION* app_instance, const struct FRAME_DATA* p_frame_data);
 
     /** 
      * @brief Function pointer to APPLICATION's render function. 
      * @param app_instance A pointer to the APPLICATION instance.
      * @param packet A pointer to the packet to be populated by the APPLICATION.
-     * @param delta_time The time in seconds since the last frame.
+     * @param p_frame_data A constant pointer to the current frame's data.
      * @returns True on success; otherwise false.
      * */
-    b8 (*render)(struct APPLICATION* app_instance, struct RENDER_PACKET* packet, f32 delta_time);
+    b8 (*render)(struct APPLICATION* app_instance, struct RENDER_PACKET* packet, const struct FRAME_DATA* p_frame_data);
 
     /** 
      * @brief Function pointer to handle resizes, if applicable. 
@@ -98,15 +93,6 @@ typedef struct APPLICATION {
 
     /** @brief A block of memory to hold the engine state. Created and managed by the engine. */
     void* engine_state;
-
-    /** 
-     * @brief An allocator used for allocations needing to be made every frame. Contents are wiped
-     * at the beginning of the frame.
-     */
-    LINEAR_ALLOCATOR frame_allocator;
-
-    /** @brief Data which is built up, used and discarded every frame. */
-    APP_FRAME_DATA frame_data;
 
     // TODO: Move this to somewhere better...
     DYNAMIC_LIBRARY renderer_library;

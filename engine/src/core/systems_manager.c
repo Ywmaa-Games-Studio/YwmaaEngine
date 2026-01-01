@@ -47,11 +47,11 @@ void systems_manager_shutdown(SYSTEMS_MANAGER_STATE* state) {
     shutdown_known_systems(state);
 }
 
-b8 systems_manager_update(SYSTEMS_MANAGER_STATE* state, u32 delta_time) {
+b8 systems_manager_update(SYSTEMS_MANAGER_STATE* state, const struct FRAME_DATA* p_frame_data) {
     for (u32 i = 0; i < Y_SYSTEM_TYPE_MAX_COUNT; ++i) {
         Y_SYSTEM* s = &state->systems[i];
         if (s->update) {
-            if (!s->update(s->state, delta_time)) {
+            if (!s->update(s->state, p_frame_data)) {
                 PRINT_ERROR("System update failed for type: %i", i);
             }
         }

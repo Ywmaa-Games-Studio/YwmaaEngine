@@ -4,6 +4,7 @@
 #include "core/ymutex.h"
 #include "core/ymemory.h"
 #include "core/logger.h"
+#include "core/frame_data.h"
 #include "data_structures/ring_queue.h"
 
 typedef struct JOB_THREAD {
@@ -282,7 +283,7 @@ void process_queue(RING_QUEUE* queue, YMUTEX* queue_mutex) {
     }
 }
 
-b8 job_system_update(void* state, f32 delta_time) {
+b8 job_system_update(void* state, const struct FRAME_DATA* p_frame_data) {
     if (!state_ptr || !state_ptr->running) {
         return false;
     }

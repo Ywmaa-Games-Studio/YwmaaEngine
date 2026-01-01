@@ -3,6 +3,7 @@
 #include "core/ymemory.h"
 #include "core/logger.h"
 #include "input/keymap.h"
+#include "core/frame_data.h"
 #include "data_structures/stack.h"
 
 typedef struct KEYBOARD_STATE {
@@ -51,7 +52,7 @@ void input_system_shutdown(void* state) {
     state_ptr = 0;
 }
 
-void input_update(f64 delta_time) {
+void input_update(const struct FRAME_DATA* p_frame_data) {
     if (!state_ptr) {
         return;
     }

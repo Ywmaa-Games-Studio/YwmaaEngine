@@ -5,6 +5,7 @@
 #include "renderer/renderer_types.inl"
 
 struct APPLICATION;
+struct FRAME_DATA;
 
 /** 
  * @brief Represents configuration for the application. The application config
@@ -36,6 +37,12 @@ typedef struct APPLICATION_CONFIG {
     RENDER_VIEW_CONFIG* render_views;    
 
     RENDERER_PLUGIN renderer_plugin;
+
+    /** @brief The size of the frame allocator. */
+    u64 frame_allocator_size;
+
+    /** @brief The size of the application-specific frame data. Set to 0 if not used. */
+    u64 app_frame_data_size;
 } APPLICATION_CONFIG;
 
 /**
@@ -59,3 +66,5 @@ YAPI b8 engine_run(struct APPLICATION* game_instance);
  * required for initialization.
  */
 void engine_on_event_system_initialized(void);
+
+YAPI const struct FRAME_DATA* engine_frame_data_get(struct APPLICATION* game_instance);

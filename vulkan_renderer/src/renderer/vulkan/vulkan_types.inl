@@ -363,8 +363,6 @@ typedef struct VULKAN_SHADER {
 } VULKAN_SHADER;
 
 typedef struct VULKAN_CONTEXT {
-    f32 frame_delta_time;
-
     // The framebuffer's current width.
     u32 framebuffer_width;
 

@@ -3,6 +3,7 @@
 #include "defines.h"
 
 struct KEYMAP;
+struct FRAME_DATA;
 
 typedef enum E_BUTTONS {
     BUTTON_LEFT,
@@ -174,7 +175,7 @@ typedef enum E_KEYS {
  */
 b8 input_system_init(u64* memory_requirement, void* state, void* config);
 void input_system_shutdown(void* state);
-void input_update(f64 delta_time);
+void input_update(const struct FRAME_DATA* p_frame_data);
 
 // keyboard input
 YAPI b8 input_is_key_just_pressed(E_KEYS key);

@@ -151,9 +151,8 @@ void webgpu_renderer_backend_on_resized(RENDERER_PLUGIN* plugin, u16 width, u16 
     PRINT_INFO("WebGPU renderer backend->resized: w/h/gen: %i/%i/%llu", width, height, context->framebuffer_size_generation);
 }
 
-b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, f32 delta_time) {
+b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
-    context->frame_delta_time = delta_time;
     // Check if recreating swap chain and boot out.
     if (context->recreating_swapchain) {
         b8 result = wgpuDevicePoll(context->device, true, NULL);
@@ -206,7 +205,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, f32 delta_time) 
     return true;
 }
 
-b8 webgpu_renderer_backend_end_frame(RENDERER_PLUGIN* plugin, f32 delta_time) {
+b8 webgpu_renderer_backend_end_frame(RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     
     WGPUCommandBufferDescriptor cmd_buffer_descriptor = {0};

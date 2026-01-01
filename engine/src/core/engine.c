@@ -12,10 +12,12 @@
 #include "core/ystring.h"
 #include "core/uuid.h"
 #include "core/metrics.h"
+#include "core/frame_data.h"
 
 #include "data_structures/darray.h"
 
 #include "renderer/renderer_frontend.h"
+#include "memory/linear_allocator.h"
 
 // systems
 #include "core/systems_manager.h"
@@ -29,6 +31,9 @@ typedef struct ENGINE_STATE_T {
     clock clock;
     f64 last_time;
     SYSTEMS_MANAGER_STATE sys_manager_state;
+    // An allocator used for per-frame allocations, that is reset every frame.
+    LINEAR_ALLOCATOR frame_allocator;
+    FRAME_DATA p_frame_data;
 } ENGINE_STATE_T;
 
 static ENGINE_STATE_T* engine_state;
@@ -83,6 +88,14 @@ b8 engine_create(APPLICATION* game_instance) {
     if (!game_instance->boot(game_instance)) {
         PRINT_ERROR("Game boot sequence failed; aborting application.");
         return false;
+    }
+    // Setup the frame allocator.
+    linear_allocator_create(game_instance->app_config.frame_allocator_size, 0, &engine_state->frame_allocator);
+    engine_state->p_frame_data.frame_allocator = &engine_state->frame_allocator;
+    if (game_instance->app_config.app_frame_data_size > 0) {
+        engine_state->p_frame_data.application_frame_data = yallocate_aligned(game_instance->app_config.app_frame_data_size, 8, MEMORY_TAG_GAME);
+    } else {
+        engine_state->p_frame_data.application_frame_data = 0;
     }
     game_instance->stage = APPLICATION_STAGE_BOOT_COMPLETE;
 
@@ -139,13 +152,19 @@ b8 engine_run(APPLICATION* game_instance) {
             f64 delta = (current_time - engine_state->last_time);
             f64 frame_start_time = platform_get_absolute_time();
 
+            engine_state->p_frame_data.total_time = current_time;
+            engine_state->p_frame_data.delta_time = (f32)delta;
+
+            // Reset the frame allocator
+            linear_allocator_free_all(&engine_state->frame_allocator);
+
             // Update systems.
-            systems_manager_update(&engine_state->sys_manager_state, delta);
+            systems_manager_update(&engine_state->sys_manager_state, &engine_state->p_frame_data);
 
             // update metrics
             metrics_update(frame_elapsed_time);
     
-            if (!engine_state->game_instance->update(engine_state->game_instance, (f32)delta)) {
+            if (!engine_state->game_instance->update(engine_state->game_instance, &engine_state->p_frame_data)) {
                 PRINT_ERROR("Game update failed, shutting down.");
                 engine_state->is_running = false;
                 break;
@@ -153,16 +172,15 @@ b8 engine_run(APPLICATION* game_instance) {
 
             // TODO: refactor packet creation
             RENDER_PACKET packet = {0};
-            packet.delta_time = delta;
 
             // Call the game's render routine.
-            if (!engine_state->game_instance->render(engine_state->game_instance, &packet, (f32)delta)) {
+            if (!engine_state->game_instance->render(engine_state->game_instance, &packet, &engine_state->p_frame_data)) {
                 PRINT_ERROR("Game render failed, shutting down.");
                 engine_state->is_running = false;
                 break;
             }
 
-            renderer_draw_frame(&packet);
+            renderer_draw_frame(&packet, &engine_state->p_frame_data);
 
             // Cleanup the packet.
             for (u32 i = 0; i < packet.view_count; ++i) {
@@ -191,7 +209,7 @@ b8 engine_run(APPLICATION* game_instance) {
             // after any input should be recorded; I.E. before this line.
             // As a safety, input is the last thing to be updated before
             // this frame ends.
-            input_update(delta);
+            input_update(&engine_state->p_frame_data);
 
             // Update last time
             engine_state->last_time = current_time;
@@ -224,6 +242,10 @@ void engine_on_event_system_initialized(void) {
     // Register for engine-level events.
     event_register(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
     event_register(EVENT_CODE_RESIZED, 0, engine_on_resized);
+}
+
+const struct FRAME_DATA* engine_frame_data_get(struct APPLICATION* game_instance) {
+    return &((ENGINE_STATE_T*)game_instance->engine_state)->p_frame_data;
 }
 
 b8 engine_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context) {

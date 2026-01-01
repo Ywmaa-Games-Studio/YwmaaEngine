@@ -7,6 +7,7 @@
 
 struct SHADER;
 struct SHADER_UNIFORM;
+struct FRAME_DATA;
 
 typedef enum E_RENDERER_BACKEND_API {
     RENDERER_BACKEND_API_VULKAN,
@@ -249,8 +250,8 @@ typedef struct RENDERER_PLUGIN {
 
     void (*resized)(struct RENDERER_PLUGIN* plugin, u16 width, u16 height);
 
-    b8 (*begin_frame)(struct RENDERER_PLUGIN* plugin, f32 delta_time);
-    b8 (*end_frame)(struct RENDERER_PLUGIN* plugin, f32 delta_time);
+    b8 (*begin_frame)(struct RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data);
+    b8 (*end_frame)(struct RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data);
     
     /**
      * @brief Sets the renderer viewport to the given rectangle. Must be done within a renderpass.
@@ -919,8 +920,6 @@ typedef struct SKYBOX_PACKET_DATA {
  * such as delta time and a collection of views to be rendered.
  */
 typedef struct RENDER_PACKET {
-    f32 delta_time;
-
     /** The number of views to be rendered. */
     u16 view_count;
     /** An array of views to be rendered. */

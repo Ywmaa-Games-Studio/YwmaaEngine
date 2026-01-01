@@ -3,6 +3,7 @@
 #include "core/logger.h"
 #include "core/ymemory.h"
 #include "core/yvar.h"
+#include "core/frame_data.h"
 #include "math/ymath.h"
 
 #include "resources/resource_types.h"
@@ -95,7 +96,7 @@ void renderer_on_resized(u16 width, u16 height) {
     }
 }
 
-b8 renderer_draw_frame(RENDER_PACKET* packet) {
+b8 renderer_draw_frame(RENDER_PACKET* packet, const struct FRAME_DATA* p_frame_data) {
     RENDERER_SYSTEM_STATE* state_ptr = (RENDERER_SYSTEM_STATE*)systems_manager_get_state(Y_SYSTEM_TYPE_RENDERER);
     state_ptr->plugin.frame_number++;
     // Make sure the window is not currently being resized by waiting a designated
@@ -122,7 +123,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
     }
 
     // If the begin frame returned successfully, mid-frame operations may continue.
-    if (state_ptr->plugin.begin_frame(&state_ptr->plugin, packet->delta_time)) {
+    if (state_ptr->plugin.begin_frame(&state_ptr->plugin, p_frame_data)) {
         u8 attachment_index = state_ptr->plugin.window_attachment_index_get(&state_ptr->plugin);
         // Render each view.
         for (u32 i = 0; i < packet->view_count; ++i) {
@@ -133,7 +134,7 @@ b8 renderer_draw_frame(RENDER_PACKET* packet) {
         }
 
         // End the frame. If this fails, it is likely unrecoverable.
-        b8 result = state_ptr->plugin.end_frame(&state_ptr->plugin, packet->delta_time);
+        b8 result = state_ptr->plugin.end_frame(&state_ptr->plugin, p_frame_data);
 
         if (!result) {
             PRINT_ERROR("renderer_end_frame failed. Application shutting down...");

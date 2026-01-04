@@ -132,7 +132,7 @@ void debug_console_create(DEBUG_CONSOLE_STATE* out_console_state) {
 
         // NOTE: update the text based on number of lines to display and
         // the number of lines offset from the bottom. A UI Text object is 
-        // used for display for now. Can worry about colour in a separate pass.
+        // used for display for now. Can worry about color in a separate pass.
         // Not going to consider word wrap.
         // NOTE: also should consider clipping rectangles and newlines.
 
@@ -191,7 +191,7 @@ void debug_console_update(DEBUG_CONSOLE_STATE* state) {
         yzero_memory(buffer, sizeof(char) * 16384);
         u32 buffer_pos = 0;
         for (u32 i = min_line; i <= max_line; ++i) {
-            // TODO: insert colour codes for the message type.
+            // TODO: insert color codes for the message type.
 
             const char* line = state->lines[i];
             u32 line_length = string_length(line);

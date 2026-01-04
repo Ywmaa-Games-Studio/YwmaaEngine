@@ -2,6 +2,8 @@
 
 #include "core/ymemory.h"
 #include "core/logger.h"
+#include "core/identifier.h"
+#include "core/ystring.h"
 #include "systems/job_system.h"
 
 #include "systems/resource_system.h"
@@ -67,7 +69,7 @@ b8 mesh_load_job_start(void* params, void* result_data) {
     return result;
 }
 
-b8 mesh_load_from_resource(const char* resource_name, Mesh* out_mesh) {
+static b8 mesh_load_from_resource(const char* resource_name, Mesh* out_mesh) {
     out_mesh->generation = INVALID_ID_U8;
 
     MESH_LOAD_PARAMS params;
@@ -81,7 +83,70 @@ b8 mesh_load_from_resource(const char* resource_name, Mesh* out_mesh) {
     return true;
 }
 
-void mesh_unload(Mesh* m) {
+b8 mesh_create(MESH_CONFIG config, Mesh* out_mesh) {
+    if (!out_mesh) {
+        return false;
+    }
+
+    yzero_memory(out_mesh, sizeof(Mesh));
+
+    out_mesh->config = config;
+    out_mesh->generation = INVALID_ID_U8;
+
+    if (config.name) {
+        out_mesh->name = string_duplicate(config.name);
+    }
+
+    return true;
+}
+
+b8 mesh_init(Mesh* m) {
+    if (!m) {
+        return false;
+    }
+
+    if (m->config.resource_name) {
+        return true;
+    } else {
+        // Just verifying config.
+        if (!m->config.g_configs) {
+            return false;
+        }
+
+        m->geometry_count = m->config.geometry_count;
+        m->geometries = yallocate(sizeof(GEOMETRY*), MEMORY_TAG_ARRAY);
+    }
+    return true;
+}
+
+b8 mesh_load(Mesh* m) {
+    if (!m) {
+        return false;
+    }
+
+    m->unique_id = identifier_aquire_new_id(m);
+
+    if (m->config.resource_name) {
+        return mesh_load_from_resource(m->config.resource_name, m);
+    } else {
+        if (!m->config.g_configs) {
+            return false;
+        }
+
+        for (u32 i = 0; i < m->config.geometry_count; ++i) {
+            m->geometries[i] = geometry_system_acquire_from_config(m->config.g_configs[i], true);
+            m->generation = 0;
+
+            // Clean up the allocations for the geometry config.
+            // TODO: Do this during unload/destroy
+            geometry_system_config_dispose(&m->config.g_configs[i]);
+        }
+    }
+
+    return true;
+}
+
+b8 mesh_unload(Mesh* m) {
     if (m) {
         for (u32 i = 0; i < m->geometry_count; ++i) {
             geometry_system_release(m->geometries[i]);
@@ -92,5 +157,40 @@ void mesh_unload(Mesh* m) {
 
         // For good measure, invalidate the geometry so it doesn't attempt to be rendered.
         m->generation = INVALID_ID_U8;
+        return true;
     }
+    return false;
+}
+
+b8 mesh_destroy(Mesh* m) {
+    if (!m) {
+        return false;
+    }
+
+    if (m->geometries) {
+        if (!mesh_unload(m)) {
+            PRINT_ERROR("mesh_destroy - failed to unload mesh.");
+            return false;
+        }
+    }
+
+    if (m->name) {
+        yfree(m->name);
+        m->name = 0;
+    }
+
+    if (m->config.name) {
+        yfree(m->config.name);
+        m->config.name = 0;
+    }
+    if (m->config.resource_name) {
+        yfree(m->config.resource_name);
+        m->config.resource_name = 0;
+    }
+    if (m->config.parent_name) {
+        yfree(m->config.parent_name);
+        m->config.parent_name = 0;
+    }
+
+    return true;
 }

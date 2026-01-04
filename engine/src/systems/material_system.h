@@ -49,3 +49,8 @@ YAPI b8 material_system_apply_instance(MATERIAL* m, b8 needs_update);
  * @return True on success; otherwise false.
  */
 YAPI b8 material_system_apply_local(MATERIAL* m, const Matrice4* model);
+
+/**
+ * @brief Dumps all of the registered materials and their reference counts/handles.
+ */
+YAPI void material_system_dump(void);

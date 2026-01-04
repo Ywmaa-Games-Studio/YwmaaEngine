@@ -2150,8 +2150,10 @@ b8 vulkan_renderer_shader_release_instance_resources(RENDERER_PLUGIN* plugin, SH
         instance_state->instance_texture_maps = 0;
     }
 
-    if (!renderer_renderbuffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset)) {
-        PRINT_ERROR("vulkan_renderer_shader_release_instance_resources failed to free range from RENDER_BUFFER.");
+    if (s->ubo_stride != 0) {
+        if (!renderer_renderbuffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset)) {
+            PRINT_ERROR("vulkan_renderer_shader_release_instance_resources failed to free range from renderbuffer.");
+        }
     }
     instance_state->offset = INVALID_ID;
     instance_state->id = INVALID_ID;
@@ -2239,7 +2241,7 @@ b8 vulkan_renderpass_create(RENDERER_PLUGIN* plugin, const RENDERPASS_CONFIG* co
                         attachment_desc.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
                     }
                 } else {
-                    PRINT_ERROR("Invalid and unsupported combination of load operation (0x%x) and clear flags (0x%x) for colour attachment.", attachment_desc.loadOp, out_renderpass->clear_flags);
+                    PRINT_ERROR("Invalid and unsupported combination of load operation (0x%x) and clear flags (0x%x) for color attachment.", attachment_desc.loadOp, out_renderpass->clear_flags);
                     return false;
                 }
             }
@@ -2254,7 +2256,7 @@ b8 vulkan_renderpass_create(RENDERER_PLUGIN* plugin, const RENDERPASS_CONFIG* co
                 return false;
             }
 
-            // NOTE: these will never be used on a colour attachment.
+            // NOTE: these will never be used on a color attachment.
             attachment_desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             attachment_desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
             // If loading, that means coming from another pass, meaning the format should be VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL. Otherwise it is undefined.
@@ -2264,7 +2266,7 @@ b8 vulkan_renderpass_create(RENDERER_PLUGIN* plugin, const RENDERPASS_CONFIG* co
             attachment_desc.finalLayout = attachment_config->present_after ? VK_IMAGE_LAYOUT_PRESENT_SRC_KHR : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;  // Transitioned to after the render pass
             attachment_desc.flags = 0;
 
-            // Push to colour attachments array.
+            // Push to color attachments array.
             darray_push(colour_attachment_descs, attachment_desc);
         } else if (attachment_config->type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
             // Depth attachment.
@@ -2315,7 +2317,7 @@ b8 vulkan_renderpass_create(RENDERER_PLUGIN* plugin, const RENDERPASS_CONFIG* co
             // Final layout for depth stencil attachments is always this.
             attachment_desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-            // Push to colour attachments array.
+            // Push to color attachments array.
             darray_push(depth_attachment_descs, attachment_desc);
         }
         // Push to general array.

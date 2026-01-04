@@ -6,17 +6,17 @@
 #include "core/ymemory.h"
 
 #define Y_PI 3.14159265358979323846f
-#define Y_PI_2 2.0f * Y_PI
-#define Y_HALF_PI 0.5f * Y_PI
-#define Y_QUARTER_PI 0.25f * Y_PI
-#define Y_ONE_OVER_PI 1.0f / Y_PI
-#define Y_ONE_OVER_TWO_PI 1.0f / Y_PI_2
+#define Y_2PI (2.0f * Y_PI)
+#define Y_HALF_PI (0.5f * Y_PI)
+#define Y_QUARTER_PI (0.25f * Y_PI)
+#define Y_ONE_OVER_PI (1.0f / Y_PI)
+#define Y_ONE_OVER_TWO_PI (1.0f / Y_2PI)
 #define Y_SQRT_TWO 1.41421356237309504880f
 #define Y_SQRT_THREE 1.73205080756887729352f
 #define Y_SQRT_ONE_OVER_TWO 0.70710678118654752440f
 #define Y_SQRT_ONE_OVER_THREE 0.57735026918962576450f
-#define Y_DEG2RAD_MULTIPLIER Y_PI / 180.0f
-#define Y_RAD2DEG_MULTIPLIER 180.0f / Y_PI
+#define Y_DEG2RAD_MULTIPLIER (Y_PI / 180.0f)
+#define Y_RAD2DEG_MULTIPLIER (180.0f / Y_PI)
 
 /** @brief The multiplier to convert seconds to microseconds. */
 #define Y_SEC_TO_US_MULTIPLIER (1000.0f * 1000.0f)
@@ -28,7 +28,7 @@
 #define Y_MS_TO_SEC_MULTIPLIER 0.001f
 
 // A huge number that should be larger than any valid number used.
-#define Y_INFINITY 1e30f
+#define Y_INFINITY (1e30f * 1e30f)
 
 // Smallest positive number where 1.0 + FLOAT_EPSILON != 0
 #define Y_FLOAT_EPSILON 1.192092896e-07f

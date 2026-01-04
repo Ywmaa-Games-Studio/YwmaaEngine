@@ -27,6 +27,8 @@
 #include <systems/material_system.h>
 #include <systems/render_view_system.h>
 #include <systems/light_system.h>
+#include <resources/simple_scene.h>
+#include <systems/resource_system.h>
 #include "debug_console.h"
 #include "game_commands.h"
 #include "game_keybinds.h"
@@ -35,6 +37,7 @@
 b8 configure_render_views(APPLICATION_CONFIG* config);
 void application_register_events(struct APPLICATION* application_instance);
 void application_unregister_events(struct APPLICATION* application_instance);
+static b8 load_main_scene(struct APPLICATION* application_instance);
 
 b8 application_on_event(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
     APPLICATION* application_instance = (APPLICATION*)listener_inst;
@@ -82,31 +85,20 @@ b8 application_on_debug_event(u16 code, void* sender, void* listener_inst, EVENT
         }
         return true;
     } else if (code == EVENT_CODE_DEBUG1) {
-        if (!state->models_loaded) {
-            PRINT_DEBUG("Loading models...");
-            state->models_loaded = true;
-            if (!mesh_load_from_resource("falcon", state->car_mesh)) {
-                PRINT_ERROR("Failed to load falcon mesh!");
-            }
-            if (!mesh_load_from_resource("sponza", state->sponza_mesh)) {
-                PRINT_ERROR("Failed to load falcon mesh!");
-            }
-            if (!mesh_load_from_resource("FlightHelmet", state->helmet_mesh)) {
-                PRINT_ERROR("Failed to load helmet mesh!");
-            }
-            if (!mesh_load_from_resource("Duck", state->duck_mesh)) {
-                PRINT_ERROR("Failed to load duck mesh!");
+        if (state->main_scene.state < SIMPLE_SCENE_STATE_LOADING) {
+            PRINT_DEBUG("Loading main scene...");
+            if (!load_main_scene(application_instance)) {
+                PRINT_ERROR("Error loading main scene");
             }
         }
         return true;
     } else if (code == EVENT_CODE_DEBUG2) {
-        if (state->models_loaded) {
-            PRINT_DEBUG("Unloading models...");
-            mesh_unload(state->car_mesh);
-            mesh_unload(state->sponza_mesh);
-            mesh_unload(state->helmet_mesh);
-            mesh_unload(state->duck_mesh);
-            state->models_loaded = false;
+        if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
+            PRINT_DEBUG("Unloading scene...");
+
+            simple_scene_unload(&state->main_scene, false);
+
+            PRINT_DEBUG("Done.");
         }
         return true;
     }
@@ -202,9 +194,12 @@ b8 application_init(APPLICATION* application_instance) {
 
     TESTBED_GAME_STATE* state = (TESTBED_GAME_STATE*)application_instance->state;
 
-    // TODO: temp load/prepare stuff
-
-    state->models_loaded = false;
+    // World meshes
+    // Invalidate all meshes.
+    for (u32 i = 0; i < 10; ++i) {
+        state->meshes[i].generation = INVALID_ID_U8;
+        state->ui_meshes[i].generation = INVALID_ID_U8;
+    }
 
     // Create test ui text objects
     if (!ui_text_create(UI_TEXT_TYPE_BITMAP, "Ubuntu Mono 21px", 21, "Some test text 123,\n\tyo!", &state->test_text)) {
@@ -219,118 +214,6 @@ b8 application_init(APPLICATION* application_instance) {
         return false;
     }
     ui_text_set_position(&state->test_sys_text, Vector3_create(500, 550, 0));
-
-    // Skybox
-    if (!skybox_create("skybox_cube", &state->sb)) {
-        PRINT_ERROR("Failed to create skybox, aborting game.");
-        return false;
-    }
-
-    // World meshes
-    // Invalidate all meshes.
-    for (u32 i = 0; i < 10; ++i) {
-        state->meshes[i].generation = INVALID_ID_U8;
-        state->ui_meshes[i].generation = INVALID_ID_U8;
-    }
-
-    u8 mesh_count = 0;
-
-    // Load up a cube configuration, and load geometry from it.
-    Mesh* cube_mesh = &state->meshes[mesh_count];
-    cube_mesh->geometry_count = 1;
-    cube_mesh->geometries = yallocate_aligned(sizeof(Mesh*) * cube_mesh->geometry_count, 8, MEMORY_TAG_ARRAY);
-    GEOMETRY_CONFIG g_config = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube", "test_material");
-    cube_mesh->geometries[0] = geometry_system_acquire_from_config(g_config, true);
-    cube_mesh->transform = transform_create();
-    mesh_count++;
-    cube_mesh->generation = 0;
-    cube_mesh->unique_id = identifier_aquire_new_id(cube_mesh);
-    // Clean up the allocations for the geometry config.
-    geometry_system_config_dispose(&g_config);
-
-    // A second cube
-    Mesh* cube_mesh_2 = &state->meshes[mesh_count];
-    cube_mesh_2->geometry_count = 1;
-    cube_mesh_2->geometries = yallocate_aligned(sizeof(Mesh*) * cube_mesh_2->geometry_count, 8, MEMORY_TAG_ARRAY);
-    g_config = geometry_system_generate_cube_config(5.0f, 5.0f, 5.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
-    cube_mesh_2->geometries[0] = geometry_system_acquire_from_config(g_config, true);
-    cube_mesh_2->transform = transform_from_position((Vector3){10.0f, 0.0f, 1.0f});
-    // Set the first cube as the parent to the second.
-    transform_set_parent(&cube_mesh_2->transform, &cube_mesh->transform);
-    mesh_count++;
-    cube_mesh_2->generation = 0;
-    cube_mesh_2->unique_id = identifier_aquire_new_id(cube_mesh_2);
-    // Clean up the allocations for the geometry config.
-    geometry_system_config_dispose(&g_config);
-
-    // A third cube!
-    Mesh* cube_mesh_3 = &state->meshes[mesh_count];
-    cube_mesh_3->geometry_count = 1;
-    cube_mesh_3->geometries = yallocate_aligned(sizeof(Mesh*) * cube_mesh_3->geometry_count, 8, MEMORY_TAG_ARRAY);
-    g_config = geometry_system_generate_cube_config(2.0f, 2.0f, 2.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
-    cube_mesh_3->geometries[0] = geometry_system_acquire_from_config(g_config, true);
-    cube_mesh_3->transform = transform_from_position((Vector3){5.0f, 0.0f, 1.0f});
-    // Set the second cube as the parent to the third.
-    transform_set_parent(&cube_mesh_3->transform, &cube_mesh_2->transform);
-    mesh_count++;
-    cube_mesh_3->generation = 0;
-    cube_mesh_3->unique_id = identifier_aquire_new_id(cube_mesh_3);
-    // Clean up the allocations for the geometry config.
-    geometry_system_config_dispose(&g_config);
-
-    state->car_mesh = &state->meshes[mesh_count];
-    state->car_mesh->unique_id = identifier_aquire_new_id(state->car_mesh);
-    state->car_mesh->transform = transform_from_position((Vector3){15.0f, 0.0f, 1.0f});
-    mesh_count++;
-
-    state->sponza_mesh = &state->meshes[mesh_count];
-    state->sponza_mesh->unique_id = identifier_aquire_new_id(state->sponza_mesh);
-    state->sponza_mesh->transform = transform_from_position_rotation_scale((Vector3){15.0f, 0.0f, 1.0f}, Quaternion_identity(), (Vector3){0.05f, 0.05f, 0.05f});
-    mesh_count++;
-
-    state->helmet_mesh = &state->meshes[mesh_count];
-    state->helmet_mesh->unique_id = identifier_aquire_new_id(state->helmet_mesh);
-    state->helmet_mesh->transform = transform_from_position_rotation_scale((Vector3){0.0f, 5.0f, 0.0f}, Quaternion_identity(), (Vector3){10.0f, 10.0f, 10.0f});
-    mesh_count++;
-
-    state->duck_mesh = &state->meshes[mesh_count];
-    state->duck_mesh->unique_id = identifier_aquire_new_id(state->duck_mesh);
-    state->duck_mesh->transform = transform_from_position_rotation_scale((Vector3){0.0f, 15.0f, 0.0f}, Quaternion_identity(), (Vector3){0.025f, 0.025f, 0.025f});
-    mesh_count++;
-
-    // TODO: HACK: moving lighting code to CPU
-    state->dir_light = (DIRECTIONAL_LIGHT){
-        (Vector4){0.4f, 0.4f, 0.2f, 1.0f},
-        (Vector4){-0.57735f, -0.57735f, -0.57735f, 0.0f}};
-
-    light_system_add_directional(&state->dir_light);
-
-    state->p_lights[0].colour = (Vector4){1.0f, 0.0f, 0.0f, 1.0f};
-    state->p_lights[0].position = (Vector4){-5.5f, 0.0f, -5.5f, 0.0f};
-    state->p_lights[0].constant_f = 1.0f;
-    state->p_lights[0].linear = 0.35f;
-    state->p_lights[0].quadratic = 0.44f;
-    state->p_lights[0].padding = 0;
-
-    light_system_add_point(&state->p_lights[0]);
-
-    state->p_lights[1].colour = (Vector4){0.0f, 1.0f, 0.0f, 1.0f};
-    state->p_lights[1].position = (Vector4){5.5f, 0.0f, -5.5f, 0.0f};
-    state->p_lights[1].constant_f = 1.0f;
-    state->p_lights[1].linear = 0.35f;
-    state->p_lights[1].quadratic = 0.44f;
-    state->p_lights[1].padding = 0;
-
-    light_system_add_point(&state->p_lights[1]);
-
-    state->p_lights[2].colour = (Vector4){0.0f, 0.0f, 1.0f, 1.0f};
-    state->p_lights[2].position = (Vector4){5.5f, 0.0f, 5.5f, 0.0f};
-    state->p_lights[2].constant_f = 1.0f;
-    state->p_lights[2].linear = 0.35f;
-    state->p_lights[2].quadratic = 0.44f;
-    state->p_lights[2].padding = 0;
-
-    light_system_add_point(&state->p_lights[2]);
 
     // Load up some test UI geometry.
     GEOMETRY_CONFIG ui_config;
@@ -398,8 +281,15 @@ b8 application_init(APPLICATION* application_instance) {
 void application_shutdown(APPLICATION* application_instance) {
     TESTBED_GAME_STATE* state = (TESTBED_GAME_STATE*)application_instance->state;
 
+    if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
+        PRINT_DEBUG("Unloading scene...");
+
+        simple_scene_unload(&state->main_scene, true);
+
+        PRINT_DEBUG("Done.");
+    }
+
     // TODO: Temp
-    skybox_destroy(&state->sb);
 
     // Destroy ui texts
     ui_text_destroy(&state->test_text);
@@ -408,39 +298,45 @@ void application_shutdown(APPLICATION* application_instance) {
     debug_console_unload(&state->debug_console);
 }
 
-b8 application_update(APPLICATION* application_instance, const struct FRAME_DATA* p_frame_data) {
-    // Ensure this is cleaned up to avoid leaking memory.
-    // TODO: Need a version of this that uses the frame allocator.
+b8 application_update(APPLICATION* application_instance, struct FRAME_DATA* p_frame_data) {
+
     TESTBED_APPLICATION_FRAME_DATA* app_frame_data = (TESTBED_APPLICATION_FRAME_DATA*)p_frame_data->application_frame_data;
     if (!app_frame_data) {
         return true;
     }
-    
-    if (app_frame_data->world_geometries) {
-        darray_destroy(app_frame_data->world_geometries);
-        app_frame_data->world_geometries = 0;
-    }
-
-    // Clear frame data
-    // yzero_memory(&application_instance->frame_data, sizeof(APP_FRAME_DATA));
 
     TESTBED_GAME_STATE* state = (TESTBED_GAME_STATE*)application_instance->state;
 
     clock_start(&state->update_clock);
 
+    if (state->main_scene.state >= SIMPLE_SCENE_STATE_LOADED) {
+        if (!simple_scene_update(&state->main_scene, p_frame_data)) {
+            PRINT_WARNING("Failed to update main scene.");
+        }
+
+/*         // Perform a small rotation on the first mesh.
+        Quaternion rotation = Quaternion_from_axis_angle((Vector3){0, 1, 0}, -0.5f * p_frame_data->delta_time, false);
+        transform_rotate(&state->meshes[0].transform, rotation);
+
+        // Perform a similar rotation on the second mesh, if it exists.
+        transform_rotate(&state->meshes[1].transform, rotation);
+
+        // Perform a similar rotation on the third mesh, if it exists.
+        transform_rotate(&state->meshes[2].transform, rotation); */
+
+        if (state->p_light_1) {
+            state->p_light_1->data.color = (Vector4){
+                (ysin(p_frame_data->total_time + 0.0f) + 1.0f) * 0.5f,
+                (ysin(p_frame_data->total_time + 0.3f) + 1.0f) * 0.5f,
+                (ysin(p_frame_data->total_time + 0.6f) + 1.0f) * 0.5f,
+                1.0f};
+            state->p_light_1->data.position.x = ysin(p_frame_data->total_time);
+        }
+    }
+
     // Track allocation differences.
     state->prev_alloc_count = state->alloc_count;
     state->alloc_count = get_memory_alloc_count();
-
-    // Perform a small rotation on the first mesh.
-    Quaternion rotation = Quaternion_from_axis_angle((Vector3){0, 1, 0}, -0.5f * p_frame_data->delta_time, false);
-    transform_rotate(&state->meshes[0].transform, rotation);
-
-    // Perform a similar rotation on the second mesh, if it exists.
-    transform_rotate(&state->meshes[1].transform, rotation);
-
-    // Perform a similar rotation on the third mesh, if it exists.
-    transform_rotate(&state->meshes[2].transform, rotation);
 
     // Update the bitmap text with camera position. NOTE: just using the default camera for now.
     Camera* world_camera = camera_system_get_default();
@@ -459,82 +355,6 @@ b8 application_update(APPLICATION* application_instance, const struct FRAME_DATA
 
     f64 fps, frame_time;
     metrics_frame(&fps, &frame_time);
-
-    // Update the frustum
-    Vector3 forward = camera_forward(state->world_camera);
-    Vector3 right = camera_right(state->world_camera);
-    Vector3 up = camera_up(state->world_camera);
-    // TODO: get camera fov, aspect, etc.
-    state->camera_frustum = frustum_create(&state->world_camera->position, &forward, &right, &up, (f32)state->width / state->height, deg_to_rad(45.0f), 0.1f, 1000.0f);
-
-    // NOTE: starting at a reasonable default to avoid too many reallocs.
-    app_frame_data->world_geometries = darray_reserve(GEOMETRY_RENDER_DATA, 512);
-    u32 draw_count = 0;
-    for (u32 i = 0; i < 10; ++i) {
-        Mesh* m = &state->meshes[i];
-        if (m->generation != INVALID_ID_U8) {
-            Matrice4 model = transform_get_world(&m->transform);
-
-            for (u32 j = 0; j < m->geometry_count; ++j) {
-                GEOMETRY* g = m->geometries[j];
-
-                // // Bounding sphere calculation.
-                // {
-                //     // Translate/scale the extents.
-                //     Vector3 extents_min = Vector3_multiply_Matrice4(g->extents.min, model);
-                //     Vector3 extents_max = Vector3_multiply_Matrice4(g->extents.max, model);
-
-                //     f32 min = KMIN(KMIN(extents_min.x, extents_min.y), extents_min.z);
-                //     f32 max = KMAX(KMAX(extents_max.x, extents_max.y), extents_max.z);
-                //     f32 diff = yabs(max - min);
-                //     f32 radius = diff * 0.5f;
-
-                //     // Translate/scale the center.
-                //     Vector3 center = Vector3_multiply_Matrice4(g->center, model);
-
-                //     if (frustum_intersects_sphere(&state->camera_frustum, &center, radius)) {
-                //         // Add it to the list to be rendered.
-                //         geometry_render_data data = {0};
-                //         data.model = model;
-                //         data.geometry = g;
-                //         data.unique_id = m->unique_id;
-                //         darray_push(application_instance->frame_data.world_geometries, data);
-
-                //         draw_count++;
-                //     }
-                // }
-
-                // AABB calculation
-                {
-                    // Translate/scale the extents.
-                    // Vector3 extents_min = Vector3_multiply_Matrice4(g->extents.min, model);
-                    Vector3 extents_max = Vector3_multiply_Matrice4(g->extents.max, model);
-
-                    // Translate/scale the center.
-                    Vector3 center = Vector3_multiply_Matrice4(g->center, model);
-                    Vector3 half_extents = {
-                        yabs(extents_max.x - center.x),
-                        yabs(extents_max.y - center.y),
-                        yabs(extents_max.z - center.z),
-                    };
-
-                    if (frustum_intersects_aabb(&state->camera_frustum, &center, &half_extents)) {
-                        // Add it to the list to be rendered.
-                        GEOMETRY_RENDER_DATA data = {0};
-                        data.model = model;
-                        data.geometry = g;
-                        data.unique_id = m->unique_id;
-                        darray_push(app_frame_data->world_geometries, data);
-
-                        draw_count++;
-                    }
-                }
-            }
-        }
-    }
-
-    state->p_lights[1].colour = (Vector4){0.0f, 1.0f, 1.0f, 1.0f};
-    state->p_lights[1].position.x -= 0.005f;
 
     char* vsync_text = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
     char text_buffer[2048];
@@ -556,7 +376,7 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
         mouse_x_ndc,
         mouse_y_ndc,
         vsync_text,
-        draw_count,
+        p_frame_data->drawn_mesh_count,
         state->hovered_object_id == INVALID_ID ? "none" : "",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
     ui_text_set_text(&state->test_text, text_buffer);
@@ -569,9 +389,9 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
     return true;
 }
 
-b8 application_render(APPLICATION* application_instance, struct RENDER_PACKET* packet, const struct FRAME_DATA* p_frame_data) {
+b8 application_render(APPLICATION* application_instance, struct RENDER_PACKET* packet, struct FRAME_DATA* p_frame_data) {
     TESTBED_GAME_STATE* state = (TESTBED_GAME_STATE*)application_instance->state;
-    TESTBED_APPLICATION_FRAME_DATA* app_frame_data = (TESTBED_APPLICATION_FRAME_DATA*)p_frame_data->application_frame_data;
+    //TESTBED_APPLICATION_FRAME_DATA* app_frame_data = (TESTBED_APPLICATION_FRAME_DATA*)p_frame_data->application_frame_data;
 
     clock_start(&state->render_clock);
 
@@ -581,19 +401,19 @@ b8 application_render(APPLICATION* application_instance, struct RENDER_PACKET* p
     packet->view_count = 4;
     packet->views = linear_allocator_allocate(p_frame_data->frame_allocator, sizeof(RENDER_VIEW_PACKET) * packet->view_count);
 
-    // Skybox
-    SKYBOX_PACKET_DATA skybox_data = {0};
-    skybox_data.sb = &state->sb;
-    if (!render_view_system_build_packet(render_view_system_get("skybox"), p_frame_data->frame_allocator, &skybox_data, &packet->views[0])) {
-        PRINT_ERROR("Failed to build packet for view 'skybox'.");
-        return false;
-    }
+    // FIXME: Read this from config
+    packet->views[0].view = render_view_system_get("skybox");
+    packet->views[1].view = render_view_system_get("world");
+    packet->views[2].view = render_view_system_get("ui");
+    packet->views[3].view = render_view_system_get("pick");
 
-    // World
-    // TODO: performs a lookup on every frame.
-    if (!render_view_system_build_packet(render_view_system_get("world"), p_frame_data->frame_allocator, app_frame_data->world_geometries, &packet->views[1])) {
-        PRINT_ERROR("Failed to build packet for view 'world_opaque'.");
-        return false;
+    // Tell our scene to generate relevant packet data.
+    if (state->main_scene.state == SIMPLE_SCENE_STATE_LOADED) {
+        if (!simple_scene_populate_render_packet(&state->main_scene, state->world_camera, (f32)state->width / state->height, p_frame_data, packet)) {
+            PRINT_ERROR("Failed populare render packet for main scene.");
+            return false;
+        }
+
     }
 
     // ui
@@ -634,7 +454,7 @@ b8 application_render(APPLICATION* application_instance, struct RENDER_PACKET* p
     // Pick uses both world and ui packet data.
     PICK_PACKET_DATA pick_packet = {0};
     pick_packet.ui_mesh_data = ui_packet.mesh_data;
-    pick_packet.world_mesh_data = app_frame_data->world_geometries;
+    pick_packet.world_mesh_data = packet->views[1].geometries;  // TODO: non-hardcoded index?
     pick_packet.texts = ui_packet.texts;
     pick_packet.text_count = ui_packet.text_count;
 
@@ -917,4 +737,92 @@ b8 configure_render_views(APPLICATION_CONFIG* config) {
     darray_push(config->render_views, pick_view_config);
 
     return true;
+}
+
+static b8 load_main_scene(struct APPLICATION* application_instance) {
+    TESTBED_GAME_STATE* state = (TESTBED_GAME_STATE*)application_instance->state;
+
+    // Load up config file
+    // TODO: clean up resource.
+    RESOURCE simple_scene_resource;
+    if (!resource_system_load("test_scene", RESOURCE_TYPE_SIMPLE_SCENE, 0, &simple_scene_resource)) {
+        PRINT_ERROR("Failed to load scene file, check above logs.");
+        return false;
+    }
+
+    SIMPLE_SCENE_CONFIG* scene_config = (SIMPLE_SCENE_CONFIG*)simple_scene_resource.data;
+
+    // TODO: temp load/prepare stuff
+    if (!simple_scene_create(scene_config, &state->main_scene)) {
+        PRINT_ERROR("Failed to create main scene");
+        return false;
+    }
+
+    // Add objects to scene
+
+/*     // Load up a cube configuration, and load geometry from it.
+    MESH_CONFIG cube_0_config = {0};
+    cube_0_config.geometry_count = 1;
+    cube_0_config.g_configs = yallocate(sizeof(GEOMETRY_CONFIG), MEMORY_TAG_ARRAY);
+    cube_0_config.g_configs[0] = geometry_system_generate_cube_config(10.0f, 10.0f, 10.0f, 1.0f, 1.0f, "test_cube_0", "test_material");
+
+    cube_0_config.name = string_duplicate("test_cube_0");
+    cube_0_config.resource_name = string_duplicate("test_cube_0");
+    cube_0_config.parent_name = NULL;
+
+    if (!mesh_create(cube_0_config, &state->meshes[0])) {
+        PRINT_ERROR("Failed to create mesh for cube 0");
+        return false;
+    }
+    state->meshes[0].transform = transform_create();
+    simple_scene_add_mesh(&state->main_scene, "test_cube_0", &state->meshes[0]);
+
+    // Second cube
+    MESH_CONFIG cube_1_config = {0};
+    cube_1_config.geometry_count = 1;
+    cube_1_config.g_configs = yallocate(sizeof(GEOMETRY_CONFIG), MEMORY_TAG_ARRAY);
+    cube_1_config.g_configs[0] = geometry_system_generate_cube_config(5.0f, 5.0f, 5.0f, 1.0f, 1.0f, "test_cube_1", "test_material");
+
+    cube_1_config.name = string_duplicate("test_cube_1");
+    cube_1_config.resource_name = string_duplicate("test_cube_1");
+    cube_1_config.parent_name = NULL;
+
+    if (!mesh_create(cube_1_config, &state->meshes[1])) {
+        PRINT_ERROR("Failed to create mesh for cube 1");
+        return false;
+    }
+    state->meshes[1].transform = transform_from_position((Vector3){10.0f, 0.0f, 1.0f});
+    transform_set_parent(&state->meshes[1].transform, &state->meshes[1].transform);
+
+    simple_scene_add_mesh(&state->main_scene, "test_cube_1", &state->meshes[1]);
+
+    // Third cube!
+    MESH_CONFIG cube_2_config = {0};
+    cube_2_config.geometry_count = 1;
+    cube_2_config.g_configs = yallocate(sizeof(GEOMETRY_CONFIG), MEMORY_TAG_ARRAY);
+    cube_2_config.g_configs[0] = geometry_system_generate_cube_config(2.0f, 2.0f, 2.0f, 1.0f, 1.0f, "test_cube_2", "test_material");
+
+    cube_2_config.name = string_duplicate("test_cube_2");
+    cube_2_config.resource_name = string_duplicate("test_cube_2");
+    cube_2_config.parent_name = NULL;
+
+    if (!mesh_create(cube_2_config, &state->meshes[2])) {
+        PRINT_ERROR("Failed to create mesh for cube 2");
+        return false;
+    }
+    state->meshes[2].transform = transform_from_position((Vector3){5.0f, 0.0f, 1.0f});
+    transform_set_parent(&state->meshes[2].transform, &state->meshes[2].transform);
+
+    simple_scene_add_mesh(&state->main_scene, "test_cube_2", &state->meshes[2]); */
+
+    // Initialize
+    if (!simple_scene_init(&state->main_scene)) {
+        PRINT_ERROR("Failed init main scene, aborting game.");
+        return false;
+    }
+
+    state->p_light_1 = simple_scene_point_light_get(&state->main_scene, "point_light_1");
+
+    // Actually load the scene.
+    return simple_scene_load(&state->main_scene);
 }

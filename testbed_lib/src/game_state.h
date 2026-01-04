@@ -11,6 +11,7 @@
 #include <core/clock.h>
 #include <input/keymap.h>
 #include <systems/light_system.h>
+#include <resources/simple_scene.h>
 
 #include "debug_console.h"
 
@@ -27,17 +28,12 @@ typedef struct TESTBED_GAME_STATE {
     f64 last_update_elapsed;
 
     // TODO: temp
-    Skybox sb;
+    SIMPLE_SCENE main_scene;
+    b8 main_scene_unload_triggered;
 
     Mesh meshes[10];
-    Mesh* car_mesh;
-    Mesh* sponza_mesh;
-    Mesh* helmet_mesh;
-    Mesh* duck_mesh;
-    b8 models_loaded;
 
-    DIRECTIONAL_LIGHT dir_light;
-    POINT_LIGHT p_lights[3];
+    POINT_LIGHT* p_light_1;
 
     Mesh ui_meshes[10];
     UI_TEXT test_text;
@@ -56,5 +52,5 @@ typedef struct TESTBED_GAME_STATE {
 } TESTBED_GAME_STATE;
 
 typedef struct TESTBED_APPLICATION_FRAME_DATA {
-    GEOMETRY_RENDER_DATA* world_geometries;
+    i32 dummy;
 } TESTBED_APPLICATION_FRAME_DATA;

@@ -50,19 +50,19 @@ typedef struct APPLICATION {
     /** 
      * @brief Function pointer to APPLICATION's update function. 
      * @param app_instance A pointer to the APPLICATION instance.
-     * @param p_frame_data A constant pointer to the current frame's data.
+     * @param p_frame_data A pointer to the current frame's data.
      * @returns True on success; otherwise false.
      * */
-    b8 (*update)(struct APPLICATION* app_instance, const struct FRAME_DATA* p_frame_data);
+    b8 (*update)(struct APPLICATION* app_instance, struct FRAME_DATA* p_frame_data);
 
     /** 
      * @brief Function pointer to APPLICATION's render function. 
      * @param app_instance A pointer to the APPLICATION instance.
      * @param packet A pointer to the packet to be populated by the APPLICATION.
-     * @param p_frame_data A constant pointer to the current frame's data.
+     * @param p_frame_data A pointer to the current frame's data.
      * @returns True on success; otherwise false.
      * */
-    b8 (*render)(struct APPLICATION* app_instance, struct RENDER_PACKET* packet, const struct FRAME_DATA* p_frame_data);
+    b8 (*render)(struct APPLICATION* app_instance, struct RENDER_PACKET* packet, struct FRAME_DATA* p_frame_data);
 
     /** 
      * @brief Function pointer to handle resizes, if applicable. 

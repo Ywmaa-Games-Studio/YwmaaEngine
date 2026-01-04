@@ -183,6 +183,7 @@ b8 create_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY_CONFIG config, GEOMETR
     g->center = config.center;
     g->extents.min = config.min_extents;
     g->extents.max = config.max_extents;
+    g->generation++;
 
     // Acquire the material
     if (string_length(config.material_name) > 0) {

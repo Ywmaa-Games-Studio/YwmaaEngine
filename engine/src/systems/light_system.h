@@ -10,23 +10,27 @@
 
 #include "math/math_types.h"
 
-/**
- * @brief A directional light, typically used to emulate sun/moon light.
- */
-typedef struct DIRECTIONAL_LIGHT {
-    /** @brief The light colour. */
-    Vector4 colour;
+typedef struct DIRECTIONAL_LIGHT_DATA {
+    /** @brief The light color. */
+    Vector4 color;
     /** @brief The direction of the light. The w component is ignored.*/
     Vector4 direction;
-} DIRECTIONAL_LIGHT;
+} DIRECTIONAL_LIGHT_DATA;
 
 /**
- * @brief A point light, the most common light source, which radiates out from the
- * given position.
+ * @brief A directional light, typically used to emulate sun/moon light.
+
  */
-typedef struct POINT_LIGHT {
-    /** @brief The light colour. */
-    Vector4 colour;
+typedef struct DIRECTIONAL_LIGHT {
+    /** @brief The name of the directional light. */
+    char* name;
+    /** @brief The directional light shader data. */
+    DIRECTIONAL_LIGHT_DATA data;
+} DIRECTIONAL_LIGHT;
+
+typedef struct POINT_LIGHT_DATA {
+    /** @brief The light color. */
+    Vector4 color;
     /** @brief The position of the light in the world. The w component is ignored.*/
     Vector4 position;
     /** @brief Usually 1, make sure denominator never gets smaller than 1 */
@@ -37,6 +41,17 @@ typedef struct POINT_LIGHT {
     f32 quadratic;
     /** @brief Additional padding used for memory alignment purposes. Ignored. */
     f32 padding;
+} POINT_LIGHT_DATA;
+
+/**
+ * @brief A point light, the most common light source, which radiates out from the
+ * given position.
+ */
+typedef struct POINT_LIGHT {
+    /** @brief The name of the light. */
+    char* name;
+    /** @brief The shader data for the point light. */
+    POINT_LIGHT_DATA data;
 } POINT_LIGHT;
 
 /**
@@ -106,7 +121,7 @@ YAPI DIRECTIONAL_LIGHT* light_system_directional_light_get(void);
  *
  * @return The total number of point lights currently in the system.
  */
-YAPI i32 light_system_point_light_count(void);
+YAPI u32 light_system_point_light_count(void);
 
 /**
  * @brief Fills in the required array of point lights within the system. Array

@@ -1190,8 +1190,10 @@ b8 webgpu_renderer_shader_release_instance_resources(RENDERER_PLUGIN* plugin, st
         yfree(instance_state->instance_texture_maps);
         instance_state->instance_texture_maps = 0;
     }
-    if (!renderer_renderbuffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset)) {
-        PRINT_ERROR("webgpu_renderer_shader_release_instance_resources failed to free range from RENDER_BUFFER.");
+    if (s->ubo_stride != 0) {
+        if (!renderer_renderbuffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset)) {
+            PRINT_ERROR("webgpu_renderer_shader_release_instance_resources failed to free range from renderbuffer.");
+        }
     }
     instance_state->offset = INVALID_ID;
     instance_state->id = INVALID_ID;

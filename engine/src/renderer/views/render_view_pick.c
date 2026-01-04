@@ -263,7 +263,7 @@ b8 render_view_pick_on_build_packet(const struct RENDER_VIEW* self, struct LINEA
     packet_data->ui_geometry_count = 0;
     out_packet->extended_data = linear_allocator_allocate(frame_allocator, sizeof(PICK_PACKET_DATA));
 
-    u32 world_geometry_count = darray_length(packet_data->world_mesh_data);
+    u32 world_geometry_count = !packet_data->world_mesh_data ? 0 : darray_length(packet_data->world_mesh_data);
 
     u32 highest_instance_id = 0;
     // Iterate all geometries in world data.
@@ -360,7 +360,7 @@ b8 render_view_pick_on_render(const struct RENDER_VIEW* self, const struct RENDE
         shader_system_apply_global();
 
         // Draw geometries. Start from 0 since world geometries are added first, and stop at the world geometry count.
-        u32 world_geometry_count = darray_length(packet_data->world_mesh_data);
+        u32 world_geometry_count = !packet_data->world_mesh_data ? 0 : darray_length(packet_data->world_mesh_data);
         for (u32 i = 0; i < world_geometry_count; ++i) {
             GEOMETRY_RENDER_DATA* geo = &packet->geometries[i];
             current_instance_id = geo->unique_id;

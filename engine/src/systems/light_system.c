@@ -86,7 +86,7 @@ DIRECTIONAL_LIGHT* light_system_directional_light_get(void) {
     return state->dir_light;
 }
 
-i32 light_system_point_light_count(void) {
+u32 light_system_point_light_count(void) {
     LIGHT_SYSTEM_STATE* state = systems_manager_get_state(Y_SYSTEM_TYPE_LIGHT);
     i32 count = 0;
     for (u32 i = 0; i < MAX_POINT_LIGHTS; ++i) {

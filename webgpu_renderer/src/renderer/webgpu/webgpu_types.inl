@@ -2,12 +2,13 @@
 #include "renderer/renderer_types.inl"
 #include "defines.h"
 #include "data_structures/hashtable.h"
-//#include <webgpu.h>
-//#include <wgpu.h>
 #define WGPU_SHARED_LIBRARY
+#ifdef YPLATFORM_WEB
+#include "webgpu/webgpu.h"
+#else
 #include "../thirdparty/wgpu/include/wgpu.h"
 #include "../thirdparty/wgpu/include/webgpu.h"
-
+#endif
 #include "memory/freelist.h"
 
 typedef struct WEBGPU_BUFFER {
@@ -224,6 +225,7 @@ typedef struct WEBGPU_SHADER {
 } WEBGPU_SHADER;
 
 typedef struct WEBGPU_CONTEXT {
+    RENDERER_PLUGIN* plugin;
     // The framebuffer's current width.
     u32 framebuffer_width;
 
@@ -256,6 +258,7 @@ typedef struct WEBGPU_CONTEXT {
     WGPUCommandEncoder encoder;
     struct SHADER* current_shader;
 
+    WGPUSurfaceTexture current_surface_texture;
     TEXTURE* render_texture;
     TEXTURE* depth_texture;
     WGPUTextureFormat swapchain_format;

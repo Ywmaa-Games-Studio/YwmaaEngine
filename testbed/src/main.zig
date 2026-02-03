@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub extern fn engine_main(backend: RendererBackend) void;
+pub extern fn engine_main(backend: RendererBackend) i32;
 
 // The main entry point of the application.
 
@@ -10,7 +10,12 @@ pub const RendererBackend = enum(c_int) {
     WEBGPU, // 1
     _,
 };
-
+// Web entry point
+pub export fn start_web() void {
+    //std.debug.print("Zig starting C engine...\n", .{});
+    const backend: RendererBackend = .WEBGPU;
+    _ = engine_main(backend);
+}
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
     const args = try std.process.argsAlloc(allocator);
@@ -31,5 +36,5 @@ pub fn main() !void {
     }
 
     // Pass the parsed backend to C
-    engine_main(backend);
+    _ = engine_main(backend);
 }

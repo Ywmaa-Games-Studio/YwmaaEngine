@@ -511,9 +511,13 @@ b8 uniform_add(SHADER* shader, const char* uniform_name, u32 size, E_SHADER_UNIF
     } else {
         entry.location = entry.index;
     }
-
+#ifndef YWEBGPU_USE_PUSH_CONSTANTS
+    if (scope != SHADER_SCOPE_LOCAL || renderer_get_backend_api() == RENDERER_BACKEND_API_WEBGPU) {
+        entry.set_index = (scope == SHADER_SCOPE_LOCAL && renderer_get_backend_api() == RENDERER_BACKEND_API_WEBGPU) ? SHADER_SCOPE_INSTANCE : (u32)scope;
+#else
     if (scope != SHADER_SCOPE_LOCAL) {
         entry.set_index = (u32)scope;
+#endif
         entry.offset = is_sampler ? 0 : is_global ? shader->global_ubo_size
                                                   : shader->ubo_size;
         entry.size = is_sampler ? 0 : size;
@@ -545,6 +549,11 @@ b8 uniform_add(SHADER* shader, const char* uniform_name, u32 size, E_SHADER_UNIF
         } else if (entry.scope == SHADER_SCOPE_INSTANCE) {
             shader->ubo_size += entry.size;
         }
+#ifndef YWEBGPU_USE_PUSH_CONSTANTS
+        else if (entry.scope == SHADER_SCOPE_LOCAL && renderer_get_backend_api() == RENDERER_BACKEND_API_WEBGPU) {
+            shader->ubo_size += entry.size;
+        }
+#endif
     }
 
     return true;

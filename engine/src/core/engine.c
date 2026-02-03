@@ -28,7 +28,7 @@ typedef struct ENGINE_STATE_T {
     b8 is_suspended;
     i16 width;
     i16 height;
-    clock clock;
+    native_clock clock;
     f64 last_time;
     SYSTEMS_MANAGER_STATE sys_manager_state;
     // An allocator used for per-frame allocations, that is reset every frame.
@@ -50,7 +50,7 @@ b8 engine_create(APPLICATION* game_instance) {
 
     // Memory system must be the first thing to be stood up.
     MEMORY_SYSTEM_CONFIG memory_system_config = {0};
-    memory_system_config.total_alloc_size = GIBIBYTES(2);
+    memory_system_config.total_alloc_size = GIBIBYTES(1);
     if (!memory_system_init(memory_system_config)) {
         PRINT_ERROR("Failed to initialize memory system; shutting down.");
         return false;
@@ -98,8 +98,15 @@ b8 engine_create(APPLICATION* game_instance) {
         engine_state->p_frame_data.application_frame_data = 0;
     }
     game_instance->stage = APPLICATION_STAGE_BOOT_COMPLETE;
+#ifndef YPLATFORM_WEB
+    return engine_post_boot();
+#else
+    return true;
+#endif
+}
 
-    if (!systems_manager_post_boot_init(&engine_state->sys_manager_state, &game_instance->app_config)) {
+b8 engine_post_boot(void) {
+    if (!systems_manager_post_boot_init(&engine_state->sys_manager_state, &engine_state->game_instance->app_config)) {
         PRINT_ERROR("Post-boot system manager initialization failed!");
         return false;
     }
@@ -108,12 +115,12 @@ b8 engine_create(APPLICATION* game_instance) {
     PRINT_INFO("Ywmaa Engine v. %s", YVERSION);
 
     // Initialize the game.
-    game_instance->stage = APPLICATION_STAGE_INITIALIZING;
+    engine_state->game_instance->stage = APPLICATION_STAGE_INITIALIZING;
     if (!engine_state->game_instance->init(engine_state->game_instance)) {
         PRINT_ERROR("Game failed to initialize.");
         return false;
     }
-    game_instance->stage = APPLICATION_STAGE_INITIALIZED;
+    engine_state->game_instance->stage = APPLICATION_STAGE_INITIALIZED;
 
     // Call resize once to ensure the proper size has been set.
     renderer_on_resized(engine_state->width, engine_state->height);
@@ -122,16 +129,133 @@ b8 engine_create(APPLICATION* game_instance) {
     return true;
 }
 
+f64 running_time = 0;
+u8 frame_count = 0;
+f64 target_frame_seconds = 1.0f / 60;
+f64 frame_elapsed_time = 0;
+
+b8 render_loop(void) {
+    if(!platform_pump_messages()) {
+        engine_state->is_running = false;
+    }
+
+    if(!engine_state->is_suspended) {
+        // Update clock and get delta time.
+        clock_update(&engine_state->clock);
+        f64 current_time = engine_state->clock.elapsed;
+        f64 delta = (current_time - engine_state->last_time);
+        f64 frame_start_time = platform_get_absolute_time();
+
+        engine_state->p_frame_data.total_time = current_time;
+        engine_state->p_frame_data.delta_time = (f32)delta;
+
+        // Reset the frame allocator
+        linear_allocator_free_all(&engine_state->frame_allocator);
+
+        // Update systems.
+        systems_manager_update(&engine_state->sys_manager_state, &engine_state->p_frame_data);
+
+        // update metrics
+        metrics_update(frame_elapsed_time);
+
+        if (!engine_state->game_instance->update(engine_state->game_instance, &engine_state->p_frame_data)) {
+            PRINT_ERROR("Game update failed, shutting down.");
+            engine_state->is_running = false;
+            return false;
+        }
+
+        // TODO: refactor packet creation
+        RENDER_PACKET packet = {0};
+
+        // Call the game's render routine.
+        if (!engine_state->game_instance->render(engine_state->game_instance, &packet, &engine_state->p_frame_data)) {
+            PRINT_ERROR("Game render failed, shutting down.");
+            engine_state->is_running = false;
+            return false;
+        }
+
+        renderer_draw_frame(&packet, &engine_state->p_frame_data);
+
+        // Cleanup the packet.
+        for (u32 i = 0; i < packet.view_count; ++i) {
+            packet.views[i].view->on_destroy_packet(packet.views[i].view, &packet.views[i]);
+        }
+
+        // Figure out how long the frame took and, if below
+        f64 frame_end_time = platform_get_absolute_time();
+        frame_elapsed_time = frame_end_time - frame_start_time;
+        running_time += frame_elapsed_time;
+        f64 remaining_seconds = target_frame_seconds - frame_elapsed_time;
+
+        if (remaining_seconds > 0) {
+            #ifndef YPLATFORM_WEB
+            u64 remaining_ms = (remaining_seconds * 1000);
+
+            // If there is time left, give it back to the OS.
+            b8 limit_frames = false;
+            if (remaining_ms > 0 && limit_frames) {
+                platform_sleep(remaining_ms - 1);
+            }
+            #endif
+
+            frame_count++;
+        }
+
+        // NOTE: Input update/state copying should always be handled
+        // after any input should be recorded; I.E. before this line.
+        // As a safety, input is the last thing to be updated before
+        // this frame ends.
+        input_update(&engine_state->p_frame_data);
+
+        // Update last time
+        engine_state->last_time = current_time;
+    }
+    return true;
+}
+
+void post_render_shutdown(void) {
+    engine_state->is_running = false;
+    engine_state->game_instance->stage = APPLICATION_STAGE_SHUTTING_DOWN;
+
+    // Shut down the game.
+    engine_state->game_instance->shutdown(engine_state->game_instance);
+
+    // Unregister from events.
+    event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
+    
+    engine_state->game_instance->stage = APPLICATION_STAGE_UNINITIALIZED;
+    
+    // Shut down all systems.
+    systems_manager_shutdown(&engine_state->sys_manager_state);
+
+}
+#ifdef YPLATFORM_WEB
+#include <emscripten.h>
+#include <emscripten/html5.h>
+// Callback type takes one argument of type 'void*' and returns nothing
+//typedef void (*em_arg_callback_func)(void*);
+EMSCRIPTEN_KEEPALIVE
+EM_BOOL em_loop(double time, void *userData) {
+    int result = render_loop();
+
+    if (result == 0) {
+        post_render_shutdown();
+        return EM_FALSE;
+    }
+
+    return EM_TRUE;
+}
+APPLICATION* get_application_instance(void) {
+    return engine_state->game_instance;
+}
+#endif
+
 b8 engine_run(APPLICATION* game_instance) {
     game_instance->stage = APPLICATION_STAGE_RUNNING;
     engine_state->is_running = true;
     clock_start(&engine_state->clock);
     clock_update(&engine_state->clock);
     engine_state->last_time = engine_state->clock.elapsed;
-    f64 running_time = 0;
-    u8 frame_count = 0;
-    f64 target_frame_seconds = 1.0f / 60;
-    f64 frame_elapsed_time = 0;
 
     // This is just a stupid way to bypass the warning of them not being used
     running_time = frame_count;
@@ -140,95 +264,18 @@ b8 engine_run(APPLICATION* game_instance) {
     char* mem_usage = get_memory_usage_str();
     PRINT_INFO(mem_usage);
 
+#ifndef YPLATFORM_WEB
     while (engine_state->is_running) { // Game Loop
-        if(!platform_pump_messages()) {
-            engine_state->is_running = false;
-        }
-
-        if(!engine_state->is_suspended) {
-            // Update clock and get delta time.
-            clock_update(&engine_state->clock);
-            f64 current_time = engine_state->clock.elapsed;
-            f64 delta = (current_time - engine_state->last_time);
-            f64 frame_start_time = platform_get_absolute_time();
-
-            engine_state->p_frame_data.total_time = current_time;
-            engine_state->p_frame_data.delta_time = (f32)delta;
-
-            // Reset the frame allocator
-            linear_allocator_free_all(&engine_state->frame_allocator);
-
-            // Update systems.
-            systems_manager_update(&engine_state->sys_manager_state, &engine_state->p_frame_data);
-
-            // update metrics
-            metrics_update(frame_elapsed_time);
-    
-            if (!engine_state->game_instance->update(engine_state->game_instance, &engine_state->p_frame_data)) {
-                PRINT_ERROR("Game update failed, shutting down.");
-                engine_state->is_running = false;
-                break;
-            }
-
-            // TODO: refactor packet creation
-            RENDER_PACKET packet = {0};
-
-            // Call the game's render routine.
-            if (!engine_state->game_instance->render(engine_state->game_instance, &packet, &engine_state->p_frame_data)) {
-                PRINT_ERROR("Game render failed, shutting down.");
-                engine_state->is_running = false;
-                break;
-            }
-
-            renderer_draw_frame(&packet, &engine_state->p_frame_data);
-
-            // Cleanup the packet.
-            for (u32 i = 0; i < packet.view_count; ++i) {
-                packet.views[i].view->on_destroy_packet(packet.views[i].view, &packet.views[i]);
-            }
-
-            // Figure out how long the frame took and, if below
-            f64 frame_end_time = platform_get_absolute_time();
-            frame_elapsed_time = frame_end_time - frame_start_time;
-            running_time += frame_elapsed_time;
-            f64 remaining_seconds = target_frame_seconds - frame_elapsed_time;
-
-            if (remaining_seconds > 0) {
-                u64 remaining_ms = (remaining_seconds * 1000);
-
-                // If there is time left, give it back to the OS.
-                b8 limit_frames = false;
-                if (remaining_ms > 0 && limit_frames) {
-                    platform_sleep(remaining_ms - 1);
-                }
-
-                frame_count++;
-            }
-
-            // NOTE: Input update/state copying should always be handled
-            // after any input should be recorded; I.E. before this line.
-            // As a safety, input is the last thing to be updated before
-            // this frame ends.
-            input_update(&engine_state->p_frame_data);
-
-            // Update last time
-            engine_state->last_time = current_time;
+        if (!render_loop()){
+            break;
         }
     }
+    post_render_shutdown();
 
-    engine_state->is_running = false;
-    game_instance->stage = APPLICATION_STAGE_SHUTTING_DOWN;
-
-    // Shut down the game.
-    engine_state->game_instance->shutdown(engine_state->game_instance);
-
-    // Unregister from events.
-    event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
-
-    // Shut down all systems.
-    systems_manager_shutdown(&engine_state->sys_manager_state);
-
-    game_instance->stage = APPLICATION_STAGE_UNINITIALIZED;
+#else
+    emscripten_request_animation_frame_loop(em_loop, NULL);
+    //emscripten_request_animation_frame_loop(em_loop, game_instance);
+#endif
 
     return true;
 }

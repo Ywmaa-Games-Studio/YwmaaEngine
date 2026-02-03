@@ -30,7 +30,7 @@ b8 platform_create_webgpu_surface(WEBGPU_CONTEXT *context) {
     surface_metal_layer.chain.next = NULL;
     surface_metal_layer.layer = ((MACOS_HANDLE_INFO*)block)->layer;
 
-    WGPUSurfaceDescriptor surfaceDescriptor;
+    WGPUSurfaceDescriptor surfaceDescriptor = {0};
     surfaceDescriptor.nextInChain = &surface_metal_layer.chain;
     surfaceDescriptor.label = (WGPUStringView){"MacOS Surface", sizeof("MacOS Surface")};
 

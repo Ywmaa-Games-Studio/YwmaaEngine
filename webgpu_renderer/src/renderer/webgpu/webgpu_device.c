@@ -2,6 +2,29 @@
 #include "core/logger.h"
 #include "core/asserts.h"
 
+#ifdef YPLATFORM_WEB
+#include "webgpu_backend.h"
+#include "core/engine.h"
+#endif
+WGPUAdapter request_adapter_sync(WGPUInstance instance, WGPURequestAdapterOptions const * options, WEBGPU_CONTEXT* context);
+void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapter, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2);
+
+WGPUDevice request_device_sync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WEBGPU_CONTEXT* context);
+void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2);
+void on_device_lost(WGPUDevice const * device, WGPUDeviceLostReason reason, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2);
+void on_device_error(WGPUErrorType type, char const* message, void* /* pUserData */);
+b8 post_adapter_request(WEBGPU_CONTEXT* context);
+b8 post_device_request(WEBGPU_CONTEXT* context);
+
+#ifndef YPLATFORM_WEB
+void on_queue_work_done(WGPUQueueWorkDoneStatus status, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2);
+#else
+void on_queue_work_done(WGPUQueueWorkDoneStatus status, struct WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2);
+#endif
+#ifndef YPLATFORM_WEB
+WGPUNativeLimits get_required_limits(WEBGPU_CONTEXT* context);
+#endif
+
 // const backend strings for debug
 
 static const char* backend_type_to_string(WGPUBackendType backend_type) {
@@ -38,12 +61,34 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
 
     WGPURequestAdapterOptions adapter_opts = {0};
     //adapter_opts.backendType = WGPUBackendType_OpenGL;
+#ifdef YPLATFORM_WEB
+    //adapter_opts.powerPreference = WGPUPowerPreference_Undefined;
+    //adapter_opts.featureLevel = WGPUFeatureLevel_Compatibility;
+    adapter_opts.forceFallbackAdapter = true;
     adapter_opts.powerPreference = (context->flags & RENDERER_CONFIG_FLAG_POWER_SAVING_BIT) == 0 ? WGPUPowerPreference_LowPower : WGPUPowerPreference_HighPerformance;
     adapter_opts.featureLevel = WGPUFeatureLevel_Core;
-    //adapter_opts.forceFallbackAdapter = true;
+#else
+    adapter_opts.powerPreference = (context->flags & RENDERER_CONFIG_FLAG_POWER_SAVING_BIT) == 0 ? WGPUPowerPreference_LowPower : WGPUPowerPreference_HighPerformance;
+    adapter_opts.featureLevel = WGPUFeatureLevel_Core;
+#endif
     adapter_opts.nextInChain = NULL;
     adapter_opts.compatibleSurface = context->surface;
-    context->adapter = request_adapter_sync(context->instance, &adapter_opts);
+    context->adapter = request_adapter_sync(context->instance, &adapter_opts, context);
+#ifdef YPLATFORM_WEB // return early because webgpu will handle the rest when adapter is ready
+    return true;
+#endif
+    if (!post_adapter_request(context)) {
+        return false;
+    }
+    
+    return post_device_request(context);
+}
+
+b8 post_adapter_request(WEBGPU_CONTEXT* context){
+    if (context->adapter == NULL) {
+        PRINT_ERROR("Couldn't get adapter");
+        return false;
+    }
 
     PRINT_INFO("Got adapter: %i", context->adapter);
 
@@ -74,7 +119,7 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
 
 /*     WGPUNativeLimits required_limits_extras = get_required_limits(context);
     required_limits_extras.chain.sType = WGPUSType_NativeLimits; */
-
+#ifndef YPLATFORM_WEB
     WGPUNativeLimits required_limits_extras = {
       .maxPushConstantSize = 128,
     };
@@ -84,24 +129,35 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     WGPUNativeFeature required_features[] = {
         WGPUNativeFeature_PushConstants
     };
-
+#endif
     WGPULimits required_limits = {0};
     wgpuAdapterGetLimits(context->adapter, &required_limits);
+#ifndef YPLATFORM_WEB
     required_limits.nextInChain = &required_limits_extras.chain;
+#else
+    required_limits.nextInChain = NULL;
+#endif
     // Device
     PRINT_DEBUG("Requesting device...");
     WGPUDeviceDescriptor device_desc = {0};
     char *device_name = "WebGPU Device";
     device_desc.label = (WGPUStringView){device_name, sizeof(device_name)};
+#ifndef YPLATFORM_WEB
     device_desc.requiredFeatureCount = 1;
     device_desc.requiredFeatures = (WGPUFeatureName*)required_features;
+#else
+    device_desc.requiredFeatureCount = 0;
+#endif
     device_desc.requiredLimits = &required_limits;
     device_desc.defaultQueue.nextInChain = NULL;
-    device_desc.defaultQueue.label = (WGPUStringView){"The default queue", sizeof("The default queue")};
+    device_desc.defaultQueue.label = (WGPUStringView){"The default queue", sizeof("The default queue")-1};
     device_desc.deviceLostCallbackInfo = (WGPUDeviceLostCallbackInfo){NULL, WGPUCallbackMode_AllowSpontaneous, on_device_lost};
     // [...] Build device descriptor
-    context->device = request_device_sync(context->adapter, &device_desc);
+    context->device = request_device_sync(context->adapter, &device_desc, context);
 
+    return true;
+}
+b8 post_device_request(WEBGPU_CONTEXT* context){
     wgpuDeviceGetLimits(context->device, &context->device_supported_limits);
     PRINT_INFO("Got device: %i", context->device);
 #ifdef _DEBUG
@@ -122,6 +178,7 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     context->swapchain_format = WGPUTextureFormat_RGBA8Unorm;
     wgpuSurfaceCapabilitiesFreeMembers( capabilities );
     //END Device creation
+    PRINT_DEBUG("device get queue")
 
     context->queue = wgpuDeviceGetQueue(context->device);
 
@@ -131,9 +188,10 @@ b8 webgpu_device_create(WEBGPU_CONTEXT* context){
     PRINT_DEBUG("Destroying WebGPU Adapter...");
 #endif
     wgpuAdapterRelease(context->adapter);
-    
+
     return context->device != NULL;
 }
+
 void webgpu_device_destroy(WEBGPU_CONTEXT* context){
     if (!context) {
         PRINT_ERROR("webgpu_device_destroy called with NULL context");
@@ -200,23 +258,23 @@ b8 webgpu_device_detect_depth_format(WEBGPU_CONTEXT* context, b8 need_stencil) {
 // onAdapterRequestEnded callback.
 struct adapter_request_data {
     WGPUAdapter adapter;
-    b8 requestEnded;
+    b8 request_ended;
 };
-WGPUAdapter request_adapter_sync(WGPUInstance instance, WGPURequestAdapterOptions const * options) {
+WGPUAdapter request_adapter_sync(WGPUInstance instance, WGPURequestAdapterOptions const * options, WEBGPU_CONTEXT* context) {
     struct adapter_request_data adapter_data;
-
     // Call to the WebGPU request adapter procedure
     wgpuInstanceRequestAdapter(
         instance /* equivalent of navigator.gpu */,
         options,
-        (WGPURequestAdapterCallbackInfo){NULL, WGPUCallbackMode_AllowProcessEvents, on_adapter_request_ended, &adapter_data}
+        (WGPURequestAdapterCallbackInfo){NULL, WGPUCallbackMode_AllowSpontaneous, on_adapter_request_ended, &adapter_data, context}
     );
 
-
-    // We wait until userData.requestEnded gets true
+    PRINT_INFO("Adapter Request Ended");
+    // We wait until userData.request_ended gets true
     // [...] Wait for request to end
-    YASSERT(adapter_data.requestEnded);
-
+#ifndef YPLATFORM_WEB
+    YASSERT(adapter_data.request_ended);
+#endif
     return adapter_data.adapter;
 }
 
@@ -232,10 +290,15 @@ void on_adapter_request_ended(WGPURequestAdapterStatus status, WGPUAdapter adapt
     struct adapter_request_data* adapter_data = (userdata1);
     if (status == WGPURequestAdapterStatus_Success) {
         adapter_data->adapter = adapter;
+#ifdef YPLATFORM_WEB
+        WEBGPU_CONTEXT* context = (userdata2);
+        context->adapter = adapter;
+        post_adapter_request(context);
+#endif
     } else {
-        PRINT_ERROR("Could not get WebGPU adapter: ", message);
+        PRINT_ERROR("Could not get WebGPU adapter: %s, error %i ", message, status);
     }
-    adapter_data->requestEnded = true;
+    adapter_data->request_ended = true;
 }
 
 
@@ -254,32 +317,43 @@ struct device_request_data {
     b8 success;
 };
 
-WGPUDevice request_device_sync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor) {
+WGPUDevice request_device_sync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WEBGPU_CONTEXT* context) {
     struct device_request_data device_data;
 
     wgpuAdapterRequestDevice(
         adapter,
         descriptor,
-        (WGPURequestDeviceCallbackInfo) {NULL, WGPUCallbackMode_AllowProcessEvents, on_device_request_ended, &device_data}
+        (WGPURequestDeviceCallbackInfo) {NULL, WGPUCallbackMode_AllowSpontaneous, on_device_request_ended, &device_data, context}
     );
 
-#ifdef __EMSCRIPTEN__
-    while (!device_data.requestEnded) {
-        emscripten_sleep(100);
-    }
-#endif // __EMSCRIPTEN__
-
+#ifndef YPLATFORM_WEB
     YASSERT_MSG(device_data.success, "Failed to get WGPU Device");
-    
+#endif
 
     return device_data.device;
 }
-
+#ifdef YPLATFORM_WEB
+#include "core/engine.h"
+#endif
 void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
     struct device_request_data* device_data = (userdata1);
     if (status == WGPURequestDeviceStatus_Success) {
         device_data->device = device;
         device_data->success = true;
+#ifdef YPLATFORM_WEB
+        WEBGPU_CONTEXT* context = (userdata2);
+        context->device = device;
+        post_device_request(context);
+
+        webgpu_renderer_backend_post_device_init(context);
+
+        engine_post_boot();
+
+        // Begin the engine loop.
+        if(!engine_run(get_application_instance())) {
+            PRINT_INFO("Application did not shutdown gracefully.");
+        }
+#endif
     } else {
         PRINT_ERROR("Could not get WebGPU device: %s", message.data);
         device_data->success = false;
@@ -291,7 +365,7 @@ void on_device_request_ended(WGPURequestDeviceStatus status, WGPUDevice device, 
 
 void on_device_lost(WGPUDevice const * device, WGPUDeviceLostReason reason, WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
     PRINT_ERROR("Device lost: reason ", reason);
-    if (message.data) PRINT_ERROR("message: ", message.data);
+    if (message.data) PRINT_ERROR("message: %s", message.data);
 }
 
 void on_device_error(WGPUErrorType type, char const* message, void* pUserData) {
@@ -300,18 +374,22 @@ void on_device_error(WGPUErrorType type, char const* message, void* pUserData) {
 }
 
 
-
+#ifndef YPLATFORM_WEB
 void on_queue_work_done(WGPUQueueWorkDoneStatus status, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
     PRINT_DEBUG("Queued work finished with status: ", status);
 }
-
+#else
+void on_queue_work_done(WGPUQueueWorkDoneStatus status, struct WGPUStringView message, WGPU_NULLABLE void* userdata1, WGPU_NULLABLE void* userdata2) {
+    PRINT_DEBUG("Queued work finished with status: ", status);
+}
+#endif
 void webgpu_set_default(WGPULimits limits) {
     limits.maxTextureDimension1D = WGPU_LIMIT_U32_UNDEFINED;
     limits.maxTextureDimension2D = WGPU_LIMIT_U32_UNDEFINED;
     limits.maxTextureDimension3D = WGPU_LIMIT_U32_UNDEFINED;
     // [...] Set everything to WGPU_LIMIT_U32_UNDEFINED or WGPU_LIMIT_U64_UNDEFINED to mean no limit
 }
-
+#ifndef YPLATFORM_WEB
 WGPUNativeLimits get_required_limits(WEBGPU_CONTEXT* context) {
     // Get adapter supported limits, in case we need them
 	WGPULimits adapter_supported_limits;
@@ -328,3 +406,5 @@ WGPUNativeLimits get_required_limits(WEBGPU_CONTEXT* context) {
 
     return requiredLimits;
 }
+#endif
+

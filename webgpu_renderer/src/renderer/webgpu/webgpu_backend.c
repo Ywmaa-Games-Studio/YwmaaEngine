@@ -32,8 +32,14 @@ void webgpu_bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout);
 b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin);
 
 WGPUTextureView get_next_surface_texture_view(WEBGPU_CONTEXT* context);
-void get_depth_texture(WGPUTexture* out_depth_texture, WGPUTextureView* out_depth_texture_view, u32 width, u32 height);
 
+b8 webgpu_device_poll(WEBGPU_CONTEXT* context){
+#ifndef YPLATFORM_WEB
+    return wgpuDevicePoll(context->device, true, NULL);
+#else
+    return true;
+#endif
+}
 
 b8 webgpu_renderer_backend_init(RENDERER_PLUGIN* plugin, const  RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count) {
     plugin->internal_context_size = sizeof(WEBGPU_CONTEXT);
@@ -41,6 +47,7 @@ b8 webgpu_renderer_backend_init(RENDERER_PLUGIN* plugin, const  RENDERER_BACKEND
     // Cold-cast the context
     
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
+    context->plugin = plugin;
     // Just set some default values for the framebuffer for now.
     // It doesn't really matter what these are because they will be
     // overridden, but are needed for swapchain creation.
@@ -53,14 +60,7 @@ b8 webgpu_renderer_backend_init(RENDERER_PLUGIN* plugin, const  RENDERER_BACKEND
     WGPUInstanceDescriptor desc = {0};
     desc.nextInChain = NULL;
 
-// We create the instance using this descriptor
-#ifdef WEBGPU_BACKEND_EMSCRIPTEN
-    PRINT_INFO("Detected Web Build Use EMSCRIPTEN.");
-    context->instance = wgpuCreateInstance(nullptr);
-#else //  WEBGPU_BACKEND_EMSCRIPTEN
     context->instance = wgpuCreateInstance(&desc);
-#endif //  WEBGPU_BACKEND_EMSCRIPTEN
-
 
     // We can check whether there is actually an instance created
     if (!context->instance) {
@@ -83,18 +83,26 @@ b8 webgpu_renderer_backend_init(RENDERER_PLUGIN* plugin, const  RENDERER_BACKEND
     if (!webgpu_device_create(context)){
         return false;
     }
+    
+    // Save off the number of images we have as the number of render targets needed.
+    *out_window_render_target_count = 1;
+    
+#ifdef YPLATFORM_WEB // early return because webgpu will handle the rest once done
+    return true;
+#endif
+    return webgpu_renderer_backend_post_device_init(context);
 
+}
+
+b8 webgpu_renderer_backend_post_device_init(struct WEBGPU_CONTEXT* context){
     if (!webgpu_swapchain_create(context, context->framebuffer_width, context->framebuffer_height)){
         return false;
     }
 
-    if (!wgpu_recreate_swapchain(plugin)) {
+    if (!wgpu_recreate_swapchain(context->plugin)) {
         PRINT_ERROR("Failed to create swapchain.");
         return false;
     }
-
-    // Save off the number of images we have as the number of render targets needed.
-    *out_window_render_target_count = 1;
 
     // Geometry vertex buffer
     const u64 vertex_buffer_size = sizeof(Vertex3D) * 2 * 1024 * 1024;
@@ -155,7 +163,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRA
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     // Check if recreating swap chain and boot out.
     if (context->recreating_swapchain) {
-        b8 result = wgpuDevicePoll(context->device, true, NULL);
+        b8 result = webgpu_device_poll(context);
         if (!result) {
             PRINT_ERROR("webgpu_renderer_backend_begin_frame wgpuDevicePoll failed");
             return false;
@@ -167,7 +175,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRA
     // Check if the framebuffer has been resized. If so, a new swapchain must be created.
     // Also include a vsync changed check.
     if (context->framebuffer_size_generation != context->framebuffer_size_last_generation || context->render_flag_changed) {
-        b8 result = wgpuDevicePoll(context->device, true, NULL);
+        b8 result = webgpu_device_poll(context);
         if (!result) {
             PRINT_ERROR("webgpu_renderer_backend_begin_frame wgpuDevicePoll failed");
             return false;
@@ -205,6 +213,14 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRA
     return true;
 }
 
+#ifdef YPLATFORM_WEB
+#include <emscripten/html5.h>
+bool frame(double time, void *userData) {
+
+  return 0;
+}
+
+#endif
 b8 webgpu_renderer_backend_end_frame(RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     
@@ -212,14 +228,29 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_PLUGIN* plugin, const struct FRAME
     cmd_buffer_descriptor.nextInChain = NULL;
     cmd_buffer_descriptor.label = (WGPUStringView){"Command buffer", sizeof("Command buffer")};
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(context->encoder, &cmd_buffer_descriptor);
-    wgpuCommandEncoderRelease(context->encoder);
     
     // Finally submit the command queue
     wgpuQueueSubmit(context->queue, 1, &command);
+    
+    wgpuCommandEncoderRelease(context->encoder);
     wgpuCommandBufferRelease(command);
 
+#ifndef YPLATFORM_WEB
     //Present Texture
     wgpuSurfacePresent(context->surface);
+#else 
+    //emscripten_request_animation_frame(frame, NULL);
+#endif
+
+    // Render Texture View
+    WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)context->render_texture->internal_data;
+    wgpuTextureViewRelease(image->view);
+
+    // release the surface texture
+    if (context->current_surface_texture.texture) {
+        wgpuTextureRelease(context->current_surface_texture.texture);
+        context->current_surface_texture.texture = NULL;
+    }
 
     return true;
 }
@@ -268,12 +299,9 @@ b8 webgpu_renderer_renderpass_begin(RENDERER_PLUGIN* plugin, RENDERPASS* pass, R
         for (u32 i = 0; i < target->attachment_count; ++i) {
             if (target->attachments[i].type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
                 if (depth_stencil_attachment) {
-                    // If the depth stencil attachment is not set, we need to create it.
-                    if (!depth_stencil_attachment->view) {
-                        depth_stencil_attachment->view = attachment_views[i];
-                        // depth attachment is only one anyway, so we can break.
-                        break;
-                    }
+                    depth_stencil_attachment->view = attachment_views[i];
+                    // depth attachment is only one anyway, so we can break.
+                    break;
                 }
             }
         }
@@ -392,7 +420,7 @@ b8 webgpu_renderer_create_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometry, 
 void webgpu_renderer_destroy_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometry) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     if (geometry && geometry->internal_id != INVALID_ID) {
-        wgpuDevicePoll(context->device, true, NULL);
+        webgpu_device_poll(context);
         WEBGPU_GEOMETRY_DATA* internal_data = &context->geometries[geometry->internal_id];
 
         // Free vertex data
@@ -543,7 +571,11 @@ b8 webgpu_renderer_shader_create(RENDERER_PLUGIN* plugin, struct SHADER *shader,
                 }
                 break;
             case SHADER_SCOPE_LOCAL:
+            #ifdef YWEBGPU_USE_PUSH_CONSTANTS
                 internal_shader->local_uniform_count++;
+            #else
+                internal_shader->instance_uniform_count++;
+            #endif
                 break;
         }
     }
@@ -922,9 +954,10 @@ b8 webgpu_renderer_shader_use(RENDERER_PLUGIN* plugin, struct SHADER *shader)
     WEBGPU_SHADER* internal_shader = shader->internal_data;
     wgpuRenderPassEncoderSetPipeline(internal_shader->renderpass->handle, internal_shader->pipeline.handle);
     //map_completed = false;
+#ifndef YPLATFORM_WEB
     webgpu_buffer_map_memory(plugin, &internal_shader->uniform_buffer_staging, 0, 0);
-
-    wgpuDevicePoll(context->device, true, NULL);
+#endif
+    webgpu_device_poll(context);
 /*     while (!map_completed){
         
         PRINT_INFO("waiting for mapping");
@@ -1021,6 +1054,10 @@ b8 webgpu_renderer_shader_apply_instance(RENDERER_PLUGIN* plugin, struct SHADER 
                 *instance_ubo_generation = 1;  // material->generation; TODO: some generation from... somewhere
             }
             bind_index++;
+            if (object_state->instance_bind_state.bind_group) {
+                wgpuBindGroupRelease(object_state->instance_bind_state.bind_group);
+                object_state->instance_bind_state.bind_group = NULL;
+            }
             object_state->instance_bind_state.bind_group = wgpuDeviceCreateBindGroup(context->device, &instance_bind_group_desc);
             wgpuRenderPassEncoderSetBindGroup(internal->renderpass->handle, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
         }
@@ -1098,11 +1135,14 @@ b8 webgpu_renderer_shader_apply_instance(RENDERER_PLUGIN* plugin, struct SHADER 
             // There must be as many bindings as declared in the layout!
             instance_textures_bind_group_desc.entryCount = textures_total_bind_count;
             instance_textures_bind_group_desc.entries = binding;
-            
+            if (object_state->instance_bind_state.textures_bind_group) {
+                wgpuBindGroupRelease(object_state->instance_bind_state.textures_bind_group);
+                object_state->instance_bind_state.textures_bind_group = NULL;
+            }
             //if (!object_state->instance_bind_state.textures_bind_group){
                 object_state->instance_bind_state.textures_bind_group = wgpuDeviceCreateBindGroup(context->device, &instance_textures_bind_group_desc);
             //}
-            wgpuDevicePoll(context->device, true, NULL);
+            webgpu_device_poll(context);
         }
 
         wgpuRenderPassEncoderSetBindGroup(internal->renderpass->handle, BIND_GROUP_SET_INDEX_TEXTURES, object_state->instance_bind_state.textures_bind_group, 0, NULL);
@@ -1180,7 +1220,8 @@ b8 webgpu_renderer_shader_acquire_instance_resources(RENDERER_PLUGIN* plugin, st
 b8 webgpu_renderer_shader_release_instance_resources(RENDERER_PLUGIN* plugin, struct SHADER *s, u32 instance_id)
 {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
-    wgpuDevicePoll(context->device, true, NULL);
+    //WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
+    webgpu_device_poll(context);
 
     WEBGPU_SHADER* internal = s->internal_data;
     WEBGPU_SHADER_INSTANCE_STATE* instance_state = &internal->instance_states[instance_id];
@@ -1211,6 +1252,7 @@ b8 webgpu_renderer_set_uniform(RENDERER_PLUGIN* plugin, struct SHADER *frontend_
             internal->instance_states[frontend_shader->bound_instance_id].instance_texture_maps[uniform->location] = (TEXTURE_MAP*)value;
         }
     } else {
+#ifdef YWEBGPU_USE_PUSH_CONSTANTS
         if (uniform->scope == SHADER_SCOPE_LOCAL) {
             // Is local, using push constants. Do this immediately.
             wgpuRenderPassEncoderSetPushConstants(
@@ -1220,7 +1262,11 @@ b8 webgpu_renderer_set_uniform(RENDERER_PLUGIN* plugin, struct SHADER *frontend_
                 uniform->size,            // Byte size
                 value                     // Pointer to data
             );
+
         } else {
+#endif
+
+#ifndef YPLATFORM_WEB
             // Map the appropriate memory location and copy the data over.
             WEBGPU_BUFFER* uniform_buffer_staging = internal->uniform_buffer_staging.internal_data;
             u64 addr = (u64)uniform_buffer_staging->mapped_buffer_block;
@@ -1228,17 +1274,33 @@ b8 webgpu_renderer_set_uniform(RENDERER_PLUGIN* plugin, struct SHADER *frontend_
             ycopy_memory((void*)addr, value, uniform->size);
             if (addr) {
             }
-            //wgpuBufferUnmap(internal->uniform_buffer_staging.handle);
-        }
+#else
+            WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
+            WGPUBuffer target_handle = ((WEBGPU_BUFFER*)internal->uniform_buffer.internal_data)->handle;
+            u64 final_offset = frontend_shader->bound_ubo_offset + uniform->offset;
 
+            wgpuQueueWriteBuffer(
+                context->queue,    // Your WGPUQueue
+                target_handle,     // The actual destination UBO
+                final_offset,      // Offset in the destination buffer
+                value,             // The source data pointer from C
+                uniform->size      // Size of the data (e.g., 64 for mat4)
+            );
+#endif
+            //wgpuBufferUnmap(internal->uniform_buffer_staging.handle);
+#ifdef YWEBGPU_USE_PUSH_CONSTANTS
+        }
+#endif
     }
     return true;
 }
 
 b8 webgpu_shader_after_renderpass(RENDERER_PLUGIN* plugin, struct SHADER *shader) {
-    WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
+    //WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     //PRINT_INFO("buffer size after renderpass");
-    wgpuDevicePoll(context->device, true, NULL);
+#ifndef YPLATFORM_WEB
+    WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
+    webgpu_device_poll(context);
     WEBGPU_SHADER* internal = shader->internal_data;
     webgpu_buffer_copy_range(
         plugin,
@@ -1249,6 +1311,7 @@ b8 webgpu_shader_after_renderpass(RENDERER_PLUGIN* plugin, struct SHADER *shader
         wgpuBufferGetSize(((WEBGPU_BUFFER*)internal->uniform_buffer.internal_data)->handle)
     );
     webgpu_buffer_unmap_memory(plugin, &internal->uniform_buffer_staging, 0, 0);
+#endif
     return true;
 }
 
@@ -1282,6 +1345,9 @@ b8 webgpu_renderpass_create(RENDERER_PLUGIN* plugin, const RENDERPASS_CONFIG* co
             render_pass_color_attachment.nextInChain = NULL;
             //render_pass_color_attachment->view = context->target_view;
             render_pass_color_attachment.resolveTarget = NULL;
+            #ifdef YPLATFORM_WEB
+            render_pass_color_attachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+            #endif
             WGPUColor color = {0};
             color.r = out_renderpass->clear_color.r;
             color.g = out_renderpass->clear_color.g;
@@ -1368,8 +1434,8 @@ b8 webgpu_renderpass_create(RENDERER_PLUGIN* plugin, const RENDERPASS_CONFIG* co
             }
 
             // TODO: Configurability for stencil attachments.
-            depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Load;
-            depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Store;
+            depth_stencil_attachment.stencilLoadOp = WGPULoadOp_Undefined;
+            depth_stencil_attachment.stencilStoreOp = WGPUStoreOp_Undefined;
             depth_stencil_attachment.stencilClearValue = 0;
             depth_stencil_attachment.stencilReadOnly = true;
 
@@ -1590,7 +1656,7 @@ b8 webgpu_buffer_resize(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 new_
     WGPUBuffer new_buffer;
     new_buffer = wgpuDeviceCreateBuffer(context->device, &buffer_desc);
 
-    wgpuDevicePoll(context->device, true, NULL);
+    webgpu_device_poll(context);
 
     // Copy over the data.
     if (context->encoder){
@@ -1657,8 +1723,10 @@ void on_buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, W
     WEBGPU_BUFFER* internal_buffer = userdata1;
     if (status != WGPUMapAsyncStatus_Success){
         PRINT_ERROR("Failed to map buffer, error: %s", message.data);
+        internal_buffer->map_state = WGPUBufferMapState_Unmapped;
     }
     internal_buffer->mapped_buffer_block = wgpuBufferGetMappedRange(internal_buffer->handle, 0, wgpuBufferGetSize(internal_buffer->handle));
+    internal_buffer->map_state = WGPUBufferMapState_Mapped;
 }
 
 void* webgpu_buffer_map_memory(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 offset, u64 size) {
@@ -1668,8 +1736,10 @@ void* webgpu_buffer_map_memory(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u
     }
     WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
     WGPUBufferMapCallbackInfo info = {0};
+    info.mode = WGPUCallbackMode_AllowProcessEvents; 
     info.callback = on_buffer_map_callback;
     info.userdata1 = internal_buffer;
+    internal_buffer->map_state = WGPUBufferMapState_Pending;
     wgpuBufferMapAsync(internal_buffer->handle, WGPUMapMode_Write, offset, wgpuBufferGetSize(internal_buffer->handle), info);
     return internal_buffer->mapped_buffer_block;
 }
@@ -1680,7 +1750,11 @@ void webgpu_buffer_unmap_memory(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, 
         return;
     }
     WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
+
+    internal_buffer->map_state = WGPUBufferMapState_Pending;
     wgpuBufferUnmap(internal_buffer->handle);
+    internal_buffer->map_state = WGPUBufferMapState_Unmapped;
+    internal_buffer->mapped_buffer_block = 0; // Clear the pointer
 }
 
 b8 webgpu_buffer_flush(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 offset, u64 size) {
@@ -1694,11 +1768,13 @@ b8 webgpu_buffer_flush(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 offse
 }
 
 b8 webgpu_buffer_read(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 offset, u64 size, void** out_memory) {
-    WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
+    //WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     if (!buffer || !buffer->internal_data || !out_memory) {
         PRINT_ERROR("webgpu_buffer_read requires a valid pointer to a buffer and out_memory, and the size must be nonzero.");
         return false;
     }
+
+    WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
 
     WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
     if (!webgpu_buffer_is_host_visible(plugin, internal_buffer)) {
@@ -1718,10 +1794,11 @@ b8 webgpu_buffer_read(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 offset
 
         // Map/copy/unmap
         WGPUBufferMapCallbackInfo info = {0};
+        info.mode = WGPUCallbackMode_AllowProcessEvents;
         info.callback = on_buffer_map_callback;
         info.userdata1 = read_internal;
         wgpuBufferMapAsync(read_internal->handle, WGPUMapMode_Read, offset, wgpuBufferGetSize(read_internal->handle), info);
-        wgpuDevicePoll(context->device, true, NULL);
+        webgpu_device_poll(context);
         ycopy_memory(*out_memory, read_internal->mapped_buffer_block, size);
         webgpu_buffer_unmap_memory(plugin, &read, 0, 0);
 
@@ -1730,10 +1807,11 @@ b8 webgpu_buffer_read(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 offset
     } else {
         // If no staging buffer is needed, map/copy/unmap.
         WGPUBufferMapCallbackInfo info = {0};
+        info.mode = WGPUCallbackMode_AllowProcessEvents;
         info.callback = on_buffer_map_callback;
         info.userdata1 = internal_buffer;
         wgpuBufferMapAsync(internal_buffer->handle, WGPUMapMode_Read, offset, wgpuBufferGetSize(internal_buffer->handle), info);
-        wgpuDevicePoll(context->device, true, NULL);
+        webgpu_device_poll(context);
         ycopy_memory(*out_memory, internal_buffer->mapped_buffer_block, size);
         webgpu_buffer_unmap_memory(plugin, buffer, 0, 0);
     }
@@ -1776,14 +1854,14 @@ b8 webgpu_buffer_draw(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 offset
    WGPUBuffer buffer_handle = ((WEBGPU_BUFFER*)buffer->internal_data)->handle;
     if (buffer->type == RENDERBUFFER_TYPE_VERTEX) {
         // Bind vertex buffer at offset.
-        wgpuRenderPassEncoderSetVertexBuffer(internal->renderpass->handle, 0, buffer_handle, offset, wgpuBufferGetSize(buffer_handle));
+        wgpuRenderPassEncoderSetVertexBuffer(internal->renderpass->handle, 0, buffer_handle, offset, wgpuBufferGetSize(buffer_handle)-offset);
         if (!bind_only) {
             wgpuRenderPassEncoderDraw(internal->renderpass->handle, element_count, 1, 0, 0);
         }
         return true;
     } else if (buffer->type == RENDERBUFFER_TYPE_INDEX) {
         // Bind index buffer at offset.
-        wgpuRenderPassEncoderSetIndexBuffer(internal->renderpass->handle, buffer_handle, WGPUIndexFormat_Uint32, offset, wgpuBufferGetSize(buffer_handle));
+        wgpuRenderPassEncoderSetIndexBuffer(internal->renderpass->handle, buffer_handle, WGPUIndexFormat_Uint32, offset, wgpuBufferGetSize(buffer_handle)-offset);
         if (!bind_only) {
             wgpuRenderPassEncoderDrawIndexed(internal->renderpass->handle, element_count, 1, 0, 0, 0);
         }
@@ -1877,25 +1955,13 @@ b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin) {
     // Mark as recreating if the dimensions are valid.
     context->recreating_swapchain = true;
 
-    wgpuDevicePoll(context->device, true, NULL);
-
+    webgpu_device_poll(context);
     webgpu_recreate_swapchain(context, plugin, context->framebuffer_width, context->framebuffer_height);
 
     // Image
     if (!context->render_texture) {
         context->render_texture = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_RENDERER);
         void* internal_data = yallocate_aligned(sizeof(WEBGPU_IMAGE), 8, MEMORY_TAG_TEXTURE);
-/*         webgpu_image_create(
-            context,
-            "__ywmaaengine_default_render_texture__",
-            TEXTURE_TYPE_2D,
-            context->framebuffer_width,
-            context->framebuffer_height,
-            WGPUTextureFormat_RGBA8Unorm,
-            WGPUTextureUsage_RenderAttachment,
-            true,
-            WGPUTextureAspect_All,
-            internal_data); */
         
         texture_system_wrap_internal(
             "__ywmaaengine_default_render_texture__",
@@ -1924,8 +1990,11 @@ b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin) {
 
     if (!context->depth_texture) {
         context->depth_texture = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_RENDERER);
+        context->depth_texture->internal_data = yallocate_aligned(sizeof(WEBGPU_IMAGE), 8, MEMORY_TAG_TEXTURE);
+    } else { // TODO: destory old depth textures
+        //webgpu_image_destroy((WEBGPU_IMAGE*)context->depth_texture->internal_data, context->depth_texture->channel_count, context->depth_texture->type);
     }
-    WEBGPU_IMAGE* depth_image = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_TEXTURE);
+    WEBGPU_IMAGE* depth_image = (WEBGPU_IMAGE*)context->depth_texture->internal_data;
     webgpu_image_create(
         context,
         "__ywmaaengine_default_depth_texture__",
@@ -1971,11 +2040,9 @@ b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin) {
 
 WGPUTextureView get_next_surface_texture_view(WEBGPU_CONTEXT* context) {
     //Get the next surface texture
-    WGPUSurfaceTexture surface_texture;
-    surface_texture.nextInChain = NULL;
-    wgpuSurfaceGetCurrentTexture(context->surface, &surface_texture);
+    wgpuSurfaceGetCurrentTexture(context->surface, &context->current_surface_texture);
 
-    if (surface_texture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal) {
+    if (context->current_surface_texture.status >= WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
         return NULL;
     }
 
@@ -1983,7 +2050,7 @@ WGPUTextureView get_next_surface_texture_view(WEBGPU_CONTEXT* context) {
     WGPUTextureViewDescriptor view_descriptor;
     view_descriptor.nextInChain = NULL;
     view_descriptor.label = (WGPUStringView){"Surface texture view", sizeof("Surface texture view")};
-    view_descriptor.format = wgpuTextureGetFormat(surface_texture.texture);
+    view_descriptor.format = wgpuTextureGetFormat(context->current_surface_texture.texture);
     view_descriptor.dimension = WGPUTextureViewDimension_2D;
     view_descriptor.baseMipLevel = 0;
     view_descriptor.mipLevelCount = 1;
@@ -1991,7 +2058,7 @@ WGPUTextureView get_next_surface_texture_view(WEBGPU_CONTEXT* context) {
     view_descriptor.arrayLayerCount = 1;
     view_descriptor.aspect = WGPUTextureAspect_All;
     view_descriptor.usage = WGPUTextureUsage_RenderAttachment;
-    WGPUTextureView target_view = wgpuTextureCreateView(surface_texture.texture, &view_descriptor);
+    WGPUTextureView target_view = wgpuTextureCreateView(context->current_surface_texture.texture, &view_descriptor);
     return target_view;
 }
 
@@ -2173,7 +2240,7 @@ void webgpu_renderer_texture_read_pixel(RENDERER_PLUGIN* plugin, TEXTURE* t, u32
 
 void webgpu_renderer_texture_destroy(RENDERER_PLUGIN* plugin, TEXTURE* texture){
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
-    wgpuDevicePoll(context->device, true, NULL);
+    webgpu_device_poll(context);
 
     WEBGPU_IMAGE* image = (WEBGPU_IMAGE*)texture->internal_data;
 

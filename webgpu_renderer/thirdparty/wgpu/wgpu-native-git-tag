@@ -4,7 +4,7 @@
  Created:
    2025.04.15 -08:00
  Last edited:
-   2025.04.15 -08:01
+   <l1564AMle>
  Auto updated?
    Yes
 
@@ -14,3 +14,5 @@
 
 v24.0.3.1
 https://github.com/gfx-rs/wgpu-native
+
+https://github.com/webgpu-native/webgpu-headers/

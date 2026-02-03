@@ -32,6 +32,7 @@ b8 webgpu_pipeline_create(
     WEBGPU_PIPELINE* pipeline
     )
     {
+#ifndef YPLATFORM_WEB
     // Push constants
     WGPUPipelineLayoutExtras pipeline_extras;
     pipeline_extras.chain.next = NULL;
@@ -56,11 +57,15 @@ b8 webgpu_pipeline_create(
         pipeline_extras.pushConstantRangeCount = 0;
         pipeline_extras.pushConstantRanges = 0;
     }
-
+#endif
     // Create the pipeline layout
-    WGPUPipelineLayoutDescriptor layout_desc;
+    WGPUPipelineLayoutDescriptor layout_desc = {0};
     layout_desc.label = (WGPUStringView){"Object shader pipeline layout", sizeof("Object shader pipeline layout")};
+#ifndef YPLATFORM_WEB
     layout_desc.nextInChain = &pipeline_extras.chain;
+#else
+    layout_desc.nextInChain = NULL;
+#endif
     layout_desc.bindGroupLayoutCount = config->bind_group_layout_count;
     layout_desc.bindGroupLayouts = config->bind_group_layouts;
     pipeline->layout = wgpuDeviceCreatePipelineLayout(context->device, &layout_desc);

@@ -3,7 +3,6 @@
 #include "defines.h"
 
 
-#pragma pack(push, 1)  // Remove all padding
 typedef struct Vector2 {
     union {
         struct { f32 x, y; };
@@ -32,7 +31,6 @@ typedef struct Vector4 {
         f32 elements[4];
     };
 } Vector4;
-#pragma pack(pop)  // Restore default packing
 
 typedef Vector4 Quaternion;
 typedef Vector4 Color;

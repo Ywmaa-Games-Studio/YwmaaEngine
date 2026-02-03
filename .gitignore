@@ -14,3 +14,6 @@ zig-out/*
 
 # Generated files
 engine/src/version.h
+
+#emscripten
+.emscripten_cache/*

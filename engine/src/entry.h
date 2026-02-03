@@ -5,11 +5,12 @@
 #include "renderer/renderer_types.inl"
 #include "application_types.h"
 
+APPLICATION application_instance = {0};
+
 // Externally-defined function to create a application.
 extern b8 create_application(APPLICATION* out_app);
 extern b8 init_application(APPLICATION* app);
-void run_benchmarks();
-
+void run_benchmarks(void);
 /**
  * The main entry point of the application in C.
  * This is actually called from the main function in main.zig
@@ -20,7 +21,7 @@ int engine_main(E_RENDERER_BACKEND_API renderer_backend_api) {
     return 0; */
     
     // Request the application instance from the application.
-    APPLICATION application_instance = {0};
+    
     application_instance.app_config.renderer_backend_api = renderer_backend_api;
     if (!create_application(&application_instance)) {
         PRINT_ERROR("Could not create application!");
@@ -43,12 +44,12 @@ int engine_main(E_RENDERER_BACKEND_API renderer_backend_api) {
         PRINT_ERROR("Could not initialize application!");
         return -1;
     }
-
+#ifndef YPLATFORM_WEB
     // Begin the engine loop.
     if(!engine_run(&application_instance)) {
         PRINT_INFO("Application did not shutdown gracefully.");
         return 2;
     }
-
+#endif
     return 0;
 }

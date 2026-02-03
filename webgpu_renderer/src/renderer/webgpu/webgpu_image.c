@@ -2,7 +2,6 @@
 
 #include "core/ymemory.h"
 #include "core/logger.h"
-
 void webgpu_image_create(
     WEBGPU_CONTEXT* context,
     const char* name,
@@ -21,9 +20,9 @@ void webgpu_image_create(
     out_image->height = height;
     
     // Creation info.
-    WGPUTextureDescriptor texture_desc;
+    WGPUTextureDescriptor texture_desc = {0};
     texture_desc.nextInChain = NULL;
-    texture_desc.label = (WGPUStringView){name, sizeof(name)-1};
+    texture_desc.label = (WGPUStringView){name, sizeof(name)};
     texture_desc.size.width = width;
     texture_desc.size.height = height;
     texture_desc.format = format;
@@ -62,9 +61,9 @@ void webgpu_image_view_create(
     WEBGPU_IMAGE* image,
     WGPUTextureAspect aspect_flags) {
 
-    WGPUTextureViewDescriptor texture_view_desc;
+    WGPUTextureViewDescriptor texture_view_desc = {0};
     texture_view_desc.aspect = aspect_flags;
-    texture_view_desc.label = (WGPUStringView){name, sizeof(name)-1};
+    texture_view_desc.label = (WGPUStringView){name, sizeof(name)};
     // TODO: Make configurable
     texture_view_desc.baseArrayLayer = 0;
     texture_view_desc.baseMipLevel = 0;
@@ -81,7 +80,11 @@ void webgpu_image_view_create(
             break;
     }
     texture_view_desc.format = format;
+#ifdef YPLATFORM_WEB
+    texture_view_desc.usage = WGPUTextureUsage_None;
+#else
     texture_view_desc.usage = usage;
+#endif
     image->view = wgpuTextureCreateView(image->handle, &texture_view_desc);
 }
 

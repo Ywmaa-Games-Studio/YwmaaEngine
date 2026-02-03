@@ -2,12 +2,14 @@
 
 #include "webgpu_renderer_plugin_main.h"
 #include "resources/resource_types.h"
+#include "webgpu_types.inl"
 
 struct SHADER;
 struct SHADER_UNIFORM;
 struct FRAME_DATA;
 
 b8 webgpu_renderer_backend_init(RENDERER_PLUGIN* plugin, const RENDERER_BACKEND_CONFIG* config, u8* out_window_render_target_count);
+b8 webgpu_renderer_backend_post_device_init(WEBGPU_CONTEXT* context);
 void webgpu_renderer_backend_shutdown(RENDERER_PLUGIN* plugin);
 
 void webgpu_renderer_backend_on_resized(RENDERER_PLUGIN* plugin, u16 width, u16 height);

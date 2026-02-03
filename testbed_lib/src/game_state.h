@@ -23,8 +23,8 @@ typedef struct TESTBED_GAME_STATE {
 
     Frustum camera_frustum;
 
-    clock update_clock;
-    clock render_clock;
+    native_clock update_clock;
+    native_clock render_clock;
     f64 last_update_elapsed;
 
     // TODO: temp

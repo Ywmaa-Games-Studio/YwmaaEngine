@@ -78,6 +78,21 @@ You can also check the required dependecies for linux in shell.nix
 
 use the provided shell.nix
 
+## Building For The Web
+
+Notes: The Web only works of course with WebGPU Backend, no Vulkan stuff here
+
+Build & Run Command: ```zig build run -Dtarget=wasm32-emscripten -Doptimize=ReleaseSmall```
+
+ - git submodules must be init
+
+```
+# Get the emsdk repo
+git submodule update --init --recursive
+
+then run the build command
+```
+
 # Contributing Guide
 
 ### Naming Conventions

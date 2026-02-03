@@ -272,8 +272,8 @@ b8 application_init(APPLICATION* application_instance) {
 
     //yzero_memory(&application_instance->frame_data, sizeof(APP_FRAME_DATA));
 
-    yzero_memory(&state->update_clock, sizeof(clock));
-    yzero_memory(&state->render_clock, sizeof(clock));
+    yzero_memory(&state->update_clock, sizeof(native_clock));
+    yzero_memory(&state->render_clock, sizeof(native_clock));
 
     return true;
 }

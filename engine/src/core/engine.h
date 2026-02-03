@@ -53,6 +53,8 @@ typedef struct APPLICATION_CONFIG {
  */
 YAPI b8 engine_create(struct APPLICATION* game_instance);
 
+YAPI b8 engine_post_boot(void);
+
 /**
  * @brief Starts the main engine loop.
  * @param game_instance A pointer to the application instance associated with the engine
@@ -74,3 +76,7 @@ void engine_on_event_system_initialized(void);
  * @return A constant pointer to the current frame data.
  */
 YAPI const struct FRAME_DATA* engine_frame_data_get(struct APPLICATION* game_instance);
+#ifdef YPLATFORM_WEB
+YAPI struct APPLICATION* get_application_instance(void);
+#endif
+

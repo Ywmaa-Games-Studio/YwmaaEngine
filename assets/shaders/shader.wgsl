@@ -25,9 +25,9 @@ struct global_uniform_object {
     view_position: vec3f,
     mode: u32,
 };
-struct model_uniform_object {
-    model: mat4x4<f32>,
-};
+//struct model_uniform_object {
+//    model: mat4x4<f32>,
+//};
 
 const MAX_POINT_LIGHTS = 10;
 
@@ -49,6 +49,7 @@ struct point_light {
 };
 
 struct object_uniform_object {
+    model: mat4x4<f32>,
     diffuse_color: vec4f,
     dir_light: directional_light,
     p_lights: array<point_light, MAX_POINT_LIGHTS>,
@@ -65,7 +66,7 @@ struct object_uniform_object {
 @group(2) @binding(4) var normal_sampler: sampler;
 @group(2) @binding(5) var normal_texture: texture_2d<f32>;
 
-var<push_constant> push_constants: model_uniform_object;
+//var<push_constant> push_constants: model_uniform_object;
 
 
 fn calculate_directional_light(light: directional_light, normal: vec3f, ambient_color: vec4f, tex_coord: vec2f, view_direction: vec3f) -> vec4f {
@@ -122,18 +123,18 @@ fn calculate_point_light(light: point_light, normal: vec3f, ambient_color: vec4f
 fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput; // create the output struct
 
-	out.position = global_ubo.projection * global_ubo.view * push_constants.model * vec4f(in.position, 1.0); // same as what we used to directly return
+	out.position = global_ubo.projection * global_ubo.view * object_ubo.model * vec4f(in.position, 1.0); // same as what we used to directly return
 
     out.tex_coord = in.texcoord;
     out.color = in.color;
 
 	// Fragment position in world space.
-	out.frag_position = (push_constants.model * vec4f(in.position, 1.0)).rgb;
+	out.frag_position = (object_ubo.model * vec4f(in.position, 1.0)).rgb;
 	// Copy the normal over.
     let m3_model = mat3x3<f32>(
-        push_constants.model[0].xyz,
-        push_constants.model[1].xyz,
-        push_constants.model[2].xyz,
+        object_ubo.model[0].xyz,
+        object_ubo.model[1].xyz,
+        object_ubo.model[2].xyz,
     );
     out.normal = normalize(m3_model * in.normal);
 	out.tangent = normalize(m3_model * in.tangent);

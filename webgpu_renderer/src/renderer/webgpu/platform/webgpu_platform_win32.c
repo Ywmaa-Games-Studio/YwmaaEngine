@@ -37,7 +37,7 @@ b8 platform_create_webgpu_surface(WEBGPU_CONTEXT *context) {
     fromWindowsHWND.hinstance = handle->h_instance;
     fromWindowsHWND.hwnd = handle->hwnd;
 
-    WGPUSurfaceDescriptor surfaceDescriptor;
+    WGPUSurfaceDescriptor surfaceDescriptor = {0};
     surfaceDescriptor.nextInChain = &fromWindowsHWND.chain;
     surfaceDescriptor.label = (WGPUStringView){"Windows Surface", sizeof("Windows Surface")};
 

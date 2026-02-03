@@ -6,6 +6,11 @@
 #include <data_structures/darray.h>
 #include <platform/platform.h>
 
+#ifdef YPLATFORM_WEB
+#include "../../testbed_lib/src/testbed_main.h"
+#include "../../webgpu_renderer/src/webgpu_renderer_plugin_main.h"
+#endif
+
 typedef b8 (*PFN_plugin_create)(RENDERER_PLUGIN* out_plugin);
 typedef u64 (*PFN_application_state_size)();
 
@@ -128,6 +133,7 @@ b8 create_application(APPLICATION* out_application) {
     out_application->app_config.start_height = 720;
     out_application->app_config.name = "YWMAA Engine Testbed";
 
+#ifndef YPLATFORM_WEB
     E_PLATFORM_ERROR_CODE err_code = PLATFORM_ERROR_FILE_LOCKED;
     const char* prefix = platform_dynamic_library_prefix();
     const char* extension = platform_dynamic_library_extension();
@@ -212,6 +218,26 @@ b8 create_application(APPLICATION* out_application) {
         return false;
     }
 
+#else
+    // assign function pointers
+    out_application->boot = application_boot;
+    out_application->init = application_init;
+    out_application->update = application_update;
+    out_application->render = application_render;
+    out_application->on_resize = application_on_resize;
+    out_application->shutdown = application_shutdown;
+    out_application->lib_on_load = application_lib_on_load;
+    out_application->lib_on_unload = application_lib_on_unload;
+
+    // Invoke the onload.
+    application_lib_on_load(out_application);
+
+    // Create the renderer plugin. //WEBGPU
+    if (!plugin_create(&out_application->render_plugin)) {
+        return false;
+    }
+
+#endif
     return true;
 }
 
@@ -226,6 +252,7 @@ b8 init_application(APPLICATION* app) {
     yzero_memory(path, sizeof(char) * 260);
     string_format(path, "%s%s%s", prefix, "testbed_lib", extension);
 
+#ifndef YPLATFORM_WEB
     if (!platform_watch_file(path, &app->game_library.watch_id)) {
         yzero_memory(path, sizeof(char) * 260);
         string_format(path, "../lib/%s%s%s", prefix, "testbed_lib", extension);
@@ -234,6 +261,6 @@ b8 init_application(APPLICATION* app) {
             return false;
         }
     }
-
+#endif
     return true;
 }

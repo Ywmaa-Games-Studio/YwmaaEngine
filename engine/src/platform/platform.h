@@ -36,7 +36,8 @@ typedef enum E_PLATFORM_ERROR_CODE {
     PLATFORM_ERROR_UNKNOWN = 1,
     PLATFORM_ERROR_FILE_NOT_FOUND = 2,
     PLATFORM_ERROR_FILE_LOCKED = 3,
-    PLATFORM_ERROR_FILE_EXISTS = 4
+    PLATFORM_ERROR_FILE_EXISTS = 4,
+    PLATFORM_ERROR_UNSUPPORTED = 5
 } E_PLATFORM_ERROR_CODE;
 
 b8 platform_system_startup(u64* memory_requirement, void* state, void* config);

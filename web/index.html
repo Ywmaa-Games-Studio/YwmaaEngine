@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>YwmaaEngine Web</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { width: 100vw; height: 100vh; display: block; }
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            text-align: center;
+            max-width: 80%;
+        }
+        #error {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid red;
+            padding: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .instructions {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading...</div>
+    <div id="error"></div>
+    <canvas id="canvas"></canvas>
+    <script>
+        console.log('Script starting...');
+        
+        // Add error handling for script loading
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Script error:', msg, 'at', url, ':', lineNo);
+            document.getElementById('loading').textContent = 'Error loading script: ' + msg;
+            document.getElementById('error').textContent = 'Error: ' + msg + '\n' + error?.stack;
+            document.getElementById('error').style.display = 'block';
+            return false;
+        };
+
+        var Module = {
+            canvas: document.getElementById('canvas'),
+            print: function(text) {
+                console.log('Engine:', text);
+            },
+            printErr: function(text) {
+                console.error('Engine Error:', text);
+                document.getElementById('error').textContent = 'Error: ' + text;
+                document.getElementById('error').style.display = 'block';
+            },
+            onRuntimeInitialized: function() {
+                console.log('Emscripten runtime initialized');
+            },
+            onAbort: function(what) {
+                console.error('Engine aborted:', what);
+                document.getElementById('loading').textContent = 'Error: ' + what;
+                document.getElementById('error').textContent = 'Aborted: ' + what;
+                document.getElementById('error').style.display = 'block';
+            }
+        };
+
+        // Add script load event handlers
+        async function onScriptLoad() {
+            console.log('app.js loaded successfully');
+            
+            // Check if WebGPU is supported
+            if (!navigator.gpu) {
+                const loading = document.getElementById('loading');
+                loading.innerHTML = 'WebGPU is not supported in your browser<br><br>' +
+                    '<div class="instructions">' +
+                    'To use this application, you need a browser with WebGPU support:<br>' +
+                    '1. Use Chrome Canary (https://www.google.com/chrome/canary/)<br>' +
+                    '2. Enable WebGPU by visiting chrome://flags/#enable-unsafe-webgpu<br>' +
+                    '3. Set "WebGPU Developer Features" to "Enabled"<br>' +
+                    '4. Restart your browser<br><br>' +
+                    'Or use Firefox Nightly with WebGPU enabled</div>';
+                return;
+            }
+
+            try {
+                // Initialize the Module
+                const module = await Module();
+                console.log('Module initialized:', module);
+                // for testing filesystem
+                //const fileInfo = module.FS.analyzePath('/assets/shaders/shader.builtin.material.shadercfg');
+                //console.log(fileInfo);
+                // Start the engine
+                console.log('Starting engine...');
+                if (typeof module._start_web === 'function') {
+                    module._start_web();
+                    console.log('Engine started successfully');
+                    document.getElementById('loading').style.display = 'none';
+                } else {
+                    throw new Error('start_web function not found');
+                }
+            } catch (error) {
+                console.error('Initialization failed:', error);
+                document.getElementById('loading').textContent = 'Error: ' + error.message;
+                document.getElementById('error').textContent = 'Error: ' + error.message + '\n' + error.stack;
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        function onScriptError() {
+            console.error('Failed to load app.js');
+            document.getElementById('loading').textContent = 'Failed to load engine';
+        }
+    </script>
+    <script src="app.js" onload="onScriptLoad()" onerror="onScriptError()"></script>
+</body>
+</html>

@@ -61,6 +61,8 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #define INVALID_ID_U16 65535U
 #define INVALID_ID_U8 255U
 
+// TODO: this should be replaced with auto detecting depending on the platform, right now treat all platforms as non supportive in WebGPU
+//#define YWEBGPU_USE_PUSH_CONSTANTS 1
 
 // Platform detection
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__)
@@ -69,6 +71,11 @@ STATIC_ASSERT(sizeof(f64) == 8, "Expected f64 to be 8 bytes.");
 #ifndef _WIN64
 #error "64-bit is required on Windows!"
 #endif
+
+#elif defined(__EMSCRIPTEN__) || defined(__wasm__)
+
+#define YPLATFORM_WEB 1
+
 
 #elif defined(__linux__) || defined(__gnu_linux__) // Platform detection
 

@@ -1991,8 +1991,8 @@ b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin) {
     if (!context->depth_texture) {
         context->depth_texture = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_RENDERER);
         context->depth_texture->internal_data = yallocate_aligned(sizeof(WEBGPU_IMAGE), 8, MEMORY_TAG_TEXTURE);
-    } else { // TODO: destory old depth textures
-        //webgpu_image_destroy((WEBGPU_IMAGE*)context->depth_texture->internal_data, context->depth_texture->channel_count, context->depth_texture->type);
+    } else {
+        webgpu_image_destroy((WEBGPU_IMAGE*)context->depth_texture->internal_data, context->depth_texture->channel_count, context->depth_texture->type);
     }
     WEBGPU_IMAGE* depth_image = (WEBGPU_IMAGE*)context->depth_texture->internal_data;
     webgpu_image_create(

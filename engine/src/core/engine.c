@@ -129,6 +129,9 @@ b8 engine_post_boot(void) {
     return true;
 }
 
+#ifdef YPLATFORM_WEB
+b8 web_pause = false;
+#endif
 f64 running_time = 0;
 u8 frame_count = 0;
 f64 target_frame_seconds = 1.0f / 60;
@@ -188,15 +191,17 @@ b8 render_loop(void) {
         f64 remaining_seconds = target_frame_seconds - frame_elapsed_time;
 
         if (remaining_seconds > 0) {
-            #ifndef YPLATFORM_WEB
             u64 remaining_ms = (remaining_seconds * 1000);
 
             // If there is time left, give it back to the OS.
             b8 limit_frames = false;
             if (remaining_ms > 0 && limit_frames) {
+                #ifndef YPLATFORM_WEB
                 platform_sleep(remaining_ms - 1);
+                #else
+
+                #endif
             }
-            #endif
 
             frame_count++;
         }
@@ -232,10 +237,30 @@ void post_render_shutdown(void) {
 #ifdef YPLATFORM_WEB
 #include <emscripten.h>
 #include <emscripten/html5.h>
+
+static double last_time = 0.0;
 // Callback type takes one argument of type 'void*' and returns nothing
 //typedef void (*em_arg_callback_func)(void*);
 EMSCRIPTEN_KEEPALIVE
 EM_BOOL em_loop(double time, void *userData) {
+    double current_time = time * 0.001; // convert ms to seconds
+
+    if (last_time == 0.0) {
+        last_time = current_time;
+        emscripten_request_animation_frame(em_loop, NULL);
+        return EM_TRUE;
+    }
+
+    double dt = current_time - last_time;
+    b8 limit_frames = false;
+    if (dt < target_frame_seconds && limit_frames == true) {
+        // Not enough time passed, skip this frame, request next one
+        emscripten_request_animation_frame(em_loop, NULL);
+        return EM_TRUE;
+    }
+
+    last_time = current_time;
+
     int result = render_loop();
 
     if (result == 0) {
@@ -243,8 +268,10 @@ EM_BOOL em_loop(double time, void *userData) {
         return EM_FALSE;
     }
 
+    emscripten_request_animation_frame(em_loop, NULL);
     return EM_TRUE;
 }
+
 APPLICATION* get_application_instance(void) {
     return engine_state->game_instance;
 }
@@ -256,10 +283,6 @@ b8 engine_run(APPLICATION* game_instance) {
     clock_start(&engine_state->clock);
     clock_update(&engine_state->clock);
     engine_state->last_time = engine_state->clock.elapsed;
-
-    // This is just a stupid way to bypass the warning of them not being used
-    running_time = frame_count;
-    frame_count = running_time;
 
     char* mem_usage = get_memory_usage_str();
     PRINT_INFO(mem_usage);
@@ -273,7 +296,7 @@ b8 engine_run(APPLICATION* game_instance) {
     post_render_shutdown();
 
 #else
-    emscripten_request_animation_frame_loop(em_loop, NULL);
+    emscripten_request_animation_frame(em_loop, NULL);
     //emscripten_request_animation_frame_loop(em_loop, game_instance);
 #endif
 

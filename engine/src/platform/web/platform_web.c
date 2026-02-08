@@ -4,7 +4,7 @@
  * Created:
  *   2025.04.15 -02:05
  * Last edited:
- *   <l364AMle>
+ *   2026.02.08 -09:22
  * Auto updated?
  *   Yes
  *
@@ -88,6 +88,26 @@ static EM_BOOL mouse_move_callback(int eventType, const EmscriptenMouseEvent *e,
     return EM_TRUE;
 }
 
+static EM_BOOL emscripten_mouse_button_callback(int eventType,const EmscriptenMouseEvent* e,void* userData) {
+    b8 pressed = (eventType == EMSCRIPTEN_EVENT_MOUSEDOWN);
+    E_BUTTONS mouse_button = BUTTON_MAX_BUTTONS;
+
+    switch (e->button) {
+        case 0:
+            mouse_button = BUTTON_LEFT;
+            break;
+        case 1:
+            mouse_button = BUTTON_MIDDLE;
+            break;
+        case 2:
+            mouse_button = BUTTON_RIGHT;
+            break;
+    }
+
+    input_process_button(mouse_button, pressed);
+    return EM_TRUE;
+}
+
 static EM_BOOL wheel_callback(int eventType, const EmscriptenWheelEvent *e, void *userData) {
     // e->deltaY is the vertical scroll amount. 
     // Invert it to match typical Windows behavior (scroll up is positive)
@@ -109,7 +129,7 @@ static EM_BOOL wheel_callback(int eventType, const EmscriptenWheelEvent *e, void
 bool key_callback(int eventType, const EmscriptenKeyboardEvent *e, void *userData) {
     int dom_pk_code = emscripten_compute_dom_pk_code(e->code);
     E_KEYS key = translate_keycode(dom_pk_code);
-    b8 pressed = eventType == WEB_KEY_PRESSED || eventType == WEB_KEY_DOWN;
+    b8 pressed = (eventType == EMSCRIPTEN_EVENT_KEYDOWN);
     // Pass to the input subsystem for processing.
     input_process_key(key, pressed);
   //printf("%s, key: \"%s\" (printable: %s), code: \"%s\" = %s (%d), location: %i,%s%s%s%s repeat: %d, locale: \"%s\", char: \"%s\", charCode: %u (interpreted: %d), keyCode: %s(%u), which: %u\n",
@@ -156,15 +176,19 @@ b8 platform_system_startup(u64 *memory_requirement, void *state, void *config) {
         return false;
     }
 
-    emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 0, key_callback);
-    emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, 0, key_callback);
+    emscripten_set_keydown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, key_callback);
+    emscripten_set_keyup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, key_callback);
     emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, false, resize_callback);
 
     // Use the canvas name for movement so coordinates are relative to the element
-    emscripten_set_mousemove_callback(web_canvas_name, 0, false, mouse_move_callback);
+    emscripten_set_mousemove_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, mouse_move_callback);
     
     // Wheel events are usually better captured on the window or canvas
-    emscripten_set_wheel_callback(web_canvas_name, 0, false, wheel_callback);
+    emscripten_set_wheel_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, wheel_callback);
+
+    emscripten_set_mousedown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, emscripten_mouse_button_callback);
+
+    emscripten_set_mouseup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL,EM_TRUE, emscripten_mouse_button_callback);
     
     // Fire initial resize event
     EVENT_CONTEXT context;
@@ -205,7 +229,7 @@ void platform_console_write(const char* message, u8 colour) {
 }
 
 f64 platform_get_absolute_time(void){
-    return emscripten_get_now() / 1000.0;
+    return emscripten_get_now() * 0.001;
 }
 
 void platform_sleep(u64 ms){

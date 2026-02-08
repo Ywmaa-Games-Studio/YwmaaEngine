@@ -694,8 +694,9 @@ void webgpu_renderer_shader_destroy(RENDERER_PLUGIN* plugin, struct SHADER *s)
         //wgpuBufferUnmap(shader->uniform_buffer.handle);
         // Uniform buffer.
         renderer_renderbuffer_destroy(&shader->uniform_buffer);
+#ifndef YPLATFORM_WEB
         renderer_renderbuffer_destroy(&shader->uniform_buffer_staging);
-
+#endif
         // Pipeline
         webgpu_pipeline_destroy(context, &shader->pipeline);
 
@@ -902,21 +903,23 @@ b8 webgpu_renderer_shader_init(RENDERER_PLUGIN* plugin, struct SHADER *shader)
         PRINT_ERROR("WebGPU buffer creation failed for object shader.");
         return false;
     }
-    
+#ifndef YPLATFORM_WEB
     if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_STAGING, total_buffer_size, true, &shader_internal_data->uniform_buffer_staging)) {
         PRINT_ERROR("WebGPU buffer creation failed for object shader.");
         return false;
     }
+#endif
     // Allocate space for the global UBO, whcih should occupy the _stride_ space, _not_ the actual size used.
     if (!renderer_renderbuffer_allocate(&shader_internal_data->uniform_buffer, shader->global_ubo_stride, &shader->global_ubo_offset)) {
         PRINT_ERROR("Failed to allocate space for the uniform buffer!");
         return false;
     }
+#ifndef YPLATFORM_WEB
     if (!renderer_renderbuffer_allocate(&shader_internal_data->uniform_buffer_staging, shader->global_ubo_stride, &shader->global_ubo_offset)) {
         PRINT_ERROR("Failed to allocate space for the uniform buffer staging!");
         return false;
     }
-
+#endif
     // Map the entire buffer's memory.
     //shader_internal_data->mapped_uniform_buffer_block = webgpu_buffer_map_memory(&s->uniform_buffer);
     
@@ -1054,11 +1057,9 @@ b8 webgpu_renderer_shader_apply_instance(RENDERER_PLUGIN* plugin, struct SHADER 
                 *instance_ubo_generation = 1;  // material->generation; TODO: some generation from... somewhere
             }
             bind_index++;
-            if (object_state->instance_bind_state.bind_group) {
-                wgpuBindGroupRelease(object_state->instance_bind_state.bind_group);
-                object_state->instance_bind_state.bind_group = NULL;
+            if (!object_state->instance_bind_state.bind_group) {
+                object_state->instance_bind_state.bind_group = wgpuDeviceCreateBindGroup(context->device, &instance_bind_group_desc);
             }
-            object_state->instance_bind_state.bind_group = wgpuDeviceCreateBindGroup(context->device, &instance_bind_group_desc);
             wgpuRenderPassEncoderSetBindGroup(internal->renderpass->handle, BIND_GROUP_SET_INDEX_INSTANCE, object_state->instance_bind_state.bind_group, 0, NULL);
         }
     }
@@ -1135,13 +1136,10 @@ b8 webgpu_renderer_shader_apply_instance(RENDERER_PLUGIN* plugin, struct SHADER 
             // There must be as many bindings as declared in the layout!
             instance_textures_bind_group_desc.entryCount = textures_total_bind_count;
             instance_textures_bind_group_desc.entries = binding;
-            if (object_state->instance_bind_state.textures_bind_group) {
-                wgpuBindGroupRelease(object_state->instance_bind_state.textures_bind_group);
-                object_state->instance_bind_state.textures_bind_group = NULL;
-            }
-            //if (!object_state->instance_bind_state.textures_bind_group){
+
+            if (!object_state->instance_bind_state.textures_bind_group){
                 object_state->instance_bind_state.textures_bind_group = wgpuDeviceCreateBindGroup(context->device, &instance_textures_bind_group_desc);
-            //}
+            }
             webgpu_device_poll(context);
         }
 
@@ -1199,10 +1197,12 @@ b8 webgpu_renderer_shader_acquire_instance_resources(RENDERER_PLUGIN* plugin, st
             PRINT_ERROR("webgpu_material_shader_acquire_resources failed to acquire ubo space");
             return false;
         }
+#ifndef YPLATFORM_WEB
         if (!renderer_renderbuffer_allocate(&internal->uniform_buffer_staging, size, &instance_state->offset)) {
             PRINT_ERROR("webgpu_material_shader_acquire_resources failed to acquire ubo space");
             return false;
         }
+#endif
     }
 
     WEBGPU_SHADER_BIND_GROUP_SET_STATE* set_state = &instance_state->instance_bind_state;

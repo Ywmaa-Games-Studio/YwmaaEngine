@@ -147,8 +147,9 @@ b8 render_loop(void) {
         clock_update(&engine_state->clock);
         f64 current_time = engine_state->clock.elapsed;
         f64 delta = (current_time - engine_state->last_time);
+    #ifndef YPLATFORM_WEB
         f64 frame_start_time = platform_get_absolute_time();
-
+    #endif
         engine_state->p_frame_data.total_time = current_time;
         engine_state->p_frame_data.delta_time = (f32)delta;
 
@@ -184,9 +185,11 @@ b8 render_loop(void) {
             packet.views[i].view->on_destroy_packet(packet.views[i].view, &packet.views[i]);
         }
 
+    #ifndef YPLATFORM_WEB
         // Figure out how long the frame took and, if below
         f64 frame_end_time = platform_get_absolute_time();
         frame_elapsed_time = frame_end_time - frame_start_time;
+    #endif
         running_time += frame_elapsed_time;
         f64 remaining_seconds = target_frame_seconds - frame_elapsed_time;
 
@@ -244,7 +247,7 @@ static double last_time = 0.0;
 EMSCRIPTEN_KEEPALIVE
 EM_BOOL em_loop(double time, void *userData) {
     double current_time = time * 0.001; // convert ms to seconds
-
+    frame_elapsed_time = current_time - last_time;
     if (last_time == 0.0) {
         last_time = current_time;
         emscripten_request_animation_frame(em_loop, NULL);

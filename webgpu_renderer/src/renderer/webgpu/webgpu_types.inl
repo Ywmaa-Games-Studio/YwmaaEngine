@@ -186,7 +186,10 @@ typedef struct WEBGPU_PIPELINE_CONFIG {
     /** @brief An array of push constant data ranges. */
     range* push_constant_ranges;
 } WEBGPU_PIPELINE_CONFIG;
-
+#ifdef YPLATFORM_WEB
+/** @brief staging buffers used for async mapping the uniform buffer */
+#define WEBGPU_STAGING_BUFFERS_COUNT 3
+#endif
 typedef struct WEBGPU_SHADER {
 
     /** @brief The shader identifier. */
@@ -202,7 +205,17 @@ typedef struct WEBGPU_SHADER {
 
     // Global uniform buffer.
     RENDER_BUFFER uniform_buffer;
+#ifdef YPLATFORM_WEB
+    // use triple buffering for web platform, because buffer mapping doesn't return immediately
+    RENDER_BUFFER uniform_staging_buffers[WEBGPU_STAGING_BUFFERS_COUNT];
     RENDER_BUFFER uniform_buffer_staging;
+#else
+    RENDER_BUFFER uniform_buffer_staging;
+#endif
+
+#ifdef YPLATFORM_WEB
+
+#endif
     // Global uniform buffer.
     //RENDER_BUFFER local_buffer;
 

@@ -490,17 +490,16 @@ b8 render_view_pick_on_render(const struct RENDER_VIEW* self, const struct RENDE
     }
 
     // Read pixel data.
-    TEXTURE* t = &data->color_target_attachment_texture;
-
     // Read the pixel at the mouse coordinate.
     u8 pixel_rgba[4] = {0};
     u8* pixel = &pixel_rgba[0];
-
+#ifndef YPLATFORM_WEB //TODO: reading texture in web with webgpu doesn't work
+    TEXTURE* t = &data->color_target_attachment_texture;
     // Clamp to image size
     u16 x_coord = YCLAMP(data->mouse_x, 0, self->width - 1);
     u16 y_coord = YCLAMP(data->mouse_y, 0, self->height - 1);
     renderer_texture_read_pixel(t, x_coord, y_coord, &pixel);
-
+#endif
     // Extract the id from the sampled color.
     u32 id = INVALID_ID;
     rgbu_to_u32(pixel[0], pixel[1], pixel[2], &id);

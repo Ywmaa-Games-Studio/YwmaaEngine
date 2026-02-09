@@ -25,7 +25,9 @@
 #include "systems/material_system.h"
 #include "systems/texture_system.h"
 #include "systems/resource_system.h"
-
+#ifdef YPLATFORM_WEB
+#include <emscripten/html5.h>
+#endif
 void webgpu_bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout);
 
 
@@ -161,6 +163,7 @@ void webgpu_renderer_backend_on_resized(RENDERER_PLUGIN* plugin, u16 width, u16 
 
 b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
+    wgpuInstanceProcessEvents(context->instance);
     // Check if recreating swap chain and boot out.
     if (context->recreating_swapchain) {
         b8 result = webgpu_device_poll(context);
@@ -213,14 +216,6 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRA
     return true;
 }
 
-#ifdef YPLATFORM_WEB
-#include <emscripten/html5.h>
-bool frame(double time, void *userData) {
-
-  return 0;
-}
-
-#endif
 b8 webgpu_renderer_backend_end_frame(RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     
@@ -694,7 +689,11 @@ void webgpu_renderer_shader_destroy(RENDERER_PLUGIN* plugin, struct SHADER *s)
         //wgpuBufferUnmap(shader->uniform_buffer.handle);
         // Uniform buffer.
         renderer_renderbuffer_destroy(&shader->uniform_buffer);
-#ifndef YPLATFORM_WEB
+#ifdef YPLATFORM_WEB
+    for (u16 i = 0; i <= WEBGPU_STAGING_BUFFERS_COUNT; i++) {
+        renderer_renderbuffer_destroy(&shader->uniform_staging_buffers[i]);
+    }
+#else
         renderer_renderbuffer_destroy(&shader->uniform_buffer_staging);
 #endif
         // Pipeline
@@ -903,7 +902,15 @@ b8 webgpu_renderer_shader_init(RENDERER_PLUGIN* plugin, struct SHADER *shader)
         PRINT_ERROR("WebGPU buffer creation failed for object shader.");
         return false;
     }
-#ifndef YPLATFORM_WEB
+#ifdef YPLATFORM_WEB
+    for (u16 i = 0; i <= WEBGPU_STAGING_BUFFERS_COUNT; i++) {
+        PRINT_INFO("creating staging buffer %i", i)
+        if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_STAGING, total_buffer_size, true, &shader_internal_data->uniform_staging_buffers[i])) {
+            PRINT_ERROR("WebGPU buffer creation failed for object shader.");
+            return false;
+        }
+    }
+#else
     if (!renderer_renderbuffer_create(RENDERBUFFER_TYPE_STAGING, total_buffer_size, true, &shader_internal_data->uniform_buffer_staging)) {
         PRINT_ERROR("WebGPU buffer creation failed for object shader.");
         return false;
@@ -914,16 +921,24 @@ b8 webgpu_renderer_shader_init(RENDERER_PLUGIN* plugin, struct SHADER *shader)
         PRINT_ERROR("Failed to allocate space for the uniform buffer!");
         return false;
     }
-#ifndef YPLATFORM_WEB
+#ifdef YPLATFORM_WEB
+    for (u16 i = 0; i <= WEBGPU_STAGING_BUFFERS_COUNT; i++) {
+        if (!renderer_renderbuffer_allocate(&shader_internal_data->uniform_staging_buffers[i], shader->global_ubo_stride, &shader->global_ubo_offset)) {
+            PRINT_ERROR("Failed to allocate space for the uniform buffer staging!");
+            return false;
+        }
+        WEBGPU_BUFFER* uniform_buffer_staging = shader_internal_data->uniform_staging_buffers[i].internal_data;
+        uniform_buffer_staging->map_state = WGPUBufferMapState_Unmapped;
+    }
+#else
     if (!renderer_renderbuffer_allocate(&shader_internal_data->uniform_buffer_staging, shader->global_ubo_stride, &shader->global_ubo_offset)) {
         PRINT_ERROR("Failed to allocate space for the uniform buffer staging!");
         return false;
     }
+    WEBGPU_BUFFER* uniform_buffer_staging = shader_internal_data->uniform_buffer_staging.internal_data;
+    uniform_buffer_staging->map_state = WGPUBufferMapState_Unmapped;
 #endif
-    // Map the entire buffer's memory.
-    //shader_internal_data->mapped_uniform_buffer_block = webgpu_buffer_map_memory(&s->uniform_buffer);
-    
-    //shader_internal_data->mapped_uniform_buffer_block = wgpuBufferGetMappedRange(shader_internal_data->uniform_buffer_staging.handle, 0, wgpuBufferGetSize(shader_internal_data->uniform_buffer_staging.handle));//wgpuBufferGetMappedRange(shader_internal_data->uniform_buffer.handle, 0, wgpuBufferGetSize(shader_internal_data->uniform_buffer.handle));
+
     
     // Create a binding
     WGPUBindGroupEntry binding_entry = {0};
@@ -956,16 +971,14 @@ b8 webgpu_renderer_shader_use(RENDERER_PLUGIN* plugin, struct SHADER *shader)
     context->current_shader = shader;
     WEBGPU_SHADER* internal_shader = shader->internal_data;
     wgpuRenderPassEncoderSetPipeline(internal_shader->renderpass->handle, internal_shader->pipeline.handle);
-    //map_completed = false;
-#ifndef YPLATFORM_WEB
+#ifdef YPLATFORM_WEB
+    for (u16 i = 0; i <= WEBGPU_STAGING_BUFFERS_COUNT; i++) {
+        webgpu_buffer_map_memory(plugin, &internal_shader->uniform_staging_buffers[i], 0, 0);
+    }
+#else
     webgpu_buffer_map_memory(plugin, &internal_shader->uniform_buffer_staging, 0, 0);
-#endif
     webgpu_device_poll(context);
-/*     while (!map_completed){
-        
-        PRINT_INFO("waiting for mapping");
-    } */
-    
+#endif
     return true;
 }
 
@@ -1197,12 +1210,19 @@ b8 webgpu_renderer_shader_acquire_instance_resources(RENDERER_PLUGIN* plugin, st
             PRINT_ERROR("webgpu_material_shader_acquire_resources failed to acquire ubo space");
             return false;
         }
-#ifndef YPLATFORM_WEB
+    #ifdef YPLATFORM_WEB
+        for (u16 i = 0; i <= WEBGPU_STAGING_BUFFERS_COUNT; i++) {
+            if (!renderer_renderbuffer_allocate(&internal->uniform_staging_buffers[i], size, &instance_state->offset)) {
+                PRINT_ERROR("webgpu_material_shader_acquire_resources failed to acquire ubo space");
+                return false;
+            }
+        }
+    #else
         if (!renderer_renderbuffer_allocate(&internal->uniform_buffer_staging, size, &instance_state->offset)) {
             PRINT_ERROR("webgpu_material_shader_acquire_resources failed to acquire ubo space");
             return false;
         }
-#endif
+    #endif
     }
 
     WEBGPU_SHADER_BIND_GROUP_SET_STATE* set_state = &instance_state->instance_bind_state;
@@ -1266,15 +1286,33 @@ b8 webgpu_renderer_set_uniform(RENDERER_PLUGIN* plugin, struct SHADER *frontend_
         } else {
 #endif
 
-#ifndef YPLATFORM_WEB
-            // Map the appropriate memory location and copy the data over.
+#ifdef YPLATFORM_WEB
+            // choose the first as default
+            internal->uniform_buffer_staging = internal->uniform_staging_buffers[0];
+            // check if we have any ready buffer, if so, then use it
+            for (u16 i = 0; i <= WEBGPU_STAGING_BUFFERS_COUNT; i++) {
+                WEBGPU_BUFFER* uniform_buffer_staging = internal->uniform_staging_buffers[i].internal_data;
+                if (uniform_buffer_staging->map_state == WGPUBufferMapState_Mapped) {
+                    internal->uniform_buffer_staging = internal->uniform_staging_buffers[i];
+                    break;
+                }
+            }
+#endif
+
             WEBGPU_BUFFER* uniform_buffer_staging = internal->uniform_buffer_staging.internal_data;
+            
+#ifdef YPLATFORM_WEB
+        //uniform_buffer_staging->map_state == WGPUBufferMapState_Mapped
+        if (uniform_buffer_staging->map_state == WGPUBufferMapState_Mapped) {
+#endif
+            // Map the appropriate memory location and copy the data over.
             u64 addr = (u64)uniform_buffer_staging->mapped_buffer_block;
             addr += frontend_shader->bound_ubo_offset + uniform->offset;
             ycopy_memory((void*)addr, value, uniform->size);
             if (addr) {
             }
-#else
+#ifdef YPLATFORM_WEB
+        } else {
             WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
             WGPUBuffer target_handle = ((WEBGPU_BUFFER*)internal->uniform_buffer.internal_data)->handle;
             u64 final_offset = frontend_shader->bound_ubo_offset + uniform->offset;
@@ -1286,8 +1324,8 @@ b8 webgpu_renderer_set_uniform(RENDERER_PLUGIN* plugin, struct SHADER *frontend_
                 value,             // The source data pointer from C
                 uniform->size      // Size of the data (e.g., 64 for mat4)
             );
+        }
 #endif
-            //wgpuBufferUnmap(internal->uniform_buffer_staging.handle);
 #ifdef YWEBGPU_USE_PUSH_CONSTANTS
         }
 #endif
@@ -1298,20 +1336,23 @@ b8 webgpu_renderer_set_uniform(RENDERER_PLUGIN* plugin, struct SHADER *frontend_
 b8 webgpu_shader_after_renderpass(RENDERER_PLUGIN* plugin, struct SHADER *shader) {
     //WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     //PRINT_INFO("buffer size after renderpass");
-#ifndef YPLATFORM_WEB
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
-    webgpu_device_poll(context);
     WEBGPU_SHADER* internal = shader->internal_data;
-    webgpu_buffer_copy_range(
-        plugin,
-        &internal->uniform_buffer_staging,
-        0,
-        &internal->uniform_buffer,
-        0,
-        wgpuBufferGetSize(((WEBGPU_BUFFER*)internal->uniform_buffer.internal_data)->handle)
-    );
-    webgpu_buffer_unmap_memory(plugin, &internal->uniform_buffer_staging, 0, 0);
-#endif
+    WEBGPU_BUFFER* uniform_buffer_staging = internal->uniform_buffer_staging.internal_data;
+    //uniform_buffer_staging->map_state == WGPUBufferMapState_Mapped
+    if (uniform_buffer_staging->map_state == WGPUBufferMapState_Mapped) {
+        webgpu_device_poll(context);
+        webgpu_buffer_copy_range(
+            plugin,
+            &internal->uniform_buffer_staging,
+            0,
+            &internal->uniform_buffer,
+            0,
+            wgpuBufferGetSize(((WEBGPU_BUFFER*)internal->uniform_buffer.internal_data)->handle)
+        );
+        webgpu_buffer_unmap_memory(plugin, &internal->uniform_buffer_staging, 0, 0);
+    }
+
     return true;
 }
 
@@ -1724,6 +1765,7 @@ void on_buffer_map_callback(WGPUMapAsyncStatus status, WGPUStringView message, W
     if (status != WGPUMapAsyncStatus_Success){
         PRINT_ERROR("Failed to map buffer, error: %s", message.data);
         internal_buffer->map_state = WGPUBufferMapState_Unmapped;
+        return;
     }
     internal_buffer->mapped_buffer_block = wgpuBufferGetMappedRange(internal_buffer->handle, 0, wgpuBufferGetSize(internal_buffer->handle));
     internal_buffer->map_state = WGPUBufferMapState_Mapped;
@@ -1735,6 +1777,9 @@ void* webgpu_buffer_map_memory(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u
         return 0;
     }
     WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
+    if (internal_buffer->map_state != WGPUBufferMapState_Unmapped) {
+        return 0;
+    }
     WGPUBufferMapCallbackInfo info = {0};
     info.mode = WGPUCallbackMode_AllowProcessEvents; 
     info.callback = on_buffer_map_callback;
@@ -1750,6 +1795,9 @@ void webgpu_buffer_unmap_memory(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, 
         return;
     }
     WEBGPU_BUFFER* internal_buffer = (WEBGPU_BUFFER*)buffer->internal_data;
+    if (internal_buffer->map_state != WGPUBufferMapState_Mapped) {
+        return;
+    }
 
     internal_buffer->map_state = WGPUBufferMapState_Pending;
     wgpuBufferUnmap(internal_buffer->handle);
@@ -1851,17 +1899,18 @@ b8 webgpu_buffer_copy_range(RENDERER_PLUGIN* plugin, RENDER_BUFFER* source, u64 
 b8 webgpu_buffer_draw(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 offset, u32 element_count, b8 bind_only) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
    WEBGPU_SHADER* internal = context->current_shader->internal_data;
-   WGPUBuffer buffer_handle = ((WEBGPU_BUFFER*)buffer->internal_data)->handle;
+   WEBGPU_BUFFER* webgpu_buffer = ((WEBGPU_BUFFER*)buffer->internal_data);
+   WGPUBuffer buffer_handle = webgpu_buffer->handle;
     if (buffer->type == RENDERBUFFER_TYPE_VERTEX) {
         // Bind vertex buffer at offset.
-        wgpuRenderPassEncoderSetVertexBuffer(internal->renderpass->handle, 0, buffer_handle, offset, wgpuBufferGetSize(buffer_handle)-offset);
+        wgpuRenderPassEncoderSetVertexBuffer(internal->renderpass->handle, 0, buffer_handle, offset, element_count * sizeof(u32));
         if (!bind_only) {
             wgpuRenderPassEncoderDraw(internal->renderpass->handle, element_count, 1, 0, 0);
         }
         return true;
     } else if (buffer->type == RENDERBUFFER_TYPE_INDEX) {
         // Bind index buffer at offset.
-        wgpuRenderPassEncoderSetIndexBuffer(internal->renderpass->handle, buffer_handle, WGPUIndexFormat_Uint32, offset, wgpuBufferGetSize(buffer_handle)-offset);
+        wgpuRenderPassEncoderSetIndexBuffer(internal->renderpass->handle, buffer_handle, WGPUIndexFormat_Uint32, offset, element_count * sizeof(u32) );
         if (!bind_only) {
             wgpuRenderPassEncoderDrawIndexed(internal->renderpass->handle, element_count, 1, 0, 0, 0);
         }

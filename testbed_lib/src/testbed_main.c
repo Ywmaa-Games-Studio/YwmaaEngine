@@ -29,6 +29,7 @@
 #include <systems/light_system.h>
 #include <resources/simple_scene.h>
 #include <systems/resource_system.h>
+#include <systems/layers_system.h>
 #include "debug_console.h"
 #include "game_commands.h"
 #include "game_keybinds.h"
@@ -185,6 +186,50 @@ b8 application_boot(struct APPLICATION* application_instance) {
     return true;
 }
 
+void layer3_init(void) {
+    PRINT_INFO("LAYER3 init!")
+}
+
+void layer3_update(f32 delta_time) {
+    PRINT_INFO("LAYER3 update! delta %f", delta_time)
+}
+
+
+void layer3_destroy(void) {
+    PRINT_INFO("LAYER3 destroy!")
+}
+
+
+void layer1_init(void) {
+    PRINT_INFO("LAYER1 init!")
+}
+
+void layer2_init(void) {
+    PRINT_INFO("LAYER2 init!")
+}
+
+void layer1_update(f32 delta_time) {
+    PRINT_INFO("LAYER1 update! delta %f", delta_time)
+    LAYER layer3;
+    layer3.init = layer3_init;
+    layer3.update = layer3_update;
+    layer3.destroy = layer3_destroy;
+    layers_system_transition(1, &layer3);
+}
+
+void layer2_update(f32 delta_time) {
+    PRINT_INFO("LAYER2 update! delta %f", delta_time)
+}
+
+
+void layer1_destroy(void) {
+    PRINT_INFO("LAYER1 destroy!")
+}
+
+void layer2_destroy(void) {
+    PRINT_INFO("LAYER2 destroy!")
+}
+
 b8 application_init(APPLICATION* application_instance) {
     PRINT_DEBUG("application_init() called!");
 
@@ -274,6 +319,16 @@ b8 application_init(APPLICATION* application_instance) {
 
     yzero_memory(&state->update_clock, sizeof(native_clock));
     yzero_memory(&state->render_clock, sizeof(native_clock));
+    LAYER layer1;
+    LAYER layer2;
+    layer1.init = layer1_init;
+    layer1.update = layer1_update;
+    layer1.destroy = layer1_destroy;
+    layer2.init = layer2_init;
+    layer2.update = layer2_update;
+    layer2.destroy = layer2_destroy;
+    layers_system_push(&layer2);
+    layers_system_push(&layer1);
 
     return true;
 }

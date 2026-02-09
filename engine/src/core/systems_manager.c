@@ -21,6 +21,7 @@
 #include "systems/material_system.h"
 #include "systems/geometry_system.h"
 #include "systems/light_system.h"
+#include "systems/layers_system.h"
 
 static b8 register_known_systems_pre_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CONFIG* app_config);
 static b8 register_known_systems_post_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CONFIG* app_config);
@@ -233,6 +234,8 @@ b8 register_known_systems_pre_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CON
 }
 
 void shutdown_known_systems(SYSTEMS_MANAGER_STATE* state) {
+    state->systems[Y_SYSTEM_TYPE_LAYERS].shutdown(state->systems[Y_SYSTEM_TYPE_LAYERS].state);
+
     state->systems[Y_SYSTEM_TYPE_CAMERA].shutdown(state->systems[Y_SYSTEM_TYPE_CAMERA].state);
     state->systems[Y_SYSTEM_TYPE_FONT].shutdown(state->systems[Y_SYSTEM_TYPE_FONT].state);
 
@@ -315,6 +318,12 @@ b8 register_known_systems_post_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CO
     // Light system.
     if (!systems_manager_register(state, Y_SYSTEM_TYPE_LIGHT, light_system_init, light_system_shutdown, 0, 0)) {
         PRINT_ERROR("Failed to register light system.");
+        return false;
+    }
+
+    // Layers system.
+    if (!systems_manager_register(state, Y_SYSTEM_TYPE_LAYERS, layers_system_init, layers_system_shutdown, layers_system_update, 0)) {
+        PRINT_ERROR("Failed to register layers system.");
         return false;
     }
 

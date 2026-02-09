@@ -64,6 +64,7 @@ typedef enum E_Y_SYSTEM_TYPE {
     Y_SYSTEM_TYPE_MATERIAL,
     Y_SYSTEM_TYPE_GEOMETRY,
     Y_SYSTEM_TYPE_LIGHT,
+    Y_SYSTEM_TYPE_LAYERS,
 
     // NOTE: Anything beyond this is in user space.
     Y_SYSTEM_TYPE_KNOWN_MAX = 255,

@@ -14,7 +14,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
-const android = @import("android");
+//const android = @import("android");
 
 fn generate_version_string(allocator: std.mem.Allocator, major: i32, minor: i32) ![]u8 {
     // Get current time as timespec
@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) !void {
     const exe_name: []const u8 = "testbed";
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const android_targets = android.standardTargets(b, target);
+    //const android_targets = android.standardTargets(b, target);
     const is_web = target.result.os.tag == .emscripten;
     if (is_web) {
         std.debug.print("Building for the web...\n", .{});
@@ -63,26 +63,26 @@ pub fn build(b: *std.Build) !void {
     std.log.info("Generated version: {s}", .{version_str});
 
     // If building with Android, initialize the tools / build
-    const android_apk: ?*android.Apk = blk: {
-        if (android_targets.len == 0) {
-            break :blk null;
-        }
-        const android_sdk = android.Sdk.create(b, .{});
-        const apk = android_sdk.createApk(.{
-            .api_level = .android15,
-            .build_tools_version = "35.0.0",
-            .ndk_version = "28.0.13004108", //"29.0.13113456",//"27.0.12077973",
-        });
+    // const android_apk: ?*android.Apk = blk: {
+    //     if (android_targets.len == 0) {
+    //         break :blk null;
+    //     }
+    //     const android_sdk = android.Sdk.create(b, .{});
+    //     const apk = android_sdk.createApk(.{
+    //         .api_level = .android15,
+    //         .build_tools_version = "35.0.0",
+    //         .ndk_version = "28.0.13004108", //"29.0.13113456",//"27.0.12077973",
+    //     });
 
-        const key_store_file = android_sdk.createKeyStore(.example);
-        apk.setKeyStore(key_store_file);
-        apk.setAndroidManifest(b.path("android/AndroidManifest.xml"));
-        apk.addResourceDirectory(b.path("android/res"));
+    //     const key_store_file = android_sdk.createKeyStore(.example);
+    //     apk.setKeyStore(key_store_file);
+    //     apk.setAndroidManifest(b.path("android/AndroidManifest.xml"));
+    //     apk.addResourceDirectory(b.path("android/res"));
 
-        // Add Java files
-        apk.addJavaSourceFile(.{ .file = b.path("android/src/NativeInvocationHandler.java") });
-        break :blk apk;
-    };
+    //     // Add Java files
+    //     apk.addJavaSourceFile(.{ .file = b.path("android/src/NativeInvocationHandler.java") });
+    //     break :blk apk;
+    // };
 
     const is_debug = optimize == .Debug;
 
@@ -652,14 +652,14 @@ pub fn build(b: *std.Build) !void {
         b.getInstallStep().dependOn(&copy_html.step);
     }
 
-    if (target.result.abi == .android) {
-        const apk: *android.Apk = android_apk orelse @panic("Android APK should be initialized");
-        apk.addArtifact(libengine);
-        apk.addArtifact(exe);
-    }
-    if (android_apk) |apk_file| {
-        apk_file.installApk();
-    }
+    // if (target.result.abi == .android) {
+    //     const apk: *android.Apk = android_apk orelse @panic("Android APK should be initialized");
+    //     apk.addArtifact(libengine);
+    //     apk.addArtifact(exe);
+    // }
+    // if (android_apk) |apk_file| {
+    //     apk_file.installApk();
+    // }
     if (!is_web) {
         b.installDirectory(.{
             .source_dir = b.path("assets"),

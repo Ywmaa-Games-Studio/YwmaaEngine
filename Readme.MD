@@ -2,7 +2,7 @@
 
 Made with C & Zig, the goal is to write a neat engine that is 1024% usable, low dependency, future proof for Zig Programming Language.
 
-<video controls src="YwmaaEngineDemo.mp4" title="Demo"></video>
+[![Demo](https://raw.githubusercontent.com/Ywmaa-Games-Studio/YwmaaEngine/main/YwmaaEngineDemo.mp4)](https://raw.githubusercontent.com/Ywmaa-Games-Studio/YwmaaEngine/main/YwmaaEngineDemo.mp4)
 
 # why AMRT as a name 
 

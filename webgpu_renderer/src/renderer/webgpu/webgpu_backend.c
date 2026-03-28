@@ -47,7 +47,7 @@ b8 webgpu_renderer_backend_init(RENDERER_PLUGIN* plugin, const  RENDERER_BACKEND
     plugin->internal_context_size = sizeof(WEBGPU_CONTEXT);
     plugin->internal_context = yallocate_aligned(plugin->internal_context_size, 8, MEMORY_TAG_RENDERER);
     // Cold-cast the context
-    
+
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     context->plugin = plugin;
     // Just set some default values for the framebuffer for now.
@@ -85,10 +85,10 @@ b8 webgpu_renderer_backend_init(RENDERER_PLUGIN* plugin, const  RENDERER_BACKEND
     if (!webgpu_device_create(context)){
         return false;
     }
-    
+
     // Save off the number of images we have as the number of render targets needed.
     *out_window_render_target_count = 1;
-    
+
 #ifdef YPLATFORM_WEB // early return because webgpu will handle the rest once done
     return true;
 #endif
@@ -212,28 +212,28 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRA
     encoder_desc.nextInChain = NULL;
     encoder_desc.label = (WGPUStringView){"command encoder", sizeof("command encoder")};
     context->encoder = wgpuDeviceCreateCommandEncoder(context->device, &encoder_desc);
-    
+
     return true;
 }
 
 b8 webgpu_renderer_backend_end_frame(RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
-    
+
     WGPUCommandBufferDescriptor cmd_buffer_descriptor = {0};
     cmd_buffer_descriptor.nextInChain = NULL;
     cmd_buffer_descriptor.label = (WGPUStringView){"Command buffer", sizeof("Command buffer")};
     WGPUCommandBuffer command = wgpuCommandEncoderFinish(context->encoder, &cmd_buffer_descriptor);
-    
+
     // Finally submit the command queue
     wgpuQueueSubmit(context->queue, 1, &command);
-    
+
     wgpuCommandEncoderRelease(context->encoder);
     wgpuCommandBufferRelease(command);
 
 #ifndef YPLATFORM_WEB
     //Present Texture
     wgpuSurfacePresent(context->surface);
-#else 
+#else
     //emscripten_request_animation_frame(frame, NULL);
 #endif
 
@@ -251,19 +251,19 @@ b8 webgpu_renderer_backend_end_frame(RENDERER_PLUGIN* plugin, const struct FRAME
 }
 
 void webgpu_renderer_viewport_set(RENDERER_PLUGIN* plugin, Vector4 rect) {
-    
+
 }
 
 void webgpu_renderer_viewport_reset(RENDERER_PLUGIN* plugin) {
-    
+
 }
 
 void webgpu_renderer_scissor_set(RENDERER_PLUGIN* plugin, Vector4 rect) {
-    
+
 }
 
 void webgpu_renderer_scissor_reset(RENDERER_PLUGIN* plugin) {
-    
+
 }
 
 b8 webgpu_renderer_renderpass_begin(RENDERER_PLUGIN* plugin, RENDERPASS* pass, RENDER_TARGET* target) {
@@ -283,14 +283,14 @@ b8 webgpu_renderer_renderpass_begin(RENDERER_PLUGIN* plugin, RENDERPASS* pass, R
             WGPURenderPassColorAttachment* color_attachment = (WGPURenderPassColorAttachment*)(internal_data->descriptor.colorAttachments);
             color_attachment[i].view = attachment_views[i];
         }
-        
+
     }
 
-    
+
     b8 do_clear_depth = (pass->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
     if (do_clear_depth) {
         WGPURenderPassDepthStencilAttachment* depth_stencil_attachment = (WGPURenderPassDepthStencilAttachment*)(internal_data->descriptor.depthStencilAttachment);
-        
+
         for (u32 i = 0; i < target->attachment_count; ++i) {
             if (target->attachments[i].type == RENDER_TARGET_ATTACHMENT_TYPE_DEPTH) {
                 if (depth_stencil_attachment) {
@@ -302,7 +302,7 @@ b8 webgpu_renderer_renderpass_begin(RENDERER_PLUGIN* plugin, RENDERPASS* pass, R
         }
 
     }
-    
+
     internal_data->handle = wgpuCommandEncoderBeginRenderPass(context->encoder, &internal_data->descriptor);
 
     return true;
@@ -446,7 +446,7 @@ void webgpu_renderer_draw_geometry(RENDERER_PLUGIN* plugin, GEOMETRY_RENDER_DATA
 
     WEBGPU_GEOMETRY_DATA* buffer_data = &context->geometries[data->geometry->internal_id];
     // Set vertex buffer while encoding the render pass
-    
+
     b8 includes_index_data = buffer_data->index_count > 0;
     if (!webgpu_buffer_draw(plugin, &context->object_vertex_buffer, buffer_data->vertex_buffer_offset, buffer_data->vertex_count, includes_index_data)) {
         PRINT_ERROR("webgpu_renderer_draw_geometry failed to draw vertex buffer;");
@@ -575,8 +575,8 @@ b8 webgpu_renderer_shader_create(RENDERER_PLUGIN* plugin, struct SHADER *shader,
         }
     }
 
-    
-    
+
+
     if (internal_shader->global_uniform_count > 0) {
         // Global descriptor set config.
         WGPUBindGroupLayoutDescriptor global_bind_group_layout_desc = {0};
@@ -613,7 +613,7 @@ b8 webgpu_renderer_shader_create(RENDERER_PLUGIN* plugin, struct SHADER *shader,
         instance_bind_group_layout_desc.entries = NULL;
         // Add a UBO to it, as instances should always have one available.
         // NOTE: Might be a good idea to only add this if it is going to be used...
-        
+
         u8 binding_index = instance_bind_group_layout_desc.entryCount;
         webgpu_bind_layout_set_default(&internal_shader->config.instance_bind_group_entries[binding_index]);
         internal_shader->config.instance_bind_group_entries[binding_index].nextInChain = NULL;
@@ -663,7 +663,7 @@ void webgpu_renderer_shader_destroy(RENDERER_PLUGIN* plugin, struct SHADER *s)
             PRINT_ERROR("webgpu_renderer_shader_destroy requires a valid pointer to a shader.");
             return;
         }
-        
+
         if (shader->global_bind_group) {
             wgpuBindGroupRelease(shader->global_bind_group);
         }
@@ -675,10 +675,10 @@ void webgpu_renderer_shader_destroy(RENDERER_PLUGIN* plugin, struct SHADER *s)
         if (shader->instance_states->instance_bind_state.textures_bind_group) {
             wgpuBindGroupRelease(shader->instance_states->instance_bind_state.textures_bind_group);
         }
-        
+
         // bind groups layouts.
         for (u32 i = 0; i < shader->config.bind_group_count; ++i) {
-            
+
             if (shader->bind_group_layouts[i]) {
                 wgpuBindGroupLayoutRelease(shader->bind_group_layouts[i]);
                 shader->bind_group_layouts[i] = 0;
@@ -711,13 +711,13 @@ void webgpu_renderer_shader_destroy(RENDERER_PLUGIN* plugin, struct SHADER *s)
         yfree(s->internal_data);
         s->internal_data = 0;
     }
-    
+
 }
 
 b8 webgpu_renderer_shader_init(RENDERER_PLUGIN* plugin, struct SHADER *shader)
 {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
-    
+
     WEBGPU_SHADER* shader_internal_data = (WEBGPU_SHADER*)shader->internal_data;
 
     // TODO: should check if we are loading the same shader module
@@ -780,10 +780,10 @@ b8 webgpu_renderer_shader_init(RENDERER_PLUGIN* plugin, struct SHADER *shader)
             WGPUBindGroupLayoutDescriptor* bind_config = &shader_internal_data->config.bind_group_layout_desc[set_index];
 
             bind_config->entryCount += 2;
-            
+
             // Define texture binding layout
             // Setup texture binding
-            
+
             webgpu_bind_layout_set_default(&shader_internal_data->config.textures_bind_group_entries[sampler_position]);
             shader_internal_data->config.textures_bind_group_entries[sampler_position].nextInChain = NULL;
             shader_internal_data->config.textures_bind_group_entries[sampler_position].binding = sampler_position;
@@ -825,12 +825,12 @@ b8 webgpu_renderer_shader_init(RENDERER_PLUGIN* plugin, struct SHADER *shader)
         case WGPUShaderStage_Fragment:
             fragment_stage_desc.module = shader_internal_data->shader_module[i];
             break;
-        
+
         default:
             PRINT_ERROR("webgpu_renderer_shader_init stage not supported");
             break;
         }
-        
+
     }
     if (!vertex_stage_desc.module){
         PRINT_ERROR("webgpu_renderer_shader_init cannot init without vertex stage in graphics pipeline");
@@ -844,7 +844,7 @@ b8 webgpu_renderer_shader_init(RENDERER_PLUGIN* plugin, struct SHADER *shader)
     vertex_stage_desc.constantCount = 0;
     vertex_stage_desc.constants = 0;
     //END Vertex stage setup
-    
+
     //START Fragment stage setup
     fragment_stage_desc.entryPoint = (WGPUStringView){ "fs_main", 7 };
     fragment_stage_desc.constantCount = 0;
@@ -863,13 +863,13 @@ b8 webgpu_renderer_shader_init(RENDERER_PLUGIN* plugin, struct SHADER *shader)
     color_target.format = context->swapchain_format;
     color_target.blend = &blend_state;
     color_target.writeMask = WGPUColorWriteMask_All; // We could write to only some of the color channels.
-    
+
     // We have only one target because our render pass has only one output color
     // attachment.
     fragment_stage_desc.targetCount = 1;
     fragment_stage_desc.targets = &color_target;
     //END Fragment stage setup
-    
+
     WEBGPU_PIPELINE_CONFIG pipeline_config = {0};
     pipeline_config.bind_group_layout_count = shader_internal_data->config.bind_group_count;
     pipeline_config.bind_group_layouts = shader_internal_data->bind_group_layouts;
@@ -939,7 +939,7 @@ b8 webgpu_renderer_shader_init(RENDERER_PLUGIN* plugin, struct SHADER *shader)
     uniform_buffer_staging->map_state = WGPUBufferMapState_Unmapped;
 #endif
 
-    
+
     // Create a binding
     WGPUBindGroupEntry binding_entry = {0};
     binding_entry.nextInChain = NULL;
@@ -1010,7 +1010,7 @@ b8 webgpu_renderer_shader_bind_instance(RENDERER_PLUGIN* plugin, struct SHADER *
 b8 webgpu_renderer_shader_apply_globals(RENDERER_PLUGIN* plugin, struct SHADER *s)
 {
     WEBGPU_SHADER* internal = s->internal_data;
-    
+
     u32 global_set_binding_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_GLOBAL].entryCount;
     if (global_set_binding_count > 1) {
         // TODO: There are samplers to be written. Support this.
@@ -1021,7 +1021,7 @@ b8 webgpu_renderer_shader_apply_globals(RENDERER_PLUGIN* plugin, struct SHADER *
 
     wgpuRenderPassEncoderSetBindGroup(internal->renderpass->handle, BIND_GROUP_SET_INDEX_GLOBAL, internal->global_bind_group, 0, NULL);
 
-    
+
     return true;
 }
 
@@ -1092,7 +1092,7 @@ b8 webgpu_renderer_shader_apply_instance(RENDERER_PLUGIN* plugin, struct SHADER 
                         sampler_count++;
                     }
                 }
-                
+
                 //u32 update_sampler_count = 0;
                 // increment by 2 because each sampler has a texture after it
                 for (u32 i = 0; i < (sampler_count*2); i+= 2) {
@@ -1137,7 +1137,7 @@ b8 webgpu_renderer_shader_apply_instance(RENDERER_PLUGIN* plugin, struct SHADER 
                     binding[i+1].sampler = NULL;
                     binding[i+1].buffer = NULL;
                     binding[i+1].nextInChain = NULL;
-                    
+
                 }
 
             }
@@ -1158,7 +1158,7 @@ b8 webgpu_renderer_shader_apply_instance(RENDERER_PLUGIN* plugin, struct SHADER 
 
         wgpuRenderPassEncoderSetBindGroup(internal->renderpass->handle, BIND_GROUP_SET_INDEX_TEXTURES, object_state->instance_bind_state.textures_bind_group, 0, NULL);
     }
-    
+
     return true;
 }
 
@@ -1181,7 +1181,7 @@ b8 webgpu_renderer_shader_acquire_instance_resources(RENDERER_PLUGIN* plugin, st
 
     WEBGPU_SHADER_INSTANCE_STATE* instance_state = &internal->instance_states[*out_instance_id];
     const u32 BIND_GROUP_SET_INDEX_TEXTURES = internal->config.bind_group_count-1;
-    u32 binding_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_TEXTURES].entryCount; 
+    u32 binding_count = internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_TEXTURES].entryCount;
     u32 instance_texture_count = 0;
     for (u32 i = 0; i < binding_count; i++){
         if (internal->config.bind_group_layout_desc[BIND_GROUP_SET_INDEX_TEXTURES].entries[i].sampler.type != WGPUSamplerBindingType_BindingNotUsed){
@@ -1231,7 +1231,7 @@ b8 webgpu_renderer_shader_acquire_instance_resources(RENDERER_PLUGIN* plugin, st
         set_state->bind_group_states[i].generations = INVALID_ID_U8;
         set_state->bind_group_states[i].ids = INVALID_ID;
     }
-    
+
 
 
     return true;
@@ -1300,7 +1300,7 @@ b8 webgpu_renderer_set_uniform(RENDERER_PLUGIN* plugin, struct SHADER *frontend_
 #endif
 
             WEBGPU_BUFFER* uniform_buffer_staging = internal->uniform_buffer_staging.internal_data;
-            
+
 #ifdef YPLATFORM_WEB
         //uniform_buffer_staging->map_state == WGPUBufferMapState_Mapped
         if (uniform_buffer_staging->map_state == WGPUBufferMapState_Mapped) {
@@ -1381,7 +1381,7 @@ b8 webgpu_renderpass_create(RENDERER_PLUGIN* plugin, const RENDERPASS_CONFIG* co
         if (attachment_config->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOR) {
             // Color attachment
             b8 do_clear_color = (out_renderpass->clear_flags & RENDERPASS_CLEAR_COLOR_BUFFER_FLAG) != 0;
-            
+
             WGPURenderPassColorAttachment render_pass_color_attachment = {0};
             render_pass_color_attachment.nextInChain = NULL;
             //render_pass_color_attachment->view = context->target_view;
@@ -1414,7 +1414,7 @@ b8 webgpu_renderpass_create(RENDERER_PLUGIN* plugin, const RENDERPASS_CONFIG* co
                     return false;
                 }
             }
-            
+
             // Determine which store operation to use.
             if (attachment_config->store_operation == RENDER_TARGET_ATTACHMENT_STORE_OPERATION_DONT_CARE) {
                 render_pass_color_attachment.storeOp = WGPUStoreOp_Discard;
@@ -1432,7 +1432,7 @@ b8 webgpu_renderpass_create(RENDERER_PLUGIN* plugin, const RENDERPASS_CONFIG* co
             // Depth attachment, if there is one
             b8 do_clear_depth = (out_renderpass->clear_flags & RENDERPASS_CLEAR_DEPTH_BUFFER_FLAG) != 0;
             // We now add a depth/stencil attachment:
-            
+
             // Setup depth/stencil attachment
 
             // We do the depth buffer in the beginning of the render pass instead of here.
@@ -1505,7 +1505,7 @@ b8 webgpu_renderpass_create(RENDERER_PLUGIN* plugin, const RENDERPASS_CONFIG* co
 
         render_pass_desc.depthStencilAttachment = NULL;
     }
-    
+
     internal_data->descriptor = render_pass_desc;
 
     // WE NEED IT ALLOCATED HERE, BECAUSE IT IS USED IN THE RENDERPASS.
@@ -1668,7 +1668,7 @@ void webgpu_buffer_destroy_internal(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buff
                 wgpuBufferRelease(internal_buffer->handle);
                 internal_buffer->handle = 0;
             }
-    
+
             internal_buffer->mapped_buffer_block = 0;
 
             // Free up the internal buffer.
@@ -1781,7 +1781,7 @@ void* webgpu_buffer_map_memory(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u
         return 0;
     }
     WGPUBufferMapCallbackInfo info = {0};
-    info.mode = WGPUCallbackMode_AllowProcessEvents; 
+    info.mode = WGPUCallbackMode_AllowProcessEvents;
     info.callback = on_buffer_map_callback;
     info.userdata1 = internal_buffer;
     internal_buffer->map_state = WGPUBufferMapState_Pending;
@@ -1810,7 +1810,7 @@ b8 webgpu_buffer_flush(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 offse
         PRINT_ERROR("webgpu_buffer_flush requires a valid pointer to a buffer.");
         return false;
     }
-    
+
     // NOTE: Does nothing, for now.
     return true;
 }
@@ -2011,7 +2011,7 @@ b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin) {
     if (!context->render_texture) {
         context->render_texture = yallocate_aligned(sizeof(TEXTURE), 8, MEMORY_TAG_RENDERER);
         void* internal_data = yallocate_aligned(sizeof(WEBGPU_IMAGE), 8, MEMORY_TAG_TEXTURE);
-        
+
         texture_system_wrap_internal(
             "__ywmaaengine_default_render_texture__",
             context->framebuffer_width,
@@ -2067,7 +2067,7 @@ b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin) {
         false,
         depth_image,
         context->depth_texture);
-    
+
     if (!context->depth_texture) {
         PRINT_ERROR("Failed to create depth texture view.");
         return false;
@@ -2091,7 +2091,7 @@ WGPUTextureView get_next_surface_texture_view(WEBGPU_CONTEXT* context) {
     //Get the next surface texture
     wgpuSurfaceGetCurrentTexture(context->surface, &context->current_surface_texture);
 
-    if (context->current_surface_texture.status >= WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
+    if (context->current_surface_texture.status > WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal) {
         return NULL;
     }
 
@@ -2299,10 +2299,10 @@ void webgpu_renderer_texture_destroy(RENDERER_PLUGIN* plugin, TEXTURE* texture){
 
         yfree(texture->internal_data);
     }
-    
+
 
     yzero_memory(texture, sizeof(struct TEXTURE));
-    
+
 }
 
 void webgpu_bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout) {
@@ -2325,4 +2325,3 @@ void webgpu_bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout) {
     bindingLayout->texture.viewDimension = WGPUTextureViewDimension_Undefined;
 }
 #pragma clang optimize on
-

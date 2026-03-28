@@ -124,7 +124,7 @@ void* vulkan_alloc_reallocation(void* user_data, void* original, size_t size, si
     if (size == 0) {
         return 0;
     }
-    
+
 /*     // NOTE: if pOriginal is not null, the same alignment must be used for the new allocation as original.
     u64 alloc_size;
     u16 alloc_alignment;
@@ -262,7 +262,7 @@ b8 vulkan_renderer_backend_init(RENDERER_PLUGIN* plugin, const RENDERER_BACKEND_
     VkInstanceCreateInfo create_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
     create_info.pApplicationInfo = &app_info;
 
-    
+
 
     vulkan_setup_extensions(&create_info);
 
@@ -531,7 +531,7 @@ b8 vulkan_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRA
 
     context->scissor_rect = (Vector4){0, 0, context->framebuffer_width, context->framebuffer_height};
     vulkan_renderer_scissor_set(plugin, context->scissor_rect);
-    
+
     return true;
 }
 
@@ -983,10 +983,10 @@ void vulkan_renderer_texture_create(RENDERER_PLUGIN* plugin, const u8* pixels, T
     t->internal_data = (VULKAN_IMAGE*)yallocate_aligned(sizeof(VULKAN_IMAGE), 8, MEMORY_TAG_TEXTURE);
     VULKAN_IMAGE* image = (VULKAN_IMAGE*)t->internal_data;
     u32 size = t->width * t->height * t->channel_count * (t->type == TEXTURE_TYPE_CUBE ? 6 : 1);
-    
+
     // NOTE: Assumes 8 bits per channel.
     VkFormat image_format = VK_FORMAT_R8G8B8A8_UNORM;
-    
+
     // NOTE: Lots of assumptions here, different texture types will require
     // different options here.
     vulkan_image_create(
@@ -1293,7 +1293,7 @@ b8 vulkan_renderer_create_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometry, 
         PRINT_ERROR("vulkan_renderer_create_geometry failed to upload to the vertex buffer!");
         return false;
     }
-    
+
     // Index data, if applicable
     if (index_count && indices) {
         internal_data->index_count = index_count;
@@ -1309,7 +1309,7 @@ b8 vulkan_renderer_create_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometry, 
             return false;
         }
     }
-        
+
     if (internal_data->generation == INVALID_ID) {
         internal_data->generation = 0;
     } else {
@@ -1365,7 +1365,7 @@ void vulkan_renderer_draw_geometry(RENDERER_PLUGIN* plugin, GEOMETRY_RENDER_DATA
     if (data->geometry && data->geometry->internal_id == INVALID_ID) {
         return;
     }
-    
+
     VULKAN_GEOMETRY_DATA* buffer_data = &context->geometries[data->geometry->internal_id];
     b8 includes_index_data = buffer_data->index_count > 0;
     if (!vulkan_buffer_draw(plugin, &context->object_vertex_buffer, buffer_data->vertex_buffer_offset, buffer_data->vertex_count, includes_index_data)) {
@@ -1418,7 +1418,7 @@ b8 vulkan_renderer_shader_create(RENDERER_PLUGIN* plugin, struct SHADER* shader,
 
     u32 max_descriptor_allocate_count = 1024;
 
-    // Take a copy of the pointer to the context 
+    // Take a copy of the pointer to the context
     VULKAN_SHADER* internal_shader = (VULKAN_SHADER*)shader->internal_data;
 
     internal_shader->renderpass = pass->internal_data;

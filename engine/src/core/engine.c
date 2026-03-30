@@ -125,7 +125,7 @@ b8 engine_post_boot(void) {
     // Call resize once to ensure the proper size has been set.
     renderer_on_resized(engine_state->width, engine_state->height);
     engine_state->game_instance->on_resize(engine_state->game_instance, engine_state->width, engine_state->height);
-    
+
     return true;
 }
 
@@ -230,9 +230,9 @@ void post_render_shutdown(void) {
 
     // Unregister from events.
     event_unregister(EVENT_CODE_APPLICATION_QUIT, 0, engine_on_event);
-    
+
     engine_state->game_instance->stage = APPLICATION_STAGE_UNINITIALIZED;
-    
+
     // Shut down all systems.
     systems_manager_shutdown(&engine_state->sys_manager_state);
 

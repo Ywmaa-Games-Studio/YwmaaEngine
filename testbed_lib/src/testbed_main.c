@@ -191,7 +191,15 @@ void layer3_init(void) {
 }
 
 void layer3_update(f32 delta_time) {
-    PRINT_INFO("LAYER3 update! delta %f", delta_time)
+    //PRINT_INFO("LAYER3 update! delta %f", delta_time)
+}
+
+void layer3_render(f32 delta_time) {
+    //PRINT_INFO("LAYER3 render! delta %f", delta_time)
+}
+
+void layer3_on_event(u16 code, void* sender, EVENT_CONTEXT data) {
+    //PRINT_INFO("LAYER3 event! code %d", code)
 }
 
 
@@ -210,15 +218,17 @@ void layer2_init(void) {
 
 void layer1_update(f32 delta_time) {
     PRINT_INFO("LAYER1 update! delta %f", delta_time)
-    LAYER layer3;
+    LAYER layer3 = {0};
     layer3.init = layer3_init;
     layer3.update = layer3_update;
+    layer3.render = layer3_render;
     layer3.destroy = layer3_destroy;
+    layer3.on_event = layer3_on_event;
     layers_system_transition(1, &layer3);
 }
 
 void layer2_update(f32 delta_time) {
-    PRINT_INFO("LAYER2 update! delta %f", delta_time)
+    //PRINT_INFO("LAYER2 update! delta %f", delta_time)
 }
 
 
@@ -319,8 +329,8 @@ b8 application_init(APPLICATION* application_instance) {
 
     yzero_memory(&state->update_clock, sizeof(native_clock));
     yzero_memory(&state->render_clock, sizeof(native_clock));
-    LAYER layer1;
-    LAYER layer2;
+    LAYER layer1 = {0};
+    LAYER layer2 = {0};
     layer1.init = layer1_init;
     layer1.update = layer1_update;
     layer1.destroy = layer1_destroy;

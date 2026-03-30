@@ -49,6 +49,32 @@ b8 layers_system_update(void* state, const struct FRAME_DATA* p_frame_data) {
 }
 
 
+void layers_system_render(const struct FRAME_DATA* p_frame_data)
+{
+    if (!state_ptr) {
+        return;
+    }
+
+    LAYER* layers = (LAYER*)state_ptr->layers_stack.memory;
+    for (u64 i = 0; i < state_ptr->layers_stack.element_count; i++) {
+        if (layers[i].render) layers[i].render(p_frame_data->delta_time);
+    }
+}
+
+void layers_system_on_event(u16 code, void* sender, EVENT_CONTEXT data)
+{
+    if (!state_ptr) {
+        return;
+    }
+
+    LAYER* layers = (LAYER*)state_ptr->layers_stack.memory;
+    for (u64 i = 0; i < state_ptr->layers_stack.element_count; i++) {
+        if (layers[i].on_event) layers[i].on_event(code, sender, data);
+    }
+}
+
+
+
 u32 layers_system_push(const LAYER* layer) {
     if (state_ptr && layer) {
         state_ptr->top++;
@@ -97,4 +123,3 @@ b8 layers_system_transition(u32 layer_index, LAYER *target_layer) {
     }
     return false;
 }
-

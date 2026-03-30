@@ -4,6 +4,7 @@
 #include "core/logger.h"
 #include "data_structures/darray.h"
 #include "core/engine.h"
+#include "systems/layers_system.h"
 
 typedef struct REGISTERED_EVENT {
     void* listener;
@@ -111,6 +112,9 @@ b8 event_fire(u16 code, void* sender, EVENT_CONTEXT context) {
     if(!state_ptr) {
         return false;
     }
+
+    // Call layers system events before firing events
+    layers_system_on_event(code, sender, context);
 
     // If nothing is registered for the code, boot out.
     if(state_ptr->registered[code].events == 0) {

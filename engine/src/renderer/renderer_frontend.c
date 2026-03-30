@@ -16,6 +16,8 @@
 #include "systems/shader_system.h"
 #include "systems/camera_system.h"
 #include "systems/render_view_system.h"
+#include "systems/layers_system.h"
+
 typedef struct RENDERER_SYSTEM_STATE {
     RENDERER_PLUGIN plugin;
     // The number of render targets. Typically lines up with the amount of swapchain images.
@@ -122,6 +124,9 @@ b8 renderer_draw_frame(RENDER_PACKET* packet, const struct FRAME_DATA* p_frame_d
             return true;
         }
     }
+
+    // call layers render before executing the frame
+    layers_system_render(p_frame_data);
 
     // If the begin frame returned successfully, mid-frame operations may continue.
     if (state_ptr->plugin.begin_frame(&state_ptr->plugin, p_frame_data)) {
@@ -385,7 +390,7 @@ void renderer_renderpass_destroy(RENDERPASS* pass) {
         yfree(pass->name);
         pass->name = 0;
     }
-    
+
     state_ptr->plugin.renderpass_destroy(&state_ptr->plugin, pass);
 }
 

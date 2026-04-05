@@ -46,7 +46,7 @@ void platform_x11_get_handle_info(u64 *out_size, void *memory);
 b8 platform_x11_create_webgpu_surface(void* context_ptr, void* state_ptr);
 
 // Key translation
-E_KEYS translate_keycode(u32 x_keycode);
+static E_KEYS translate_keycode(u32 x_keycode);
 
 // Wayland-specific platform functions
 b8 platform_wayland_system_startup(
@@ -66,4 +66,4 @@ void platform_wayland_get_handle_info(u64 *out_size, void *memory);
 // Key translation
 E_KEYS translate_keysym(u32 key);
 
-#endif // defined(YPLATFORM_LINUX) && !defined(YPLATFORM_ANDROID) 
+#endif // defined(YPLATFORM_LINUX) && !defined(YPLATFORM_ANDROID)

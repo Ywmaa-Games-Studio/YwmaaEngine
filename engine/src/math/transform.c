@@ -4,7 +4,7 @@
 
 Transform transform_create(void) {
     Transform t;
-    transform_set_position_rotation_scale(&t, Vector3_zero(), Quaternion_identity(), Vector3_one());
+    transform_position_rotation_scale_set(&t, Vector3_zero(), Quaternion_identity(), Vector3_one());
     t.local = Matrice4_identity();
     t.parent = 0;
     return t;
@@ -12,7 +12,7 @@ Transform transform_create(void) {
 
 Transform transform_from_position(Vector3 position) {
     Transform t;
-    transform_set_position_rotation_scale(&t, position, Quaternion_identity(), Vector3_one());
+    transform_position_rotation_scale_set(&t, position, Quaternion_identity(), Vector3_one());
     t.local = Matrice4_identity();
     t.parent = 0;
     return t;
@@ -20,7 +20,7 @@ Transform transform_from_position(Vector3 position) {
 
 Transform transform_from_rotation(Quaternion rotation) {
     Transform t;
-    transform_set_position_rotation_scale(&t, Vector3_zero(), rotation, Vector3_one());
+    transform_position_rotation_scale_set(&t, Vector3_zero(), rotation, Vector3_one());
     t.local = Matrice4_identity();
     t.parent = 0;
     return t;
@@ -28,7 +28,7 @@ Transform transform_from_rotation(Quaternion rotation) {
 
 Transform transform_from_position_rotation(Vector3 position, Quaternion rotation) {
     Transform t;
-    transform_set_position_rotation_scale(&t, position, rotation, Vector3_one());
+    transform_position_rotation_scale_set(&t, position, rotation, Vector3_one());
     t.local = Matrice4_identity();
     t.parent = 0;
     return t;
@@ -36,30 +36,30 @@ Transform transform_from_position_rotation(Vector3 position, Quaternion rotation
 
 Transform transform_from_position_rotation_scale(Vector3 position, Quaternion rotation, Vector3 scale) {
     Transform t;
-    transform_set_position_rotation_scale(&t, position, rotation, scale);
+    transform_position_rotation_scale_set(&t, position, rotation, scale);
     t.local = Matrice4_identity();
     t.parent = 0;
     return t;
 }
 
-Transform* transform_get_parent(Transform* t) {
+Transform* transform_parent_get(Transform* t) {
     if (!t) {
         return 0;
     }
     return t->parent;
 }
 
-void transform_set_parent(Transform* t, Transform* parent) {
+void transform_parent_set(Transform* t, Transform* parent) {
     if (t) {
         t->parent = parent;
     }
 }
 
-Vector3 transform_get_position(const Transform* t) {
+Vector3 transform_position_get(const Transform* t) {
     return t->position;
 }
 
-void transform_set_position(Transform* t, Vector3 position) {
+void transform_position_set(Transform* t, Vector3 position) {
     t->position = position;
     t->is_dirty = true;
 }
@@ -69,11 +69,11 @@ void transform_translate(Transform* t, Vector3 translation) {
     t->is_dirty = true;
 }
 
-Quaternion transform_get_rotation(const Transform* t) {
+Quaternion transform_rotation_get(const Transform* t) {
     return t->rotation;
 }
 
-void transform_set_rotation(Transform* t, Quaternion rotation) {
+void transform_rotation_set(Transform* t, Quaternion rotation) {
     t->rotation = rotation;
     t->is_dirty = true;
 }
@@ -83,11 +83,11 @@ void transform_rotate(Transform* t, Quaternion rotation) {
     t->is_dirty = true;
 }
 
-Vector3 transform_get_scale(const Transform* t) {
+Vector3 transform_scale_get(const Transform* t) {
     return t->scale;
 }
 
-void transform_set_scale(Transform* t, Vector3 scale) {
+void transform_scale_set(Transform* t, Vector3 scale) {
     t->scale = scale;
     t->is_dirty = true;
 }
@@ -97,13 +97,13 @@ void transform_scale(Transform* t, Vector3 scale) {
     t->is_dirty = true;
 }
 
-void transform_set_position_rotation(Transform* t, Vector3 position, Quaternion rotation) {
+void transform_position_rotation_set(Transform* t, Vector3 position, Quaternion rotation) {
     t->position = position;
     t->rotation = rotation;
     t->is_dirty = true;
 }
 
-void transform_set_position_rotation_scale(Transform* t, Vector3 position, Quaternion rotation, Vector3 scale) {
+void transform_position_rotation_scale_set(Transform* t, Vector3 position, Quaternion rotation, Vector3 scale) {
     t->position = position;
     t->rotation = rotation;
     t->scale = scale;
@@ -116,7 +116,7 @@ void transform_translate_rotate(Transform* t, Vector3 translation, Quaternion ro
     t->is_dirty = true;
 }
 
-Matrice4 transform_get_local(Transform* t) {
+Matrice4 transform_local_get(Transform* t) {
     if (t) {
         if (t->is_dirty) {
             Matrice4 tr = Matrice4_multiply(Quaternion_to_Matrice4(t->rotation), Matrice4_translation(t->position));
@@ -130,11 +130,11 @@ Matrice4 transform_get_local(Transform* t) {
     return Matrice4_identity();
 }
 
-Matrice4 transform_get_world(Transform* t) {
+Matrice4 transform_world_get(Transform* t) {
     if (t) {
-        Matrice4 l = transform_get_local(t);
+        Matrice4 l = transform_local_get(t);
         if (t->parent) {
-            Matrice4 p = transform_get_world(t->parent);
+            Matrice4 p = transform_world_get(t->parent);
             return Matrice4_multiply(l, p);
         }
         return l;

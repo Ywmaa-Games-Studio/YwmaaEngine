@@ -105,7 +105,7 @@ void* systems_manager_get_state(u16 type) {
     return 0;
 }
 
-b8 register_known_systems_pre_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CONFIG* app_config) {
+static b8 register_known_systems_pre_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CONFIG* app_config) {
     // Memory
     if (!systems_manager_register(state, Y_SYSTEM_TYPE_MEMORY, 0, memory_system_shutdown, 0, 0)) {
         PRINT_ERROR("Failed to register memory system.");
@@ -233,7 +233,7 @@ b8 register_known_systems_pre_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CON
     return true;
 }
 
-void shutdown_known_systems(SYSTEMS_MANAGER_STATE* state) {
+static void shutdown_known_systems(SYSTEMS_MANAGER_STATE* state) {
     state->systems[Y_SYSTEM_TYPE_LAYERS].shutdown(state->systems[Y_SYSTEM_TYPE_LAYERS].state);
 
     state->systems[Y_SYSTEM_TYPE_CAMERA].shutdown(state->systems[Y_SYSTEM_TYPE_CAMERA].state);
@@ -259,7 +259,7 @@ void shutdown_known_systems(SYSTEMS_MANAGER_STATE* state) {
     state->systems[Y_SYSTEM_TYPE_MEMORY].shutdown(state->systems[Y_SYSTEM_TYPE_MEMORY].state);
 }
 
-b8 register_known_systems_post_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CONFIG* app_config) {
+static b8 register_known_systems_post_boot(SYSTEMS_MANAGER_STATE* state, APPLICATION_CONFIG* app_config) {
     // Texture system.
     TEXTURE_SYSTEM_CONFIG texture_sys_config;
     texture_sys_config.max_texture_count = 65536;

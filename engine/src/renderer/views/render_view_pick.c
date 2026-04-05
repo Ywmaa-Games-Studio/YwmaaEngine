@@ -71,7 +71,7 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, EVEN
 
     switch (code) {
         case EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED:
-            render_view_system_regenerate_render_targets(self);
+            render_view_system_render_targets_regenerate(self);
             // This needs to be consumed by other views, so consider it _not_ handled.
             return false;
     }
@@ -85,12 +85,12 @@ void acquire_shader_instances(const struct RENDER_VIEW* self) {
     // Not saving the instance id because it doesn't matter.
     u32 instance;
     // UI shader
-    if (!renderer_shader_acquire_instance_resources(data->ui_shader_info.s, 0, &instance)) {
+    if (!renderer_shader_instance_resources_acquire(data->ui_shader_info.s, 0, &instance)) {
         PRINT_ERROR("render_view_pick failed to acquire shader resources.");
         return;
     }
     // World shader
-    if (!renderer_shader_acquire_instance_resources(data->world_shader_info.s, 0, &instance)) {
+    if (!renderer_shader_instance_resources_acquire(data->world_shader_info.s, 0, &instance)) {
         PRINT_ERROR("render_view_pick failed to acquire shader resources.");
         return;
     }
@@ -103,12 +103,12 @@ void release_shader_instances(const struct RENDER_VIEW* self) {
 
     for (i32 i = 0; i < data->instance_count; ++i) {
         // UI shader
-        if (!renderer_shader_release_instance_resources(data->ui_shader_info.s, i)) {
+        if (!renderer_shader_instance_resources_release(data->ui_shader_info.s, i)) {
             PRINT_WARNING("Failed to release shader resources.");
         }
 
         // World shader
-        if (!renderer_shader_release_instance_resources(data->world_shader_info.s, i)) {
+        if (!renderer_shader_instance_resources_release(data->world_shader_info.s, i)) {
             PRINT_WARNING("Failed to release shader resources.");
         }
     }
@@ -243,9 +243,9 @@ void render_view_pick_on_resize(struct RENDER_VIEW* self, u32 width, u32 height)
     }
 }
 
-b8 render_view_pick_on_build_packet(const struct RENDER_VIEW* self, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet) {
+b8 render_view_pick_on_packet_build(const struct RENDER_VIEW* self, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet) {
     if (!self || !data || !out_packet) {
-        PRINT_WARNING("render_view_pick_on_build_packet requires valid pointer to view, packet, and data.");
+        PRINT_WARNING("render_view_pick_on_packet_build requires valid pointer to view, packet, and data.");
         return false;
     }
 
@@ -281,7 +281,7 @@ b8 render_view_pick_on_build_packet(const struct RENDER_VIEW* self, struct LINEA
         for (u32 j = 0; j < m->geometry_count; ++j) {
             GEOMETRY_RENDER_DATA render_data;
             render_data.geometry = m->geometries[j];
-            render_data.model = transform_get_world(&m->transform);
+            render_data.model = transform_world_get(&m->transform);
             render_data.unique_id = m->unique_id;
             darray_push(out_packet->geometries, render_data);
             out_packet->geometry_count++;
@@ -317,7 +317,7 @@ b8 render_view_pick_on_build_packet(const struct RENDER_VIEW* self, struct LINEA
     return true;
 }
 
-void render_view_pick_on_destroy_packet(const struct RENDER_VIEW* self, struct RENDER_VIEW_PACKET* packet) {
+void render_view_pick_on_packet_destroy(const struct RENDER_VIEW* self, struct RENDER_VIEW_PACKET* packet) {
     darray_destroy(packet->geometries);
     yzero_memory(packet, sizeof(RENDER_VIEW_PACKET));
 }
@@ -387,7 +387,7 @@ b8 render_view_pick_on_render(const struct RENDER_VIEW* self, const struct RENDE
             }
 
             // Draw it.
-            renderer_draw_geometry(&packet->geometries[i]);
+            renderer_geometry_draw(&packet->geometries[i]);
         }
 
         if (!renderer_renderpass_end(pass)) {
@@ -449,7 +449,7 @@ b8 render_view_pick_on_render(const struct RENDER_VIEW* self, const struct RENDE
             }
 
             // Draw it.
-            renderer_draw_geometry(&packet->geometries[i]);
+            renderer_geometry_draw(&packet->geometries[i]);
         }
 
         // Draw bitmap text
@@ -471,7 +471,7 @@ b8 render_view_pick_on_render(const struct RENDER_VIEW* self, const struct RENDE
             shader_system_apply_instance(true);
 
             // Apply the locals
-            Matrice4 model = transform_get_world(&text->transform);
+            Matrice4 model = transform_world_get(&text->transform);
             if (!shader_system_uniform_set_by_index(data->ui_shader_info.model_location, &model)) {
                 PRINT_ERROR("Failed to apply model matrix for text");
             }
@@ -515,7 +515,7 @@ b8 render_view_pick_on_render(const struct RENDER_VIEW* self, const struct RENDE
     return true;
 }
 
-b8 render_view_pick_regenerate_attachment_target(struct RENDER_VIEW* self, u32 pass_index, struct RENDER_TARGET_ATTACHMENT* attachment) {
+b8 render_view_pick_attachment_target_regenerate(struct RENDER_VIEW* self, u32 pass_index, struct RENDER_TARGET_ATTACHMENT* attachment) {
     RENDER_VIEW_PICK_INTERNAL_DATA* data = self->internal_data;
 
     if (attachment->type == RENDER_TARGET_ATTACHMENT_TYPE_COLOR) {

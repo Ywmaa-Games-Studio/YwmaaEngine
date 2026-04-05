@@ -139,37 +139,37 @@ b8 render_view_system_create(const RENDER_VIEW_CONFIG* config) {
     // TODO: Assign these function pointers to known functions based on the view type.
     // TODO: Factory pattern (with register, etc. for each type)?
     if (config->type == RENDERER_VIEW_KNOWN_TYPE_WORLD) {
-        view->on_build_packet = render_view_world_on_build_packet;      // For building the packet
-        view->on_destroy_packet = render_view_world_on_destroy_packet;  // For destroying the packet.
+        view->on_packet_build = render_view_world_on_packet_build;      // For building the packet
+        view->on_packet_destroy = render_view_world_on_packet_destroy;  // For destroying the packet.
         view->on_render = render_view_world_on_render;                  // For rendering the packet
         view->on_create = render_view_world_on_create;
         view->on_destroy = render_view_world_on_destroy;
         view->on_resize = render_view_world_on_resize;
-        view->regenerate_attachment_target = 0;
+        view->attachment_target_regenerate = 0;
     } else if (config->type == RENDERER_VIEW_KNOWN_TYPE_UI) {
-        view->on_build_packet = render_view_ui_on_build_packet;      // For building the packet
-        view->on_destroy_packet = render_view_ui_on_destroy_packet;  // For destroying the packet.
+        view->on_packet_build = render_view_ui_on_packet_build;      // For building the packet
+        view->on_packet_destroy = render_view_ui_on_packet_destroy;  // For destroying the packet.
         view->on_render = render_view_ui_on_render;                  // For rendering the packet
         view->on_create = render_view_ui_on_create;
         view->on_destroy = render_view_ui_on_destroy;
         view->on_resize = render_view_ui_on_resize;
-        view->regenerate_attachment_target = 0;
+        view->attachment_target_regenerate = 0;
     } else if (config->type == RENDERER_VIEW_KNOWN_TYPE_SKYBOX) {
-        view->on_build_packet = render_view_skybox_on_build_packet;      // For building the packet
-        view->on_destroy_packet = render_view_skybox_on_destroy_packet;  // For destroying the packet.
+        view->on_packet_build = render_view_skybox_on_packet_build;      // For building the packet
+        view->on_packet_destroy = render_view_skybox_on_packet_destroy;  // For destroying the packet.
         view->on_render = render_view_skybox_on_render;                  // For rendering the packet
         view->on_create = render_view_skybox_on_create;
         view->on_destroy = render_view_skybox_on_destroy;
         view->on_resize = render_view_skybox_on_resize;
-        view->regenerate_attachment_target = 0;
+        view->attachment_target_regenerate = 0;
     } else if (config->type == RENDERER_VIEW_KNOWN_TYPE_PICK) {
-        view->on_build_packet = render_view_pick_on_build_packet;      // For building the packet
-        view->on_destroy_packet = render_view_pick_on_destroy_packet;  // For destroying the packet.
+        view->on_packet_build = render_view_pick_on_packet_build;      // For building the packet
+        view->on_packet_destroy = render_view_pick_on_packet_destroy;  // For destroying the packet.
         view->on_render = render_view_pick_on_render;                  // For rendering the packet
         view->on_create = render_view_pick_on_create;
         view->on_destroy = render_view_pick_on_destroy;
         view->on_resize = render_view_pick_on_resize;
-        view->regenerate_attachment_target = render_view_pick_regenerate_attachment_target;
+        view->attachment_target_regenerate = render_view_pick_attachment_target_regenerate;
     }
 
     // Call the on create
@@ -180,7 +180,7 @@ b8 render_view_system_create(const RENDER_VIEW_CONFIG* config) {
         return false;
     }
 
-    render_view_system_regenerate_render_targets(view);
+    render_view_system_render_targets_regenerate(view);
 
     // Update the hashtable entry.
     hashtable_set(&state_ptr->lookup, config->name, &id);
@@ -208,12 +208,12 @@ RENDER_VIEW* render_view_system_get(const char* name) {
     return 0;
 }
 
-b8 render_view_system_build_packet(const RENDER_VIEW* view, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet){
+b8 render_view_system_packet_build(const RENDER_VIEW* view, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet){
     if (view && out_packet) {
-        return view->on_build_packet(view, frame_allocator, data, out_packet);
+        return view->on_packet_build(view, frame_allocator, data, out_packet);
     }
 
-    PRINT_ERROR("render_view_system_build_packet requires valid pointers to a view and a packet.");
+    PRINT_ERROR("render_view_system_packet_build requires valid pointers to a view and a packet.");
     return false;
 }
 
@@ -226,7 +226,7 @@ b8 render_view_system_on_render(const RENDER_VIEW* view, const RENDER_VIEW_PACKE
     return false;
 }
 
-void render_view_system_regenerate_render_targets(RENDER_VIEW* view) {
+void render_view_system_render_targets_regenerate(RENDER_VIEW* view) {
     // Create render targets for each. TODO: Should be configurable.
 
     for (u64 r = 0; r < view->renderpass_count; ++r) {
@@ -250,11 +250,11 @@ void render_view_system_regenerate_render_targets(RENDER_VIEW* view) {
                         continue;
                     }
                 } else if (attachment->source == RENDER_TARGET_ATTACHMENT_SOURCE_VIEW) {
-                    if (!view->regenerate_attachment_target) {
+                    if (!view->attachment_target_regenerate) {
                         PRINT_ERROR("RENDER_TARGET_ATTACHMENT_SOURCE_VIEW configured for an attachment whose view does not support this operation.");
                         continue;
                     } else {
-                        if (!view->regenerate_attachment_target(view, r, attachment)) {
+                        if (!view->attachment_target_regenerate(view, r, attachment)) {
                             PRINT_ERROR("View failed to regenerate attachment target for attachment type: 0x%x", attachment->type);
                         }
                     }

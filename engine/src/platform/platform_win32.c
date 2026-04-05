@@ -41,7 +41,7 @@ static PLATFORM_STATE *state_ptr;
 static f64 clock_frequency;
 static LARGE_INTEGER start_time;
 
-void platform_update_watches(void);
+static void platform_update_watches(void);
 
 LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARAM l_param);
 
@@ -552,7 +552,7 @@ b8 platform_unwatch_file(u32 watch_id) {
     return unregister_watch(watch_id);
 }
 
-void platform_update_watches(void) {
+static void platform_update_watches(void) {
     if (!state_ptr || !state_ptr->watches) {
         return;
     }
@@ -614,7 +614,7 @@ LRESULT CALLBACK win32_process_message(HWND hwnd, u32 msg, WPARAM w_param, LPARA
             return 1;
         case WM_CLOSE:
             // TODO: Fire an event for the application to quit.
-            {            
+            {
                 EVENT_CONTEXT data = {0};
                 event_fire(EVENT_CODE_APPLICATION_QUIT, 0, data);
             }

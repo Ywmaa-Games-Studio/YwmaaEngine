@@ -27,7 +27,7 @@ typedef struct LINUX_FILE_WATCH {
 // darray
 static LINUX_FILE_WATCH* file_watches;
 
-void platform_update_watches(void);
+static void platform_update_watches(void);
 
 // Track which platform backend is active
 
@@ -43,26 +43,26 @@ static void* state_ptr = NULL;
 // Main implementation that tries Wayland first, then X11
 b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     PLATFORM_SYSTEM_CONFIG* typed_config = (PLATFORM_SYSTEM_CONFIG*)config;
-    
+
     // First call - just get memory requirements
     if (state == 0) {
         // Use the larger of the two requirements
         u64 wayland_req = 0;
         u64 x11_req = 0;
-        
+
         #ifdef WAYLAND_ENABLED
         platform_wayland_system_startup(&wayland_req, 0, 0, 0, 0, 0, 0);
         #endif
-        
+
         platform_x11_system_startup(&x11_req, 0, 0, 0, 0, 0, 0);
-        
+
         *memory_requirement = wayland_req > x11_req ? wayland_req : x11_req;
     return true;
 }
 
     // Store the state pointer globally
     state_ptr = state;
-    
+
     // Actual initialization - try Wayland first if enabled
     #ifdef WAYLAND_ENABLED
     PRINT_INFO("Attempting to start with Wayland...");
@@ -73,7 +73,7 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
     }
     PRINT_INFO("Wayland initialization failed, falling back to X11...");
     #endif
-    
+
     // Fall back to X11
     PRINT_INFO("Starting with X11...");
     if (platform_x11_system_startup(memory_requirement, state, typed_config->application_name, typed_config->x, typed_config->y, typed_config->width, typed_config->height)) {
@@ -81,7 +81,7 @@ b8 platform_system_startup(u64* memory_requirement, void* state, void* config) {
         active_backend = PLATFORM_BACKEND_X11;
         return true;
     }
-    
+
     PRINT_ERROR("Failed to initialize any platform backend!");
     return false;
 }
@@ -178,7 +178,7 @@ void platform_get_handle_info(u64 *out_size, void *memory) {
             platform_wayland_get_handle_info(out_size, memory);
             #endif
             break;
-            
+
         case PLATFORM_BACKEND_X11:
         default:
             platform_x11_get_handle_info(out_size, memory);
@@ -369,7 +369,7 @@ b8 platform_unwatch_file(u32 watch_id) {
     return unregister_watch(watch_id);
 }
 
-void platform_update_watches(void) {
+static void platform_update_watches(void) {
     if (!state_ptr || !file_watches) {
         return;
     }
@@ -640,7 +640,7 @@ typedef struct PLATFORM_STATE {
 } PLATFORM_STATE;
 
 // Key translation
-E_KEYS translate_keycode(u32 x_keycode);
+static E_KEYS translate_keycode(u32 x_keycode);
 
 b8 platform_x11_system_startup(
     u64* memory_requirement,
@@ -670,7 +670,7 @@ b8 platform_x11_system_startup(
     else {
         PRINT_INFO("Loaded X11");
     }
-    
+
     if (result != X11_LOADER_SUCCESS) {
         PRINT_ERROR("Failed to load X11");
         return false;
@@ -696,7 +696,7 @@ b8 platform_x11_system_startup(
         PRINT_ERROR("Failed to connect to X server via XCB.");
         return false;
     }
-    
+
     // Get data from the X server
     const struct xcb_setup_t* setup = loader_xcb_get_setup(platform_state->handle.connection);
 
@@ -898,20 +898,20 @@ b8 platform_x11_pump_messages(void) {
                     // Something else
                     break;
             }
-            
+
             free(event);
         }
 
         return !quit_flagged;
     }
-    
+
     return false;
 }
 
 void platform_x11_get_handle_info(u64 *out_size, void *memory) {
 
     *out_size = sizeof(X11_HANDLE_INFO);
-    
+
     if (!memory) {
         return;
     }
@@ -921,7 +921,7 @@ void platform_x11_get_handle_info(u64 *out_size, void *memory) {
 }
 
 // Key translation
-E_KEYS translate_keycode(u32 x_keycode) {
+static E_KEYS translate_keycode(u32 x_keycode) {
     switch (x_keycode) {
         case XK_BackSpace:
             return KEY_BACKSPACE;
@@ -1227,10 +1227,10 @@ typedef struct WAYLAND_HANDLE_INFO {
 } WAYLAND_HANDLE_INFO;
 typedef struct WAYLAND_PLATFORM_STATE {
     WAYLAND_HANDLE_INFO handle;
-    
+
     struct wl_registry* registry;
     struct wl_compositor* compositor;
-    
+
     struct xdg_wm_base* xdg_wm_base;
     struct xdg_surface* xdg_surface;
     struct xdg_toplevel* xdg_toplevel;
@@ -1241,7 +1241,7 @@ typedef struct WAYLAND_PLATFORM_STATE {
     struct wl_cursor_theme* cursor_theme;
     struct wl_cursor* default_cursor;
     struct wl_surface* cursor_surface;
-    
+
     i32 width;
     i32 height;
     b8 closed;
@@ -1253,7 +1253,7 @@ typedef struct WAYLAND_PLATFORM_STATE {
 static void xdg_surface_handle_configure(void* data, struct xdg_surface* xdg_surface, uint32_t serial) {
     WAYLAND_PLATFORM_STATE* state = (WAYLAND_PLATFORM_STATE*)data;
     xdg_surface_ack_configure(xdg_surface, serial);
-    
+
     if (state->resized) {
         EVENT_CONTEXT context;
         context.data.u16[0] = (u16)state->width;
@@ -1265,7 +1265,7 @@ static void xdg_surface_handle_configure(void* data, struct xdg_surface* xdg_sur
 
 static void xdg_toplevel_handle_configure(void* data, struct xdg_toplevel* toplevel, int32_t width, int32_t height, struct wl_array* states) {
     WAYLAND_PLATFORM_STATE* state = (WAYLAND_PLATFORM_STATE*)data;
-    
+
     if (width > 0 && height > 0) {
         if (state->width != width || state->height != height) {
             state->width = width;
@@ -1273,7 +1273,7 @@ static void xdg_toplevel_handle_configure(void* data, struct xdg_toplevel* tople
             state->resized = true;
         }
     }
-    
+
     // Check focus state
     uint32_t* state_value;
     state->has_focus = false;
@@ -1331,7 +1331,7 @@ E_KEYS translate_keysym(uint32_t key) {
         case 634: return KEY_PRINT;
         case 110: return KEY_INSERT;
         case 111: return KEY_DELETE;
-        
+
         case 79: return KEY_NUMPAD1;
         case 80: return KEY_NUMPAD2;
         case 81: return KEY_NUMPAD3;
@@ -1353,7 +1353,7 @@ E_KEYS translate_keysym(uint32_t key) {
         case 9: return KEY_8;
         case 10: return KEY_9;
         case 11: return KEY_0;
-        
+
         case 30: return KEY_A;
         case 48: return KEY_B;
         case 46: return KEY_C;
@@ -1380,7 +1380,7 @@ E_KEYS translate_keysym(uint32_t key) {
         case 45: return KEY_X;
         case 21: return KEY_Y;
         case 44: return KEY_Z;
-        
+
         case 59: return KEY_F1;
         case 60: return KEY_F2;
         case 61: return KEY_F3;
@@ -1393,10 +1393,10 @@ E_KEYS translate_keysym(uint32_t key) {
         case 68: return KEY_F10;
         case 87: return KEY_F11;
         case 88: return KEY_F12;
-        
+
         case 69: return KEY_NUMLOCK;
         //case KEY_SCROLLLOCK: return KEY_SCROLL;
-        
+
         case 42: return KEY_LSHIFT;
         case 54: return KEY_RSHIFT;
         case 29: return KEY_LCONTROL;
@@ -1405,7 +1405,7 @@ E_KEYS translate_keysym(uint32_t key) {
         case 100: return KEY_RALT;
         case 125: return KEY_LSUPER;
         //case 125: return KEY_RWIN;
-        
+
         case 39: return KEY_SEMICOLON;
         case 13: return KEY_EQUAL;
         case 51: return KEY_COMMA;
@@ -1413,7 +1413,7 @@ E_KEYS translate_keysym(uint32_t key) {
         case 52: return KEY_PERIOD;
         case 53: return KEY_SLASH;
         case 41: return KEY_GRAVE;
-        
+
         default: return 0;
     }
 }
@@ -1469,18 +1469,18 @@ static void pointer_handle_enter(void* data, struct wl_pointer* pointer, uint32_
     WAYLAND_PLATFORM_STATE* state = (WAYLAND_PLATFORM_STATE*)data;
 
     // PRINT_DEBUG("Mouse entered");
-    
+
     // Set cursor
     if (state->cursor_theme && state->default_cursor) {
         struct wl_cursor_image* image = state->default_cursor->images[0];
         struct wl_buffer* buffer = WAYLAND_wl_cursor_image_get_buffer(image);
-        
-        wl_pointer_set_cursor(pointer, serial, state->cursor_surface, 
+
+        wl_pointer_set_cursor(pointer, serial, state->cursor_surface,
                              image->hotspot_x, image->hotspot_y);
         wl_surface_attach(state->cursor_surface, buffer, 0, 0);
         wl_surface_commit(state->cursor_surface);
     }
-    
+
     // Process mouse position
     input_process_mouse_move(wl_fixed_to_int(sx), wl_fixed_to_int(sy));
 }
@@ -1511,7 +1511,7 @@ static void pointer_handle_button(void* data, struct wl_pointer* pointer, uint32
         default:
             mapped_button = BUTTON_MAX_BUTTONS;
     }
-    
+
     if (mapped_button != BUTTON_MAX_BUTTONS) {
         input_process_button(mapped_button, state == WL_POINTER_BUTTON_STATE_PRESSED);
     }
@@ -1565,7 +1565,7 @@ static const struct wl_pointer_listener pointer_listener = {
 // Seat capability handling
 static void seat_handle_capabilities(void* data, struct wl_seat* seat, uint32_t capabilities) {
     WAYLAND_PLATFORM_STATE* state = (WAYLAND_PLATFORM_STATE*)data;
-    
+
     // Handle keyboard capability
     if (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) {
         if (!state->keyboard) {
@@ -1576,7 +1576,7 @@ static void seat_handle_capabilities(void* data, struct wl_seat* seat, uint32_t 
         wl_keyboard_destroy(state->keyboard);
         state->keyboard = NULL;
     }
-    
+
     // Handle pointer capability
     if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
         if (!state->pointer) {
@@ -1604,7 +1604,7 @@ static const struct wl_seat_listener seat_listener = {
 // Registry handling
 static void registry_handle_global(void* data, struct wl_registry* registry, uint32_t id, const char* interface, uint32_t version) {
     WAYLAND_PLATFORM_STATE* state = (WAYLAND_PLATFORM_STATE*)data;
-    
+
     if (strcmp(interface, wl_compositor_interface.name) == 0) {
         state->compositor = wl_registry_bind(registry, id, &wl_compositor_interface, 4);
     } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
@@ -1634,12 +1634,12 @@ b8 platform_wayland_system_startup(
     i32 x, i32 y,
     i32 width, i32 height) {
 
-        
+
     *memory_requirement = sizeof(WAYLAND_PLATFORM_STATE);
     if (state == 0) {
         return true;
     }
-        
+
     if (WAYLAND_LoadSymbols() != 1) {
         PRINT_ERROR("Failed to load Wayland symbols");
         return false;
@@ -1647,36 +1647,36 @@ b8 platform_wayland_system_startup(
     state_ptr = state;
     WAYLAND_PLATFORM_STATE* platform_state = (WAYLAND_PLATFORM_STATE*)state;
     memset(platform_state, 0, sizeof(WAYLAND_PLATFORM_STATE));
-    
+
     // Store window dimensions
     platform_state->width = width;
     platform_state->height = height;
-    
+
     // Connect to Wayland display
     platform_state->handle.display = WAYLAND_wl_display_connect(NULL);
     if (!platform_state->handle.display) {
         PRINT_ERROR("Failed to connect to Wayland display");
         return false;
     }
-    
+
     // Get Wayland registry
     platform_state->registry = wl_display_get_registry(platform_state->handle.display);
     wl_registry_add_listener(platform_state->registry, &registry_listener, platform_state);
-    
+
     // First roundtrip to get registry objects
     WAYLAND_wl_display_roundtrip(platform_state->handle.display);
-    
+
     // Check if we got the required interfaces
     if (!platform_state->compositor) {
         PRINT_ERROR("No Wayland compositor found");
         return false;
     }
-    
+
     if (!platform_state->xdg_wm_base) {
         PRINT_ERROR("No XDG shell found");
         return false;
     }
-    
+
     // Create cursor theme if shm is available
     if (platform_state->shm) {
         platform_state->cursor_theme = WAYLAND_wl_cursor_theme_load(NULL, 24, platform_state->shm);
@@ -1687,42 +1687,42 @@ b8 platform_wayland_system_startup(
             }
         }
     }
-    
+
     // Create surfaces
     platform_state->handle.surface = wl_compositor_create_surface(platform_state->compositor);
     if (!platform_state->handle.surface) {
         PRINT_ERROR("Failed to create Wayland surface");
         return false;
     }
-    
+
     // Create XDG surface
     platform_state->xdg_surface = xdg_wm_base_get_xdg_surface(platform_state->xdg_wm_base, platform_state->handle.surface);
     if (!platform_state->xdg_surface) {
         PRINT_ERROR("Failed to create XDG surface");
         return false;
     }
-    
+
     xdg_surface_add_listener(platform_state->xdg_surface, &xdg_surface_listener, platform_state);
-    
+
     // Create XDG toplevel
     platform_state->xdg_toplevel = xdg_surface_get_toplevel(platform_state->xdg_surface);
     if (!platform_state->xdg_toplevel) {
         PRINT_ERROR("Failed to create XDG toplevel");
         return false;
     }
-    
+
     xdg_toplevel_add_listener(platform_state->xdg_toplevel, &xdg_toplevel_listener, platform_state);
     xdg_toplevel_set_title(platform_state->xdg_toplevel, application_name);
     xdg_toplevel_set_app_id(platform_state->xdg_toplevel, "YwmaaEngine");
-    
+
     // Set window size
     if (width > 0 && height > 0) {
         xdg_toplevel_set_min_size(platform_state->xdg_toplevel, width, height);
     }
-    
+
     // Commit surface to apply changes
     wl_surface_commit(platform_state->handle.surface);
-    
+
     // Second roundtrip to get surface created
     WAYLAND_wl_display_roundtrip(platform_state->handle.display);
 
@@ -1731,7 +1731,7 @@ b8 platform_wayland_system_startup(
     context.data.u16[0] = width;
     context.data.u16[1] = height;
     event_fire(EVENT_CODE_RESIZED, 0, context);
-    
+
     PRINT_INFO("Wayland platform initialized successfully");
     return true;
 }
@@ -1740,62 +1740,62 @@ void platform_wayland_system_shutdown(void* platform_state) {
     if (!platform_state) {
         return;
     }
-    
+
     WAYLAND_PLATFORM_STATE* state = (WAYLAND_PLATFORM_STATE*)platform_state;
-    
+
     // Clean up Wayland resources
     if (state->keyboard) {
         wl_keyboard_destroy(state->keyboard);
     }
-    
+
     if (state->pointer) {
         wl_pointer_destroy(state->pointer);
     }
-    
+
     if (state->seat) {
         wl_seat_release(state->seat);
     }
-    
+
     if (state->cursor_surface) {
         wl_surface_destroy(state->cursor_surface);
     }
-    
+
     if (state->cursor_theme) {
         WAYLAND_wl_cursor_theme_destroy(state->cursor_theme);
     }
-    
+
     if (state->xdg_toplevel) {
         xdg_toplevel_destroy(state->xdg_toplevel);
     }
-    
+
     if (state->xdg_surface) {
         xdg_surface_destroy(state->xdg_surface);
     }
-    
+
     if (state->handle.surface) {
         wl_surface_destroy(state->handle.surface);
     }
-    
+
     if (state->xdg_wm_base) {
         xdg_wm_base_destroy(state->xdg_wm_base);
     }
-    
+
     if (state->shm) {
         wl_shm_destroy(state->shm);
     }
-    
+
     if (state->compositor) {
         wl_compositor_destroy(state->compositor);
     }
-    
+
     if (state->registry) {
         wl_registry_destroy(state->registry);
     }
-    
+
     if (state->handle.display) {
         WAYLAND_wl_display_disconnect(state->handle.display);
     }
-    
+
     PRINT_INFO("Wayland platform shutdown complete");
 }
 
@@ -1803,39 +1803,39 @@ b8 platform_wayland_pump_messages(void) {
     if (!state_ptr) {
         return false;
     }
-    
+
     WAYLAND_PLATFORM_STATE* state = (WAYLAND_PLATFORM_STATE*)state_ptr;
-    
+
     if (!state->handle.display) {
         return false;
     }
-    
+
     // Process all pending Wayland events
     while (WAYLAND_wl_display_prepare_read(state->handle.display) != 0) {
         WAYLAND_wl_display_dispatch_pending(state->handle.display);
     }
-    
+
     WAYLAND_wl_display_flush(state->handle.display);
-    
+
     if (WAYLAND_wl_display_read_events(state->handle.display) != 0) {
         PRINT_ERROR("Failed to read Wayland events");
         return false;
     }
-    
+
     WAYLAND_wl_display_dispatch_pending(state->handle.display);
-    
+
     // Check if window was closed
     if (state->closed) {
         return false;
     }
-    
+
     return true;
 }
 
 void platform_wayland_get_handle_info(u64 *out_size, void *memory) {
 
     *out_size = sizeof(WAYLAND_HANDLE_INFO);
-    
+
     if (!memory) {
         return;
     }

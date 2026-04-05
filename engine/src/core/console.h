@@ -63,7 +63,7 @@ void console_shutdown(void* state);
  * @param inst Instance information to pass along with the consumer.
  * @param callback The callback to be made on console write.
  */
-YAPI void console_register_consumer(void* inst, PFN_console_consumer_write callback, u8* out_consumer_id);
+YAPI void console_consumer_register(void* inst, PFN_console_consumer_write callback, u8* out_consumer_id);
 
 /**
  * @brief Updates the instance and callback for the consumer with the given identifier.
@@ -72,7 +72,7 @@ YAPI void console_register_consumer(void* inst, PFN_console_consumer_write callb
  * @param inst The consumer instance.
  * @param callback The new callback function.
  */
-YAPI void console_update_consumer(u8 consumer_id, void* inst, PFN_console_consumer_write callback);
+YAPI void console_consumer_update(u8 consumer_id, void* inst, PFN_console_consumer_write callback);
 
 /**
  * @brief Called internally by the logging system to write a new line
@@ -91,7 +91,7 @@ void console_write_line(E_LOG_LEVEL level, const char* message);
  * @param func The function pointer to be invoked.
  * @return True on success; otherwise false.
  */
-YAPI b8 console_register_command(const char* command, u8 arg_count, PFN_console_command func);
+YAPI b8 console_command_register(const char* command, u8 arg_count, PFN_console_command func);
 
 /**
  * @brief Unregisters the given command.
@@ -99,7 +99,7 @@ YAPI b8 console_register_command(const char* command, u8 arg_count, PFN_console_
  * @param command The name of the command to be unregistered.
  * @return True on success; otherwise false.
  */
-YAPI b8 console_unregister_command(const char* command);
+YAPI b8 console_command_unregister(const char* command);
 
 /**
  * @brief Executes a console command.
@@ -107,4 +107,4 @@ YAPI b8 console_unregister_command(const char* command);
  * @param command The command, including arguments separated by spaces. ex: "kvar_int_set test_var 4"
  * @return True on success; otherwise false.
  */
-YAPI b8 console_execute_command(const char* command);
+YAPI b8 console_command_execute(const char* command);

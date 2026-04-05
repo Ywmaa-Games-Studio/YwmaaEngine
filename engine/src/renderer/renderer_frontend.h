@@ -60,7 +60,7 @@ YAPI void renderer_texture_create_writeable(TEXTURE* t);
  * @brief Resizes a texture. There is no check at this level to see if the
  * texture is writeable. Internal resources are destroyed and re-created at
  * the new resolution. Data is lost and would need to be reloaded.
- * 
+ *
  * @param t A pointer to the texture to be resized.
  * @param new_width The new width in pixels.
  * @param new_height The new height in pixels.
@@ -89,7 +89,7 @@ YAPI void renderer_texture_read_data(TEXTURE* t, u32 offset, u32 size, void** ou
 
 /**
  * @brief Reads a pixel from the provided texture at the given x/y coordinate.
- * 
+ *
  * @param t A pointer to the texture to be read from.
  * @param x The pixel x-coordinate.
  * @param y The pixel y-coordinate.
@@ -97,15 +97,15 @@ YAPI void renderer_texture_read_data(TEXTURE* t, u32 offset, u32 size, void** ou
  */
 YAPI void renderer_texture_read_pixel(TEXTURE* t, u32 x, u32 y, u8** out_rgba);
 
-YAPI b8 renderer_create_geometry(GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
-YAPI void renderer_destroy_geometry(GEOMETRY* geometry);
+YAPI b8 renderer_geometry_create(GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices);
+YAPI void renderer_geometry_destroy(GEOMETRY* geometry);
 
 /**
  * @brief Draws the given geometry. Should only be called inside a renderpass, within a frame.
  *
  * @param data The render data of the geometry to be drawn.
  */
-YAPI void renderer_draw_geometry(GEOMETRY_RENDER_DATA* data);
+YAPI void renderer_geometry_draw(GEOMETRY_RENDER_DATA* data);
 
 /**
  * @brief Begins the given renderpass.
@@ -126,7 +126,7 @@ YAPI b8 renderer_renderpass_end(RENDERPASS* pass);
 
 /**
  * @brief Creates internal shader resources using the provided parameters.
- * 
+ *
  * @param s A pointer to the shader.
  * @param config A constant pointer to the shader config.
  * @param pass A pointer to the renderpass to be associated with the shader.
@@ -203,7 +203,7 @@ YAPI b8 renderer_shader_apply_instance(struct SHADER* s, b8 needs_update);
  * @param out_instance_id A pointer to hold the new instance identifier.
  * @return True on success; otherwise false.
  */
-YAPI b8 renderer_shader_acquire_instance_resources(struct SHADER* s, TEXTURE_MAP** maps, u32* out_instance_id);
+YAPI b8 renderer_shader_instance_resources_acquire(struct SHADER* s, TEXTURE_MAP** maps, u32* out_instance_id);
 
 /**
  * @brief Releases internal instance-level resources for the given instance id.
@@ -212,17 +212,17 @@ YAPI b8 renderer_shader_acquire_instance_resources(struct SHADER* s, TEXTURE_MAP
  * @param instance_id The instance identifier whose resources are to be released.
  * @return True on success; otherwise false.
  */
-YAPI b8 renderer_shader_release_instance_resources(struct SHADER* s, u32 instance_id);
+YAPI b8 renderer_shader_instance_resources_release(struct SHADER* s, u32 instance_id);
 
 /**
  * @brief Sets the uniform of the given shader to the provided value.
- * 
+ *
  * @param s A ponter to the shader.
  * @param uniform A constant pointer to the uniform.
  * @param value A pointer to the value to be set.
  * @return b8 True on success; otherwise false.
  */
-YAPI b8 renderer_set_uniform(struct SHADER* s, struct SHADER_UNIFORM* uniform, const void* value);
+YAPI b8 renderer_shader_uniform_set(struct SHADER* s, struct SHADER_UNIFORM* uniform, const void* value);
 
 YAPI b8 renderer_shader_after_renderpass(struct SHADER* s);
 
@@ -232,14 +232,14 @@ YAPI b8 renderer_shader_after_renderpass(struct SHADER* s);
  * @param map A pointer to the texture map to obtain resources for.
  * @return True on success; otherwise false.
  */
-YAPI b8 renderer_texture_map_acquire_resources(struct TEXTURE_MAP* map);
+YAPI b8 renderer_texture_map_resources_acquire(struct TEXTURE_MAP* map);
 
 /**
  * @brief Releases internal resources for the given texture map.
  *
  * @param map A pointer to the texture map to release resources from.
  */
-YAPI void renderer_texture_map_release_resources(struct TEXTURE_MAP* map);
+YAPI void renderer_texture_map_resources_release(struct TEXTURE_MAP* map);
 
 /**
  * @brief Creates a new render target using the provided data.
@@ -271,7 +271,7 @@ YAPI TEXTURE* renderer_window_attachment_get(u8 index);
 
 /**
  * @brief Returns a pointer to the main depth texture target.
- * 
+ *
  * @param index The index of the attachment to get. Must be within the range of window render target count.
  * @return A pointer to a texture attachment if successful; otherwise 0.
  */
@@ -313,7 +313,7 @@ YAPI b8 renderer_is_multithreaded(void);
  * @param flag The flag to be checked.
  * @return True if the flag(s) set; otherwise false.
  */
-YAPI b8 renderer_flag_enabled(RENDERER_CONFIG_FLAGS flag);
+YAPI b8 renderer_flag_enabled_get(RENDERER_CONFIG_FLAGS flag);
 /**
  * @brief Sets whether the included flag(s) are enabled or not. If multiple flags
  * are passed, multiple are set at once.
@@ -321,7 +321,7 @@ YAPI b8 renderer_flag_enabled(RENDERER_CONFIG_FLAGS flag);
  * @param flag The flag to be checked.
  * @param enabled Indicates whether or not to enable the flag(s).
  */
-YAPI void renderer_flag_set_enabled(RENDERER_CONFIG_FLAGS flag, b8 enabled);
+YAPI void renderer_flag_enabled_set(RENDERER_CONFIG_FLAGS flag, b8 enabled);
 
 /**
  * @brief Creates a new RENDER_BUFFER to hold data for a given purpose/use. Backed by a
@@ -455,7 +455,7 @@ YAPI b8 renderer_renderbuffer_copy_range(RENDER_BUFFER* source, u64 source_offse
 /**
  * @brief Attempts to draw the contents of the provided buffer at the given offset
  * and element count. Only meant to be used with vertex and index buffers.
- * 
+ *
  * @param buffer A pointer to the buffer to be drawn.
  * @param offset The offset in bytes from the beginning of the buffer.
  * @param element_count The number of elements to be drawn.

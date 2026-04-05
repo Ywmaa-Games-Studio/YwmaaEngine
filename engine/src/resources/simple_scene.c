@@ -103,7 +103,7 @@ b8 simple_scene_init(SIMPLE_SCENE* scene) {
                 PRINT_WARNING("Invalid mesh config, name and resource_name are required.");
                 continue;
             }
-            
+
             MESH_CONFIG new_mesh_config = {0};
             new_mesh_config.name = string_duplicate(scene->config->meshes[i].name);
             new_mesh_config.resource_name = string_duplicate(scene->config->meshes[i].resource_name);
@@ -137,7 +137,7 @@ b8 simple_scene_init(SIMPLE_SCENE* scene) {
                 continue;
             }
 
-            transform_set_parent(&scene->meshes[i].transform, &parent->transform);
+            transform_parent_set(&scene->meshes[i].transform, &parent->transform);
         }
     }
 
@@ -189,14 +189,14 @@ b8 simple_scene_load(SIMPLE_SCENE* scene) {
     }
 
     if (scene->dir_light) {
-        if (!light_system_add_directional(scene->dir_light)) {
+        if (!light_system_directional_add(scene->dir_light)) {
             PRINT_WARNING("Failed to add directional light to lighting system.");
         }
     }
 
     u32 point_light_count = darray_length(scene->point_lights);
     for (u32 i = 0; i < point_light_count; ++i) {
-        if (!light_system_add_point(&scene->point_lights[i])) {
+        if (!light_system_point_add(&scene->point_lights[i])) {
             PRINT_WARNING("Failed to add point light to lighting system.");
         }
     }
@@ -249,7 +249,7 @@ b8 simple_scene_populate_render_packet(SIMPLE_SCENE* scene, struct Camera* curre
                 // Skybox
                 SKYBOX_PACKET_DATA skybox_data = {0};
                 skybox_data.sb = scene->sb;
-                if (!render_view_system_build_packet(view, p_frame_data->frame_allocator, &skybox_data, view_packet)) {
+                if (!render_view_system_packet_build(view, p_frame_data->frame_allocator, &skybox_data, view_packet)) {
                     PRINT_ERROR("Failed to build packet for view 'skybox'.");
                     return false;
                 }
@@ -278,7 +278,7 @@ b8 simple_scene_populate_render_packet(SIMPLE_SCENE* scene, struct Camera* curre
             for (u32 i = 0; i < mesh_count; ++i) {
                 Mesh* m = &scene->meshes[i];
                 if (m->generation != INVALID_ID_U8) {
-                    Matrice4 model = transform_get_world(&m->transform);
+                    Matrice4 model = transform_world_get(&m->transform);
 
                     for (u32 j = 0; j < m->geometry_count; ++j) {
                         GEOMETRY* g = m->geometries[j];
@@ -339,7 +339,7 @@ b8 simple_scene_populate_render_packet(SIMPLE_SCENE* scene, struct Camera* curre
             }
 
             // World
-            if (!render_view_system_build_packet(render_view_system_get("world"), p_frame_data->frame_allocator, world_geometries, &packet->views[1])) {
+            if (!render_view_system_packet_build(render_view_system_get("world"), p_frame_data->frame_allocator, world_geometries, &packet->views[1])) {
                 PRINT_ERROR("Failed to build packet for view 'world_opaque'.");
                 return false;
             }
@@ -352,19 +352,19 @@ b8 simple_scene_populate_render_packet(SIMPLE_SCENE* scene, struct Camera* curre
     return true;
 }
 
-b8 simple_scene_add_directional_light(SIMPLE_SCENE* scene, const char* name, struct DIRECTIONAL_LIGHT* light) {
+b8 simple_scene_directional_light_add(SIMPLE_SCENE* scene, const char* name, struct DIRECTIONAL_LIGHT* light) {
     if (!scene) {
         return false;
     }
 
     if (scene->dir_light) {
         // TODO: Do any resource unloading required.
-        light_system_remove_directional(scene->dir_light);
+        light_system_directional_remove(scene->dir_light);
     }
 
     if (light) {
-        if (!light_system_add_directional(light)) {
-            PRINT_ERROR("simple_scene_add_directional_light - failed to add directional light to light system.");
+        if (!light_system_directional_add(light)) {
+            PRINT_ERROR("simple_scene_directional_light_add - failed to add directional light to light system.");
             return false;
         }
     }
@@ -374,12 +374,12 @@ b8 simple_scene_add_directional_light(SIMPLE_SCENE* scene, const char* name, str
     return true;
 }
 
-b8 simple_scene_add_point_light(SIMPLE_SCENE* scene, const char* name, struct POINT_LIGHT* light) {
+b8 simple_scene_point_light_add(SIMPLE_SCENE* scene, const char* name, struct POINT_LIGHT* light) {
     if (!scene || !light) {
         return false;
     }
 
-    if (!light_system_add_point(light)) {
+    if (!light_system_point_add(light)) {
         PRINT_ERROR("Failed to add point light to scene (light system add failure, check logs).");
         return false;
     }
@@ -389,7 +389,7 @@ b8 simple_scene_add_point_light(SIMPLE_SCENE* scene, const char* name, struct PO
     return true;
 }
 
-b8 simple_scene_add_mesh(SIMPLE_SCENE* scene, const char* name, struct Mesh* m) {
+b8 simple_scene_mesh_add(SIMPLE_SCENE* scene, const char* name, struct Mesh* m) {
     if (!scene || !m) {
         return false;
     }
@@ -413,7 +413,7 @@ b8 simple_scene_add_mesh(SIMPLE_SCENE* scene, const char* name, struct Mesh* m) 
     return true;
 }
 
-b8 simple_scene_add_skybox(SIMPLE_SCENE* scene, const char* name, struct Skybox* sb) {
+b8 simple_scene_skybox_add(SIMPLE_SCENE* scene, const char* name, struct Skybox* sb) {
     if (!scene) {
         return false;
     }
@@ -439,7 +439,7 @@ b8 simple_scene_add_skybox(SIMPLE_SCENE* scene, const char* name, struct Skybox*
     return true;
 }
 
-b8 simple_scene_remove_directional_light(SIMPLE_SCENE* scene, const char* name) {
+b8 simple_scene_directional_light_remove(SIMPLE_SCENE* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -449,7 +449,7 @@ b8 simple_scene_remove_directional_light(SIMPLE_SCENE* scene, const char* name) 
         return false;
     }
 
-    if (!light_system_remove_directional(scene->dir_light)) {
+    if (!light_system_directional_remove(scene->dir_light)) {
         PRINT_ERROR("Failed to remove directional light from light system.");
         return false;
     }
@@ -460,7 +460,7 @@ b8 simple_scene_remove_directional_light(SIMPLE_SCENE* scene, const char* name) 
     return true;
 }
 
-b8 simple_scene_remove_point_light(SIMPLE_SCENE* scene, const char* name) {
+b8 simple_scene_point_light_remove(SIMPLE_SCENE* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -468,7 +468,7 @@ b8 simple_scene_remove_point_light(SIMPLE_SCENE* scene, const char* name) {
     u32 light_count = darray_length(scene->point_lights);
     for (u32 i = 0; i < light_count; ++i) {
         if (strings_equal(scene->point_lights[i].name, name)) {
-            if (!light_system_remove_point(&scene->point_lights[i])) {
+            if (!light_system_point_remove(&scene->point_lights[i])) {
                 PRINT_ERROR("Failed to remove point light from light system.");
                 return false;
             }
@@ -484,7 +484,7 @@ b8 simple_scene_remove_point_light(SIMPLE_SCENE* scene, const char* name) {
     return false;
 }
 
-b8 simple_scene_remove_mesh(SIMPLE_SCENE* scene, const char* name) {
+b8 simple_scene_mesh_remove(SIMPLE_SCENE* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -508,7 +508,7 @@ b8 simple_scene_remove_mesh(SIMPLE_SCENE* scene, const char* name) {
     return false;
 }
 
-b8 simple_scene_remove_skybox(SIMPLE_SCENE* scene, const char* name) {
+b8 simple_scene_skybox_remove(SIMPLE_SCENE* scene, const char* name) {
     if (!scene || !name) {
         return false;
     }
@@ -592,14 +592,14 @@ static void simple_scene_actual_unload(SIMPLE_SCENE* scene) {
 
     if (scene->dir_light) {
         // TODO: If there are resource to unload, that should be done before this next line. Ex: box representing pos/color
-        if (!simple_scene_remove_directional_light(scene, scene->dir_light->name)) {
+        if (!simple_scene_directional_light_remove(scene, scene->dir_light->name)) {
             PRINT_ERROR("Failed to unload/remove directional light.");
         }
     }
 
     u32 p_light_count = darray_length(scene->point_lights);
     for (u32 i = 0; i < p_light_count; ++i) {
-        if (!light_system_remove_point(&scene->point_lights[i])) {
+        if (!light_system_point_remove(&scene->point_lights[i])) {
             PRINT_WARNING("Failed to remove point light from light system.");
         }
 

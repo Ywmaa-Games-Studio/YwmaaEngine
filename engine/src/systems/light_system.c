@@ -26,7 +26,7 @@ void light_system_shutdown(void* state) {
     }
 }
 
-b8 light_system_add_directional(DIRECTIONAL_LIGHT* light) {
+b8 light_system_directional_add(DIRECTIONAL_LIGHT* light) {
     if (!light) {
         return false;
     }
@@ -35,7 +35,7 @@ b8 light_system_add_directional(DIRECTIONAL_LIGHT* light) {
     return true;
 }
 
-b8 light_system_add_point(POINT_LIGHT* light) {
+b8 light_system_point_add(POINT_LIGHT* light) {
     if (!light) {
         return false;
     }
@@ -48,11 +48,11 @@ b8 light_system_add_point(POINT_LIGHT* light) {
     }
 
     // We're full, so fail.
-    PRINT_ERROR("light_system_add_point already has the max of %u lights. Light not added.", MAX_POINT_LIGHTS);
+    PRINT_ERROR("light_system_point_add already has the max of %u lights. Light not added.", MAX_POINT_LIGHTS);
     return false;
 }
 
-b8 light_system_remove_directional(DIRECTIONAL_LIGHT* light) {
+b8 light_system_directional_remove(DIRECTIONAL_LIGHT* light) {
     if (!light) {
         return false;
     }
@@ -65,7 +65,7 @@ b8 light_system_remove_directional(DIRECTIONAL_LIGHT* light) {
     return false;
 }
 
-b8 light_system_remove_point(POINT_LIGHT* light) {
+b8 light_system_point_remove(POINT_LIGHT* light) {
     if (!light) {
         return false;
     }
@@ -77,7 +77,7 @@ b8 light_system_remove_point(POINT_LIGHT* light) {
         }
     }
 
-    PRINT_ERROR("light_system_remove_point does not have a light that matches the one passed, thus it cannot be removed.");
+    PRINT_ERROR("light_system_point_remove does not have a light that matches the one passed, thus it cannot be removed.");
     return false;
 }
 

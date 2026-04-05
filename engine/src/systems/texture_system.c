@@ -42,12 +42,12 @@ typedef struct TEXTURE_LOAD_PARAMS {
 } TEXTURE_LOAD_PARAMS;
 
 static TEXTURE_SYSTEM_STATE* state_ptr = 0;
-b8 create_default_textures(TEXTURE_SYSTEM_STATE* state);
-void destroy_default_textures(TEXTURE_SYSTEM_STATE* state);
-b8 load_texture(const char* texture_name, TEXTURE* t);
-b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], TEXTURE* t);
-void destroy_texture(TEXTURE* t);
-b8 process_texture_reference(const char* name, E_TEXTURE_TYPE type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id);
+static b8 create_default_textures(TEXTURE_SYSTEM_STATE* state);
+static void destroy_default_textures(TEXTURE_SYSTEM_STATE* state);
+static b8 load_texture(const char* texture_name, TEXTURE* t);
+static b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], TEXTURE* t);
+static void destroy_texture(TEXTURE* t);
+static b8 process_texture_reference(const char* name, E_TEXTURE_TYPE type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id);
 
 b8 texture_system_init(u64* memory_requirement, void* state, void* config) {
     TEXTURE_SYSTEM_CONFIG* typed_config = (TEXTURE_SYSTEM_CONFIG*)config;
@@ -64,7 +64,7 @@ b8 texture_system_init(u64* memory_requirement, void* state, void* config) {
     if (!state) {
         return true;
     }
-    
+
     state_ptr = state;
     state_ptr->config = *typed_config;
 
@@ -74,17 +74,17 @@ b8 texture_system_init(u64* memory_requirement, void* state, void* config) {
 
     // Hashtable block is after array.
     void* hashtable_block = array_block + array_requirement;
-    
+
     // Create a hashtable for texture lookups.
     hashtable_create(sizeof(TEXTURE_REFERENCE), typed_config->max_texture_count, hashtable_block, false, &state_ptr->registered_texture_table);
-    
+
     // Fill the hashtable with invalid references to use as a default.
     TEXTURE_REFERENCE invalid_ref;
     invalid_ref.auto_release = false;
     invalid_ref.handle = INVALID_ID;  // Primary reason for needing default values.
     invalid_ref.reference_count = 0;
     hashtable_fill(&state_ptr->registered_texture_table, &invalid_ref);
-    
+
     // Invalidate all textures in the array.
     u32 count = state_ptr->config.max_texture_count;
     for (u32 i = 0; i < count; ++i) {
@@ -92,7 +92,7 @@ b8 texture_system_init(u64* memory_requirement, void* state, void* config) {
         state_ptr->registered_textures[i].generation = INVALID_ID;
         state_ptr->registered_textures[i].internal_data = NULL;
     }
-    
+
     // Create default textures for use in the system.
     create_default_textures(state_ptr);
 
@@ -286,7 +286,7 @@ TEXTURE* texture_system_get_default_normal_texture(void) {
     RETURN_TEXT_PTR_OR_NULL(state_ptr->default_normal_texture, "texture_system_get_default_normal_texture");
 }
 
-b8 create_default_textures(TEXTURE_SYSTEM_STATE* state) {
+static b8 create_default_textures(TEXTURE_SYSTEM_STATE* state) {
     if (!state) {
         PRINT_ERROR("Texture system state is NULL!");
         return false;
@@ -398,7 +398,7 @@ b8 create_default_textures(TEXTURE_SYSTEM_STATE* state) {
     return true;
 }
 
-void destroy_default_textures(TEXTURE_SYSTEM_STATE* state) {
+static void destroy_default_textures(TEXTURE_SYSTEM_STATE* state) {
     if (state) {
         destroy_texture(&state->default_texture);
         destroy_texture(&state->default_diffuse_texture);
@@ -407,7 +407,7 @@ void destroy_default_textures(TEXTURE_SYSTEM_STATE* state) {
     }
 }
 
-b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], TEXTURE* t) {
+static b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME_MAX_LENGTH], TEXTURE* t) {
     u8* pixels = 0;
     u64 image_size = 0;
     for (u8 i = 0; i < 6; ++i) {
@@ -460,7 +460,7 @@ b8 load_cube_textures(const char* name, const char texture_names[6][TEXTURE_NAME
     return true;
 }
 
-void texture_load_job_success(void* params) {
+static void texture_load_job_success(void* params) {
     TEXTURE_LOAD_PARAMS* texture_params = (TEXTURE_LOAD_PARAMS*)params;
 
     // This also handles the GPU upload. Can't be jobified until the renderer is multithreaded.
@@ -495,7 +495,7 @@ void texture_load_job_success(void* params) {
     }
 }
 
-void texture_load_job_fail(void* params) {
+static void texture_load_job_fail(void* params) {
     TEXTURE_LOAD_PARAMS* texture_params = (TEXTURE_LOAD_PARAMS*)params;
 
     PRINT_ERROR("Failed to load texture '%s'.", texture_params->resource_name);
@@ -503,7 +503,7 @@ void texture_load_job_fail(void* params) {
     resource_system_unload(&texture_params->image_resource);
 }
 
-b8 texture_load_job_start(void* params, void* result_data) {
+static b8 texture_load_job_start(void* params, void* result_data) {
     TEXTURE_LOAD_PARAMS* load_params = (TEXTURE_LOAD_PARAMS*)params;
 
     IMAGE_RESOURCE_PARAMS resource_params;
@@ -544,7 +544,7 @@ b8 texture_load_job_start(void* params, void* result_data) {
     return result;
 }
 
-b8 load_texture(const char* texture_name, TEXTURE* t) {
+static b8 load_texture(const char* texture_name, TEXTURE* t) {
     // Kick off a texture loading job. Only handles loading from disk
     // to CPU. GPU upload is handled after completion of this job.
     TEXTURE_LOAD_PARAMS params;
@@ -559,7 +559,7 @@ b8 load_texture(const char* texture_name, TEXTURE* t) {
     return true;
 }
 
-void destroy_texture(TEXTURE* t) {
+static void destroy_texture(TEXTURE* t) {
     // Clean up backend resources.
     renderer_texture_destroy(t);
 
@@ -569,7 +569,7 @@ void destroy_texture(TEXTURE* t) {
     t->generation = INVALID_ID;
 }
 
-b8 process_texture_reference(const char* name, E_TEXTURE_TYPE type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id) {
+static b8 process_texture_reference(const char* name, E_TEXTURE_TYPE type, i8 reference_diff, b8 auto_release, b8 skip_load, u32* out_texture_id) {
     *out_texture_id = INVALID_ID;
     if (state_ptr) {
         TEXTURE_REFERENCE ref;
@@ -700,4 +700,3 @@ b8 process_texture_reference(const char* name, E_TEXTURE_TYPE type, i8 reference
     PRINT_ERROR("process_texture_reference called before texture system is initialized.");
     return false;
 }
-

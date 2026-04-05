@@ -28,7 +28,7 @@ static b8 import_fnt_file(FILE_HANDLE* fnt_file, const char* out_ybf_filename, B
 static b8 read_ybf_file(FILE_HANDLE* ybf_file, BITMAP_FONT_RESOURCE_DATA* data);
 static b8 write_ybf_file(const char* path, BITMAP_FONT_RESOURCE_DATA* data);
 
-b8 bitmap_font_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
+static b8 bitmap_font_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -105,7 +105,7 @@ b8 bitmap_font_loader_load(struct RESOURCE_LOADER* self, const char* name, void*
     return true;
 }
 
-void bitmap_font_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
+static void bitmap_font_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
     if (self && resource) {
         if (resource->data) {
             BITMAP_FONT_RESOURCE_DATA* data = (BITMAP_FONT_RESOURCE_DATA*)resource->data;

@@ -54,7 +54,7 @@ void console_shutdown(void* state) {
     state_ptr = 0;
 }
 
-void console_register_consumer(void* inst, PFN_console_consumer_write callback, u8* out_consumer_id) {
+void console_consumer_register(void* inst, PFN_console_consumer_write callback, u8* out_consumer_id) {
     if (state_ptr) {
         YASSERT_MSG(state_ptr->consumer_count + 1 < MAX_CONSUMER_COUNT, "Max console consumers reached.");
 
@@ -66,7 +66,7 @@ void console_register_consumer(void* inst, PFN_console_consumer_write callback, 
     }
 }
 
-void console_update_consumer(u8 consumer_id, void* inst, PFN_console_consumer_write callback) {
+void console_consumer_update(u8 consumer_id, void* inst, PFN_console_consumer_write callback) {
     if (state_ptr) {
         YASSERT_MSG(consumer_id < state_ptr->consumer_count, "Consumer id is invalid.");
 
@@ -88,8 +88,8 @@ void console_write_line(E_LOG_LEVEL level, const char* message) {
     }
 }
 
-b8 console_register_command(const char* command, u8 arg_count, PFN_console_command func) {
-    YASSERT_MSG(state_ptr && command, "console_register_command requires state and valid command");
+b8 console_command_register(const char* command, u8 arg_count, PFN_console_command func) {
+    YASSERT_MSG(state_ptr && command, "console_command_register requires state and valid command");
 
     // Make sure it doesn't already exist.
     u32 command_count = darray_length(state_ptr->registered_commands);
@@ -109,7 +109,7 @@ b8 console_register_command(const char* command, u8 arg_count, PFN_console_comma
     return true;
 }
 
-b8 console_unregister_command(const char* command) {
+b8 console_command_unregister(const char* command) {
     YASSERT_MSG(state_ptr && command, "console_update_command requires state and valid command");
 
     // Make sure it doesn't already exist.
@@ -126,7 +126,7 @@ b8 console_unregister_command(const char* command) {
     return false;
 }
 
-b8 console_execute_command(const char* command) {
+b8 console_command_execute(const char* command) {
     if (!command) {
         return false;
     }

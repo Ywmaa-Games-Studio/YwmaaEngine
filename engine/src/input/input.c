@@ -28,7 +28,7 @@ typedef struct INPUT_STATE {
 // Internal input state pointer
 static INPUT_STATE* state_ptr;
 
-b8 check_modifiers(KEYMAP_MODIFIER modifiers);
+static b8 check_modifiers(KEYMAP_MODIFIER modifiers);
 
 b8 input_system_init(u64* memory_requirement, void* state, void* config) {
     *memory_requirement = sizeof(INPUT_STATE);
@@ -93,7 +93,7 @@ void input_update(const struct FRAME_DATA* p_frame_data) {
     ycopy_memory(&state_ptr->mouse_previous, &state_ptr->mouse_current, sizeof(MOUSE_STATE));
 }
 
-b8 check_modifiers(KEYMAP_MODIFIER modifiers) {
+static b8 check_modifiers(KEYMAP_MODIFIER modifiers) {
     if (modifiers & KEYMAP_MODIFIER_SHIFT_BIT) {
         if (!input_is_key_pressed(KEY_SHIFT) && !input_is_key_pressed(KEY_LSHIFT) && !input_is_key_pressed(KEY_RSHIFT)) {
             return false;

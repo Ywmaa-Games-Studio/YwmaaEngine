@@ -7,8 +7,8 @@
 
 #include "systems/texture_system.h"
 
-void create(VULKAN_CONTEXT* context, u32 width, u32 height, RENDERER_CONFIG_FLAGS flags, VULKAN_SWAPCHAIN* swapchain);
-void destroy(VULKAN_CONTEXT* context, VULKAN_SWAPCHAIN* swapchain);
+static void create(VULKAN_CONTEXT* context, u32 width, u32 height, RENDERER_CONFIG_FLAGS flags, VULKAN_SWAPCHAIN* swapchain);
+static void destroy(VULKAN_CONTEXT* context, VULKAN_SWAPCHAIN* swapchain);
 
 void vulkan_swapchain_create(
     VULKAN_CONTEXT* context,
@@ -93,7 +93,7 @@ void vulkan_swapchain_present(
     context->current_frame = (context->current_frame + 1) % swapchain->max_frames_in_flight;
 }
 
-void create(VULKAN_CONTEXT* context, u32 width, u32 height, RENDERER_CONFIG_FLAGS flags, VULKAN_SWAPCHAIN* swapchain) {
+static void create(VULKAN_CONTEXT* context, u32 width, u32 height, RENDERER_CONFIG_FLAGS flags, VULKAN_SWAPCHAIN* swapchain) {
     VkExtent2D swapchain_extent = {width, height};
 
     // Choose a swap surface format.
@@ -295,7 +295,7 @@ void create(VULKAN_CONTEXT* context, u32 width, u32 height, RENDERER_CONFIG_FLAG
     PRINT_INFO("Swapchain created successfully.");
 }
 
-void destroy(VULKAN_CONTEXT* context, VULKAN_SWAPCHAIN* swapchain) {
+static void destroy(VULKAN_CONTEXT* context, VULKAN_SWAPCHAIN* swapchain) {
     vkDeviceWaitIdle(context->device.logical_device);
 
     for (u32 i = 0; i < context->swapchain.image_count; ++i) {

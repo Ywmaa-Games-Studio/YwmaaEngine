@@ -11,7 +11,7 @@
 
 #include "io/filesystem.h"
 
-b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
+static b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -52,16 +52,16 @@ b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, void* para
     while (filesystem_read_line(&f, 511, &p, &line_length)) {
         // Trim the string.
         char* trimmed = string_trim(line_buf);
-        
+
         // Get the trimmed length.
         line_length = string_length(trimmed);
-        
+
         // Skip blank lines and comments.
         if (line_length < 1 || trimmed[0] == '#') {
             line_number++;
             continue;
         }
-        
+
         // Split into var/value
         i32 equal_index = string_index_of(trimmed, '=');
         if (equal_index == -1) {
@@ -320,7 +320,7 @@ b8 shader_loader_load(struct RESOURCE_LOADER* self, const char* name, void* para
     return true;
 }
 
-void shader_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
+static void shader_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
     SHADER_CONFIG* data = (SHADER_CONFIG*)resource->data;
 
     string_cleanup_split_array(data->vulkan_stage_filenames);

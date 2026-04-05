@@ -10,7 +10,7 @@
 
 #include "io/filesystem.h"
 
-b8 material_loader_load(RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
+static b8 material_loader_load(RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -120,7 +120,7 @@ b8 material_loader_load(RESOURCE_LOADER* self, const char* name, void* params, R
     return true;
 }
 
-void material_loader_unload(RESOURCE_LOADER* self, RESOURCE* resource) {
+static void material_loader_unload(RESOURCE_LOADER* self, RESOURCE* resource) {
     if (!resource_unload(self, resource, MEMORY_TAG_MATERIAL_INSTANCE)) {
         PRINT_WARNING("material_loader_unload called with nullptr for self or resource.");
         return;

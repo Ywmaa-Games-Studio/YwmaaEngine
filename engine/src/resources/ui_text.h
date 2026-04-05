@@ -35,7 +35,23 @@ typedef struct UI_TEXT {
 YAPI b8 ui_text_create(E_UI_TEXT_TYPE type, const char* font_name, u16 font_size, const char* text_content, UI_TEXT* out_text);
 YAPI void ui_text_destroy(UI_TEXT* text);
 
-YAPI void ui_text_set_position(UI_TEXT* u_text, Vector3 position);
-YAPI void ui_text_set_text(UI_TEXT* u_text, const char* text);
-
+/**
+ * @brief Sets the position on the given UI text object.
+ *
+ * @param u_text A pointer to the UI text whose text will be set.
+ * @param text The position to be set.
+ */
+YAPI void ui_text_position_set(UI_TEXT* u_text, Vector3 position);
+/**
+ * @brief Sets the text on the given UI text object.
+ *
+ * @param u_text A pointer to the UI text whose text will be set.
+ * @param text The text to be set.
+ */
+YAPI void ui_text_text_set(UI_TEXT* u_text, const char* text);
+/**
+ * @brief Draws the given UI text.
+ *
+ * @param u_text A pointer to the text to be drawn.
+ */
 YAPI void ui_text_draw(UI_TEXT* u_text);

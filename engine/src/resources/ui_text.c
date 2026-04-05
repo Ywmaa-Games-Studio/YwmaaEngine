@@ -14,7 +14,7 @@
 
 #include "arabic_utils.h"
 
-void regenerate_geometry(UI_TEXT* text);
+static void regenerate_geometry(UI_TEXT* text);
 
 b8 ui_text_create(E_UI_TEXT_TYPE type, const char* font_name, u16 font_size, const char* text_content, UI_TEXT* out_text) {
     if (!font_name || !text_content || !out_text) {
@@ -51,7 +51,7 @@ b8 ui_text_create(E_UI_TEXT_TYPE type, const char* font_name, u16 font_size, con
     // Acquire resources for font texture map.
     SHADER* ui_shader = shader_system_get("shader.builtin.ui");  // TODO: text SHADER.
     TEXTURE_MAP* font_maps[1] = {&out_text->data->atlas};
-    if (!renderer_shader_acquire_instance_resources(ui_shader, font_maps, &out_text->instance_id)) {
+    if (!renderer_shader_instance_resources_acquire(ui_shader, font_maps, &out_text->instance_id)) {
         PRINT_ERROR("Unable to acquire SHADER resources for font texture map.");
         return false;
     }
@@ -108,18 +108,18 @@ void ui_text_destroy(UI_TEXT* text) {
 
         // Release resources for font texture map.
         SHADER* ui_shader = shader_system_get("shader.builtin.ui");  // TODO: text SHADER.
-        if (!renderer_shader_release_instance_resources(ui_shader, text->instance_id)) {
+        if (!renderer_shader_instance_resources_release(ui_shader, text->instance_id)) {
             PRINT_ERROR("Unable to release SHADER resources for font texture map.");
         }
     }
     yzero_memory(text, sizeof(UI_TEXT));
 }
 
-void ui_text_set_position(UI_TEXT* u_text, Vector3 position) {
-    transform_set_position(&u_text->transform, position);
+void ui_text_position_set(UI_TEXT* u_text, Vector3 position) {
+    transform_position_set(&u_text->transform, position);
 }
 
-void ui_text_set_text(UI_TEXT* u_text, const char* text) {
+void ui_text_text_set(UI_TEXT* u_text, const char* text) {
     if (u_text && u_text->text) {
         // If strings are already equal, don't do anything.
         if (strings_equal(text, u_text->text)) {
@@ -177,7 +177,7 @@ void ui_text_draw(UI_TEXT* u_text) {
     return 0; // Invalid code point
 } */
 
-void regenerate_geometry(UI_TEXT* text) {
+static void regenerate_geometry(UI_TEXT* text) {
     // Get the UTF-8 string length
     u32 text_length_utf8 = string_utf8_length(text->text);
     // Also get the length in characters.
@@ -236,7 +236,7 @@ void regenerate_geometry(UI_TEXT* text) {
         b8 is_arabic_diacritics = is_diacritics_or_sign(codepoint);
         // Get the offset of the next character. If there is no advance, move forward one,
         // otherwise use advance as-is.
-        if (is_arabic) {        
+        if (is_arabic) {
             u32 offset = c + advance;  //(advance < 1 ? 1 : advance);
             // Get the next codepoint.
             i32 next_codepoint = 0;

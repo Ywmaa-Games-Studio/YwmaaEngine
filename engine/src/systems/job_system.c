@@ -49,7 +49,7 @@ typedef struct JOB_SYSTEM_STATE {
 
 static JOB_SYSTEM_STATE* state_ptr;
 
-void store_result(PFN_JOB_ON_COMPLETE callback, u32 param_size, void* params) {
+static void store_result(PFN_JOB_ON_COMPLETE callback, u32 param_size, void* params) {
     // Create the new entry.
     JOB_RESULT_ENTRY entry;
     entry.id = INVALID_ID_U16;
@@ -79,7 +79,7 @@ void store_result(PFN_JOB_ON_COMPLETE callback, u32 param_size, void* params) {
     }
 }
 
-u32 job_thread_run(void* params) {
+static u32 job_thread_run(void* params) {
     u32 index = *(u32*)params;
     JOB_THREAD* thread = &state_ptr->job_threads[index];
     u64 thread_id = thread->thread.thread_id;
@@ -231,7 +231,7 @@ void job_system_shutdown(void* state) {
     }
 }
 
-void process_queue(RING_QUEUE* queue, YMUTEX* queue_mutex) {
+static void process_queue(RING_QUEUE* queue, YMUTEX* queue_mutex) {
     u64 thread_count = state_ptr->thread_count;
 
     // Check for a free thread first.

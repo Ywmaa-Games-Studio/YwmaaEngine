@@ -474,7 +474,7 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
         m->diffuse_map.texture = texture_system_get_default_diffuse_texture();
     }
 
-    if (!renderer_texture_map_acquire_resources(&m->diffuse_map)) {
+    if (!renderer_texture_map_resources_acquire(&m->diffuse_map)) {
         PRINT_ERROR("Unable to acquire resources for diffuse texture map.");
         return false;
     }
@@ -495,7 +495,7 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
         m->specular_map.use = TEXTURE_USE_MAP_SPECULAR;
         m->specular_map.texture = texture_system_get_default_specular_texture();
     }
-    if (!renderer_texture_map_acquire_resources(&m->specular_map)) {
+    if (!renderer_texture_map_resources_acquire(&m->specular_map)) {
         PRINT_ERROR("Unable to acquire resources for specular texture map.");
         return false;
     }
@@ -516,7 +516,7 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
         m->normal_map.use = TEXTURE_USE_MAP_NORMAL;
         m->normal_map.texture = texture_system_get_default_normal_texture();
     }
-    if (!renderer_texture_map_acquire_resources(&m->normal_map)) {
+    if (!renderer_texture_map_resources_acquire(&m->normal_map)) {
         PRINT_ERROR("Unable to acquire resources for normal texture map.");
         return false;
     }
@@ -532,7 +532,7 @@ b8 load_material(MATERIAL_CONFIG config, MATERIAL* m) {
 
     // Gather a list of pointers to texture maps;
     TEXTURE_MAP* maps[3] = {&m->diffuse_map, &m->specular_map, &m->normal_map};
-    if (!renderer_shader_acquire_instance_resources(s, maps, &m->internal_id)) {
+    if (!renderer_shader_instance_resources_acquire(s, maps, &m->internal_id)) {
         PRINT_ERROR("Failed to acquire renderer resources for material '%s'.", m->name);
         return false;
     }
@@ -558,13 +558,13 @@ void destroy_material(MATERIAL* m) {
     }
 
     // Release texture map resources.
-    renderer_texture_map_release_resources(&m->diffuse_map);
-    renderer_texture_map_release_resources(&m->specular_map);
-    renderer_texture_map_release_resources(&m->normal_map);
+    renderer_texture_map_resources_release(&m->diffuse_map);
+    renderer_texture_map_resources_release(&m->specular_map);
+    renderer_texture_map_resources_release(&m->normal_map);
 
     // Release renderer resources.
     if (m->shader_id != INVALID_ID && m->internal_id != INVALID_ID) {
-        renderer_shader_release_instance_resources(shader_system_get_by_id(m->shader_id), m->internal_id);
+        renderer_shader_instance_resources_release(shader_system_get_by_id(m->shader_id), m->internal_id);
         m->shader_id = INVALID_ID;
     }
 
@@ -582,7 +582,7 @@ b8 create_default_material(MATERIAL_SYSTEM_STATE* state) {
     state->default_material.generation = INVALID_ID;
     string_ncopy(state->default_material.name, DEFAULT_MATERIAL_NAME, MATERIAL_NAME_MAX_LENGTH);
     state->default_material.diffuse_color = Vector4_one();  // white
-    
+
     state->default_material.diffuse_map.use = TEXTURE_USE_MAP_DIFFUSE;
     state->default_material.diffuse_map.texture = texture_system_get_default_texture();
 
@@ -595,7 +595,7 @@ b8 create_default_material(MATERIAL_SYSTEM_STATE* state) {
     TEXTURE_MAP* maps[3] = {&state->default_material.diffuse_map, &state->default_material.specular_map, &state->default_material.normal_map};
 
     SHADER* s = shader_system_get("shader.builtin.material");
-    if (!renderer_shader_acquire_instance_resources(s, maps, &state->default_material.internal_id)) {
+    if (!renderer_shader_instance_resources_acquire(s, maps, &state->default_material.internal_id)) {
         PRINT_ERROR("Failed to acquire renderer resources for default texture. Application cannot continue.");
         return false;
     }

@@ -62,7 +62,7 @@ YAPI RENDER_VIEW* render_view_system_get(const char* name);
  * @param out_packet A pointer to hold the generated packet.
  * @return True on success; otherwise false.
  */
-YAPI b8 render_view_system_build_packet(const RENDER_VIEW* view, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet);
+YAPI b8 render_view_system_packet_build(const RENDER_VIEW* view, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet);
 
 /**
  * @brief Uses the given view and packet to render the contents therein.
@@ -75,4 +75,4 @@ YAPI b8 render_view_system_build_packet(const RENDER_VIEW* view, struct LINEAR_A
  */
 YAPI b8 render_view_system_on_render(const RENDER_VIEW* view, const RENDER_VIEW_PACKET* packet, u64 frame_number, u64 render_target_index);
 
-YAPI void render_view_system_regenerate_render_targets(RENDER_VIEW* view);
+YAPI void render_view_system_render_targets_regenerate(RENDER_VIEW* view);

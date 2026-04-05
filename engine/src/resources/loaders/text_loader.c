@@ -10,7 +10,7 @@
 
 #include "io/filesystem.h"
 
-b8 text_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
+static b8 text_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -54,7 +54,7 @@ b8 text_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params
     return true;
 }
 
-void text_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
+static void text_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
     if (!resource_unload(self, resource, MEMORY_TAG_STRING)) {
         PRINT_WARNING("text_loader_unload called with nullptr for self or resource.");
         return;

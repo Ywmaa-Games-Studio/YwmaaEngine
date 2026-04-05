@@ -52,7 +52,7 @@ YAPI Transform transform_from_position_rotation_scale(Vector3 position, Quaterni
  * @param t A pointer to the Transform whose parent to retrieve.
  * @return A pointer to the parent Transform.
  */
-YAPI Transform* transform_get_parent(Transform* t);
+YAPI Transform* transform_parent_get(Transform* t);
 
 /**
  * @brief Sets the parent of the provided Transform.
@@ -60,7 +60,7 @@ YAPI Transform* transform_get_parent(Transform* t);
  * @param t A pointer to the Transform whose parent will be set.
  * @param parent A pointer to the parent Transform.
  */
-YAPI void transform_set_parent(Transform* t, Transform* parent);
+YAPI void transform_parent_set(Transform* t, Transform* parent);
 
 /**
  * @brief Returns the position of the given Transform.
@@ -68,7 +68,7 @@ YAPI void transform_set_parent(Transform* t, Transform* parent);
  * @param t A constant pointer whose position to get.
  * @return A copy of the position.
  */
-YAPI Vector3 transform_get_position(const Transform* t);
+YAPI Vector3 transform_position_get(const Transform* t);
 
 /**
  * @brief Sets the position of the given Transform.
@@ -76,7 +76,7 @@ YAPI Vector3 transform_get_position(const Transform* t);
  * @param t A pointer to the Transform to be updated.
  * @param position The position to be set.
  */
-YAPI void transform_set_position(Transform* t, Vector3 position);
+YAPI void transform_position_set(Transform* t, Vector3 position);
 
 /**
  * @brief Applies a translation to the given Transform. Not the
@@ -93,7 +93,7 @@ YAPI void transform_translate(Transform* t, Vector3 translation);
  * @param t A constant pointer whose rotation to get.
  * @return A copy of the rotation.
  */
-YAPI Quaternion transform_get_rotation(const Transform* t);
+YAPI Quaternion transform_rotation_get(const Transform* t);
 
 /**
  * @brief Sets the rotation of the given Transform.
@@ -101,7 +101,7 @@ YAPI Quaternion transform_get_rotation(const Transform* t);
  * @param t A pointer to the Transform to be updated.
  * @param rotation The rotation to be set.
  */
-YAPI void transform_set_rotation(Transform* t, Quaternion rotation);
+YAPI void transform_rotation_set(Transform* t, Quaternion rotation);
 
 /**
  * @brief Applies a rotation to the given Transform. Not the
@@ -118,7 +118,7 @@ YAPI void transform_rotate(Transform* t, Quaternion rotation);
  * @param t A constant pointer whose scale to get.
  * @return A copy of the scale.
  */
-YAPI Vector3 transform_get_scale(const Transform* t);
+YAPI Vector3 transform_scale_get(const Transform* t);
 
 /**
  * @brief Sets the scale of the given Transform.
@@ -126,7 +126,7 @@ YAPI Vector3 transform_get_scale(const Transform* t);
  * @param t A pointer to the Transform to be updated.
  * @param scale The scale to be set.
  */
-YAPI void transform_set_scale(Transform* t, Vector3 scale);
+YAPI void transform_scale_set(Transform* t, Vector3 scale);
 
 /**
  * @brief Applies a scale to the given Transform. Not the
@@ -144,7 +144,7 @@ YAPI void transform_scale(Transform* t, Vector3 scale);
  * @param position The position to be set.
  * @param rotation The rotation to be set.
  */
-YAPI void transform_set_position_rotation(Transform* t, Vector3 position, Quaternion rotation);
+YAPI void transform_position_rotation_set(Transform* t, Vector3 position, Quaternion rotation);
 
 /**
  * @brief Sets the position, rotation and scale of the given Transform.
@@ -154,7 +154,7 @@ YAPI void transform_set_position_rotation(Transform* t, Vector3 position, Quater
  * @param rotation The rotation to be set.
  * @param scale The scale to be set.
  */
-YAPI void transform_set_position_rotation_scale(Transform* t, Vector3 position, Quaternion rotation, Vector3 scale);
+YAPI void transform_position_rotation_scale_set(Transform* t, Vector3 position, Quaternion rotation, Vector3 scale);
 
 /**
  * @brief Applies translation and rotation to the given Transform.
@@ -174,7 +174,7 @@ YAPI void transform_translate_rotate(Transform* t, Vector3 translation, Quaterni
  * @param t A pointer to the Transform whose matrix to retrieve.
  * @return A copy of the local transformation matrix.
  */
-YAPI Matrice4 transform_get_local(Transform* t);
+YAPI Matrice4 transform_local_get(Transform* t);
 
 /**
  * @brief Obtains the world matrix of the given Transform
@@ -184,4 +184,4 @@ YAPI Matrice4 transform_get_local(Transform* t);
  * @param t A pointer to the Transform whose world matrix to retrieve.
  * @return A copy of the world matrix.
  */
-YAPI Matrice4 transform_get_world(Transform* t);
+YAPI Matrice4 transform_world_get(Transform* t);

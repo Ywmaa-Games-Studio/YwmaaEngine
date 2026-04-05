@@ -262,13 +262,13 @@ b8 application_init(APPLICATION* application_instance) {
         return false;
     }
     // Move debug text to new bottom of screen.
-    ui_text_set_position(&state->test_text, Vector3_create(20, application_instance->app_config.start_height - 75, 0));
+    ui_text_position_set(&state->test_text, Vector3_create(20, application_instance->app_config.start_height - 75, 0));
 
     if(!ui_text_create(UI_TEXT_TYPE_BITMAP, "JetBrainsMono", 22, "و الشويه كلاااااام و كلام و الكلام العربى فى سطر لا جديد ههههه", &state->test_sys_text)) {
         PRINT_ERROR("Failed to load basic ui system text.");
         return false;
     }
-    ui_text_set_position(&state->test_sys_text, Vector3_create(500, 550, 0));
+    ui_text_position_set(&state->test_sys_text, Vector3_create(500, 550, 0));
 
     // Load up some test UI geometry.
     GEOMETRY_CONFIG ui_config;
@@ -421,7 +421,7 @@ b8 application_update(APPLICATION* application_instance, struct FRAME_DATA* p_fr
     f64 fps, frame_time;
     metrics_frame(&fps, &frame_time);
 
-    char* vsync_text = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
+    char* vsync_text = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT) ? "YES" : " NO";
     char text_buffer[2048];
     string_format(
         text_buffer,
@@ -444,7 +444,7 @@ VSync: %s Drawn: %-5u Hovered: %s%u",
         p_frame_data->drawn_mesh_count,
         state->hovered_object_id == INVALID_ID ? "none" : "",
         state->hovered_object_id == INVALID_ID ? 0 : state->hovered_object_id);
-    ui_text_set_text(&state->test_text, text_buffer);
+    ui_text_text_set(&state->test_text, text_buffer);
 
     debug_console_update(&((TESTBED_GAME_STATE*)application_instance->state)->debug_console);
 
@@ -511,7 +511,7 @@ b8 application_render(APPLICATION* application_instance, struct RENDER_PACKET* p
         texts[3] = debug_console_get_entry_text(&state->debug_console);
     }
     ui_packet.texts = texts;
-    if (!render_view_system_build_packet(render_view_system_get("ui"), p_frame_data->frame_allocator, &ui_packet, &packet->views[2])) {
+    if (!render_view_system_packet_build(render_view_system_get("ui"), p_frame_data->frame_allocator, &ui_packet, &packet->views[2])) {
         PRINT_ERROR("Failed to build packet for view 'ui'.");
         return false;
     }
@@ -523,7 +523,7 @@ b8 application_render(APPLICATION* application_instance, struct RENDER_PACKET* p
     pick_packet.texts = ui_packet.texts;
     pick_packet.text_count = ui_packet.text_count;
 
-    if (!render_view_system_build_packet(render_view_system_get("pick"), p_frame_data->frame_allocator, &pick_packet, &packet->views[3])) {
+    if (!render_view_system_packet_build(render_view_system_get("pick"), p_frame_data->frame_allocator, &pick_packet, &packet->views[3])) {
         PRINT_ERROR("Failed to build packet for view 'ui'.");
         return false;
     }
@@ -546,7 +546,7 @@ void application_on_resize(APPLICATION* application_instance, u32 width, u32 hei
 
     // TODO: temp
     // Move debug text to new bottom of screen.
-    ui_text_set_position(&state->test_text, Vector3_create(20, state->height - 75, 0));
+    ui_text_position_set(&state->test_text, Vector3_create(20, state->height - 75, 0));
     // TODO: end temp
 }
 
@@ -569,9 +569,9 @@ void application_lib_on_load(struct APPLICATION* application_instance) {
 }
 
 static void toggle_vsync(void) {
-    b8 vsync_enabled = renderer_flag_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
+    b8 vsync_enabled = renderer_flag_enabled_get(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT);
     vsync_enabled = !vsync_enabled;
-    renderer_flag_set_enabled(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
+    renderer_flag_enabled_set(RENDERER_CONFIG_FLAG_VSYNC_ENABLED_BIT, vsync_enabled);
 }
 
 static b8 application_on_yvar_changed(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT data) {
@@ -840,7 +840,7 @@ static b8 load_main_scene(struct APPLICATION* application_instance) {
         return false;
     }
     state->meshes[0].transform = transform_create();
-    simple_scene_add_mesh(&state->main_scene, "test_cube_0", &state->meshes[0]);
+    simple_scene_mesh_add(&state->main_scene, "test_cube_0", &state->meshes[0]);
 
     // Second cube
     MESH_CONFIG cube_1_config = {0};
@@ -857,9 +857,9 @@ static b8 load_main_scene(struct APPLICATION* application_instance) {
         return false;
     }
     state->meshes[1].transform = transform_from_position((Vector3){10.0f, 0.0f, 1.0f});
-    transform_set_parent(&state->meshes[1].transform, &state->meshes[1].transform);
+    transform_parent_set(&state->meshes[1].transform, &state->meshes[1].transform);
 
-    simple_scene_add_mesh(&state->main_scene, "test_cube_1", &state->meshes[1]);
+    simple_scene_mesh_add(&state->main_scene, "test_cube_1", &state->meshes[1]);
 
     // Third cube!
     MESH_CONFIG cube_2_config = {0};
@@ -876,9 +876,9 @@ static b8 load_main_scene(struct APPLICATION* application_instance) {
         return false;
     }
     state->meshes[2].transform = transform_from_position((Vector3){5.0f, 0.0f, 1.0f});
-    transform_set_parent(&state->meshes[2].transform, &state->meshes[2].transform);
+    transform_parent_set(&state->meshes[2].transform, &state->meshes[2].transform);
 
-    simple_scene_add_mesh(&state->main_scene, "test_cube_2", &state->meshes[2]); */
+    simple_scene_mesh_add(&state->main_scene, "test_cube_2", &state->meshes[2]); */
 
     // Initialize
     if (!simple_scene_init(&state->main_scene)) {

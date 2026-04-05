@@ -23,11 +23,11 @@ typedef struct supported_system_font_filetype {
     b8 is_binary;
 } supported_system_font_filetype;
 
-b8 import_fontconfig_file(FILE_HANDLE* f, const char* type_path, const char* out_ysf_filename, SYSTEM_FONT_RESOURCE_DATA* out_resource);
-b8 read_ysf_file(FILE_HANDLE* file, SYSTEM_FONT_RESOURCE_DATA* data);
-b8 write_ysf_file(const char* out_ysf_filename, SYSTEM_FONT_RESOURCE_DATA* resource);
+static b8 import_fontconfig_file(FILE_HANDLE* f, const char* type_path, const char* out_ysf_filename, SYSTEM_FONT_RESOURCE_DATA* out_resource);
+static b8 read_ysf_file(FILE_HANDLE* file, SYSTEM_FONT_RESOURCE_DATA* data);
+static b8 write_ysf_file(const char* out_ysf_filename, SYSTEM_FONT_RESOURCE_DATA* resource);
 
-b8 system_font_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
+static b8 system_font_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -102,7 +102,7 @@ b8 system_font_loader_load(struct RESOURCE_LOADER* self, const char* name, void*
     return true;
 }
 
-b8 import_fontconfig_file(FILE_HANDLE* f, const char* type_path, const char* out_ysf_filename, SYSTEM_FONT_RESOURCE_DATA* out_resource) {
+static b8 import_fontconfig_file(FILE_HANDLE* f, const char* type_path, const char* out_ysf_filename, SYSTEM_FONT_RESOURCE_DATA* out_resource) {
     out_resource->fonts = darray_create(SYSTEM_FONT_FACE);
     out_resource->binary_size = 0;
     out_resource->font_binary = 0;
@@ -201,7 +201,7 @@ b8 import_fontconfig_file(FILE_HANDLE* f, const char* type_path, const char* out
     return write_ysf_file(out_ysf_filename, out_resource);
 }
 
-b8 read_ysf_file(FILE_HANDLE* file, SYSTEM_FONT_RESOURCE_DATA* data) {
+static b8 read_ysf_file(FILE_HANDLE* file, SYSTEM_FONT_RESOURCE_DATA* data) {
     yzero_memory(data, sizeof(SYSTEM_FONT_RESOURCE_DATA));
 
     u64 bytes_read = 0;
@@ -249,12 +249,12 @@ b8 read_ysf_file(FILE_HANDLE* file, SYSTEM_FONT_RESOURCE_DATA* data) {
     return true;
 }
 
-b8 write_ysf_file(const char* out_ysf_filename, SYSTEM_FONT_RESOURCE_DATA* resource) {
+static b8 write_ysf_file(const char* out_ysf_filename, SYSTEM_FONT_RESOURCE_DATA* resource) {
     // TODO: Implement binary system font.
     return true;
 }
 
-void system_font_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
+static void system_font_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
     if (self && resource) {
         SYSTEM_FONT_RESOURCE_DATA* data = (SYSTEM_FONT_RESOURCE_DATA*)resource->data;
         if (data->fonts) {

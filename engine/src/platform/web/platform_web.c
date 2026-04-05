@@ -40,7 +40,7 @@ typedef struct PLATFORM_STATE {
 } PLATFORM_STATE;
 
 static PLATFORM_STATE *state_ptr;
-E_KEYS translate_keycode(DOM_PK_CODE_TYPE keycode);
+static E_KEYS translate_keycode(DOM_PK_CODE_TYPE keycode);
 typedef enum E_WEB_KEY_STATE {
     WEB_KEY_PRESSED = 0x02,
     WEB_KEY_DOWN = 0x03,
@@ -109,7 +109,7 @@ static EM_BOOL emscripten_mouse_button_callback(int eventType,const EmscriptenMo
 }
 
 static EM_BOOL wheel_callback(int eventType, const EmscriptenWheelEvent *e, void *userData) {
-    // e->deltaY is the vertical scroll amount. 
+    // e->deltaY is the vertical scroll amount.
     // Invert it to match typical Windows behavior (scroll up is positive)
     i32 z_delta = 0;
     if (e->deltaY > 0) {
@@ -121,9 +121,9 @@ static EM_BOOL wheel_callback(int eventType, const EmscriptenWheelEvent *e, void
     if (z_delta != 0) {
         input_process_mouse_wheel(z_delta);
     }
-    
+
     // Return EM_TRUE to prevent the browser from scrolling the whole page
-    return EM_TRUE; 
+    return EM_TRUE;
 }
 
 bool key_callback(int eventType, const EmscriptenKeyboardEvent *e, void *userData) {
@@ -135,7 +135,7 @@ bool key_callback(int eventType, const EmscriptenKeyboardEvent *e, void *userDat
   //printf("%s, key: \"%s\" (printable: %s), code: \"%s\" = %s (%d), location: %i,%s%s%s%s repeat: %d, locale: \"%s\", char: \"%s\", charCode: %u (interpreted: %d), keyCode: %s(%u), which: %u\n",
   //  emscripten_event_type_to_string(eventType), e->key, emscripten_key_event_is_printable_character(e) ? "true" : "false", e->code,
   //  emscripten_dom_pk_code_to_string(dom_pk_code), dom_pk_code, e->location,
-  //  e->ctrlKey ? " CTRL" : "", e->shiftKey ? " SHIFT" : "", e->altKey ? " ALT" : "", e->metaKey ? " META" : "", 
+  //  e->ctrlKey ? " CTRL" : "", e->shiftKey ? " SHIFT" : "", e->altKey ? " ALT" : "", e->metaKey ? " META" : "",
   //  e->repeat, e->locale, e->charValue, e->charCode, interpret_charcode_for_keyevent(eventType, e), emscripten_dom_vk_to_string(e->keyCode), e->keyCode, e->which);
 
     return 0;
@@ -182,14 +182,14 @@ b8 platform_system_startup(u64 *memory_requirement, void *state, void *config) {
 
     // Use the canvas name for movement so coordinates are relative to the element
     emscripten_set_mousemove_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, mouse_move_callback);
-    
+
     // Wheel events are usually better captured on the window or canvas
     emscripten_set_wheel_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, 0, EM_TRUE, wheel_callback);
 
     emscripten_set_mousedown_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, EM_TRUE, emscripten_mouse_button_callback);
 
     emscripten_set_mouseup_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL,EM_TRUE, emscripten_mouse_button_callback);
-    
+
     // Fire initial resize event
     EVENT_CONTEXT context;
     context.data.u16[0] = state_ptr->width;
@@ -199,7 +199,7 @@ b8 platform_system_startup(u64 *memory_requirement, void *state, void *config) {
 }
 
 void platform_system_shutdown(void* platform_state){
-    
+
 }
 
 b8 platform_pump_messages(void){
@@ -243,7 +243,7 @@ i32 platform_get_processor_count(void) {
 }
 
 // Key translation
-E_KEYS translate_keycode(DOM_PK_CODE_TYPE keycode) {
+static E_KEYS translate_keycode(DOM_PK_CODE_TYPE keycode) {
     switch (keycode) {
         case DOM_PK_BACKSPACE:
             return KEY_BACKSPACE;
@@ -561,7 +561,7 @@ void ythread_cancel(YTHREAD* thread) {
         pthread_t t = *(pthread_t*)thread->internal_data;
         // Note: Emscripten support for pthread_cancel can be limited depending on sync points.
         pthread_cancel(t);
-        
+
         platform_free(thread->internal_data, false);
         thread->internal_data = 0;
         thread->thread_id = 0;
@@ -570,7 +570,7 @@ void ythread_cancel(YTHREAD* thread) {
 
 b8 ythread_is_active(YTHREAD* thread) {
     if (!thread) return false;
-    // For joinable threads, internal_data exists. 
+    // For joinable threads, internal_data exists.
     // For detached threads, we check if the ID is non-zero (though this is less reliable).
     return thread->internal_data != 0 || thread->thread_id != 0;
 }
@@ -595,7 +595,7 @@ b8 ymutex_create(YMUTEX* out_mutex) {
     if (!out_mutex) return false;
 
     pthread_mutex_t* mutex = platform_allocate(sizeof(pthread_mutex_t), false);
-    
+
     // Using default attributes. For recursion, use pthread_mutexattr_settype.
     i32 result = pthread_mutex_init(mutex, 0);
     if (result != 0) {
@@ -621,10 +621,10 @@ void ymutex_destroy(YMUTEX* mutex) {
 
 b8 ymutex_lock(YMUTEX* mutex) {
     if (!mutex || !mutex->internal_data) return false;
-    
+
     i32 result = pthread_mutex_lock((pthread_mutex_t*)mutex->internal_data);
     if (result != 0) {
-        // EDEADLK is common in Emscripten if you try to lock on the main thread 
+        // EDEADLK is common in Emscripten if you try to lock on the main thread
         // while a worker holds the lock.
         PRINT_ERROR("Mutex lock failed: errno=%i", result);
         return false;
@@ -634,7 +634,7 @@ b8 ymutex_lock(YMUTEX* mutex) {
 
 b8 ymutex_unlock(YMUTEX* mutex) {
     if (!mutex || !mutex->internal_data) return false;
-    
+
     i32 result = pthread_mutex_unlock((pthread_mutex_t*)mutex->internal_data);
     if (result != 0) {
         PRINT_ERROR("Mutex unlock failed: errno=%i", result);
@@ -769,8 +769,8 @@ b8 platform_unwatch_file(u32 watch_id) {
     return false;
 }
 
-void platform_update_watches(void) {
-    
+static void platform_update_watches(void) {
+
 }
 
 #endif // defined(YPLATFORM_WEB)

@@ -74,7 +74,7 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, EVEN
             return true;
         }
         case EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED:
-            render_view_system_regenerate_render_targets(self);
+            render_view_system_render_targets_regenerate(self);
             // This needs to be consumed by other views, so consider it _not_ handled.
             return false;
     }
@@ -167,9 +167,9 @@ void render_view_world_on_resize(struct RENDER_VIEW* self, u32 width, u32 height
     }
 }
 
-b8 render_view_world_on_build_packet(const struct RENDER_VIEW* self, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet) {
+b8 render_view_world_on_packet_build(const struct RENDER_VIEW* self, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet) {
     if (!self || !data || !out_packet) {
-        PRINT_WARNING("render_view_world_on_build_packet requires valid pointer to view, packet, and data.");
+        PRINT_WARNING("render_view_world_on_packet_build requires valid pointer to view, packet, and data.");
         return false;
     }
 
@@ -195,7 +195,7 @@ b8 render_view_world_on_build_packet(const struct RENDER_VIEW* self, struct LINE
         if(!g_data->geometry) {
             continue;
         }
-        
+
         // TODO: Add something to material to check for transparency.
         if ((g_data->geometry->material->diffuse_map.texture->flags & TEXTURE_FLAG_HAS_TRANSPARENCY) == 0) {
             // Only add meshes with _no_ transparency.
@@ -233,7 +233,7 @@ b8 render_view_world_on_build_packet(const struct RENDER_VIEW* self, struct LINE
     return true;
 }
 
-void render_view_world_on_destroy_packet(const struct RENDER_VIEW* self, struct RENDER_VIEW_PACKET* packet) {
+void render_view_world_on_packet_destroy(const struct RENDER_VIEW* self, struct RENDER_VIEW_PACKET* packet) {
     darray_destroy(packet->geometries);
     yzero_memory(packet, sizeof(RENDER_VIEW_PACKET));
 }
@@ -289,7 +289,7 @@ b8 render_view_world_on_render(const struct RENDER_VIEW* self, const struct REND
             material_system_apply_local(m, &packet->geometries[i].model);
 
             // Draw it.
-            renderer_draw_geometry(&packet->geometries[i]);
+            renderer_geometry_draw(&packet->geometries[i]);
         }
 
         if (!renderer_renderpass_end(pass)) {

@@ -22,7 +22,7 @@ typedef struct MESH_LOAD_PARAMS {
  *
  * @param params The parameters passed from the job after completion.
  */
-void mesh_load_job_success(void* params) {
+static void mesh_load_job_success(void* params) {
     MESH_LOAD_PARAMS* mesh_params = (MESH_LOAD_PARAMS*)params;
 
     // This also handles the GPU upload. Can't be jobified until the renderer is multithreaded.
@@ -44,7 +44,7 @@ void mesh_load_job_success(void* params) {
  *
  * @param params Parameters passed when a job fails.
  */
-void mesh_load_job_fail(void* params) {
+static void mesh_load_job_fail(void* params) {
     MESH_LOAD_PARAMS* mesh_params = (MESH_LOAD_PARAMS*)params;
 
     PRINT_ERROR("Failed to load mesh '%s'.", mesh_params->resource_name);
@@ -59,7 +59,7 @@ void mesh_load_job_fail(void* params) {
  * @param result_data Result data passed to the completion callback.
  * @return True on job success; otherwise false.
  */
-b8 mesh_load_job_start(void* params, void* result_data) {
+static b8 mesh_load_job_start(void* params, void* result_data) {
     MESH_LOAD_PARAMS* load_params = (MESH_LOAD_PARAMS*)params;
     b8 result = resource_system_load(load_params->resource_name, RESOURCE_TYPE_MESH, 0, &load_params->mesh_resource);
 

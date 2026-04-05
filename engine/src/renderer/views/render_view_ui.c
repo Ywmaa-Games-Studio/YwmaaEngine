@@ -34,7 +34,7 @@ static b8 render_view_on_event(u16 code, void* sender, void* listener_inst, EVEN
 
     switch (code) {
         case EVENT_CODE_DEFAULT_RENDERTARGET_REFRESH_REQUIRED:
-            render_view_system_regenerate_render_targets(self);
+            render_view_system_render_targets_regenerate(self);
             // This needs to be consumed by other views, so consider it _not_ handled.
             return false;
     }
@@ -70,7 +70,7 @@ b8 render_view_ui_on_create(struct RENDER_VIEW* self) {
         // TODO: Set from configuration.
         data->near_clip = -100.0f;
         data->far_clip = 100.0f;
-        
+
         // Default
         data->projection_matrix = Matrice4_orthographic(0.0f, 1280.0f, 720.0f, 0.0f, data->near_clip, data->far_clip);
         data->view_matrix = Matrice4_identity();
@@ -114,9 +114,9 @@ void render_view_ui_on_resize(struct RENDER_VIEW* self, u32 width, u32 height) {
     }
 }
 
-b8 render_view_ui_on_build_packet(const struct RENDER_VIEW* self, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet) {
+b8 render_view_ui_on_packet_build(const struct RENDER_VIEW* self, struct LINEAR_ALLOCATOR* frame_allocator, void* data, struct RENDER_VIEW_PACKET* out_packet) {
     if (!self || !data || !out_packet) {
-        PRINT_WARNING("render_view_ui_on_build_packet requires valid pointer to view, packet, and data.");
+        PRINT_WARNING("render_view_ui_on_packet_build requires valid pointer to view, packet, and data.");
         return false;
     }
 
@@ -141,7 +141,7 @@ b8 render_view_ui_on_build_packet(const struct RENDER_VIEW* self, struct LINEAR_
         for (u32 j = 0; j < m->geometry_count; ++j) {
             GEOMETRY_RENDER_DATA render_data;
             render_data.geometry = m->geometries[j];
-            render_data.model = transform_get_world(&m->transform);
+            render_data.model = transform_world_get(&m->transform);
             darray_push(out_packet->geometries, render_data);
             out_packet->geometry_count++;
         }
@@ -149,7 +149,7 @@ b8 render_view_ui_on_build_packet(const struct RENDER_VIEW* self, struct LINEAR_
 
     return true;
 }
-void render_view_ui_on_destroy_packet(const struct RENDER_VIEW* self, struct RENDER_VIEW_PACKET* packet) {
+void render_view_ui_on_packet_destroy(const struct RENDER_VIEW* self, struct RENDER_VIEW_PACKET* packet) {
     darray_destroy(packet->geometries);
     yzero_memory(packet, sizeof(RENDER_VIEW_PACKET));
 }
@@ -203,7 +203,7 @@ b8 render_view_ui_on_render(const struct RENDER_VIEW* self, const struct RENDER_
             material_system_apply_local(m, &packet->geometries[i].model);
 
             // Draw it.
-            renderer_draw_geometry(&packet->geometries[i]);
+            renderer_geometry_draw(&packet->geometries[i]);
         }
 
  // Draw bitmap text
@@ -230,7 +230,7 @@ b8 render_view_ui_on_render(const struct RENDER_VIEW* self, const struct RENDER_
             text->render_frame_number = frame_number;
 
             // Apply the locals
-            Matrice4 model = transform_get_world(&text->transform);
+            Matrice4 model = transform_world_get(&text->transform);
             if(!shader_system_uniform_set_by_index(data->model_location, &model)) {
                 PRINT_ERROR("Failed to apply model matrix for text");
             }

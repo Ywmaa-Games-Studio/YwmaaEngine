@@ -344,7 +344,7 @@ b8 shader_system_uniform_set_by_index(u16 index, const void* value) {
         }
         shader->bound_scope = uniform->scope;
     }
-    return renderer_set_uniform(shader, uniform, value);
+    return renderer_shader_uniform_set(shader, uniform, value);
 }
 b8 shader_system_sampler_set_by_index(u16 index, const TEXTURE* t) {
     return shader_system_uniform_set_by_index(index, t);
@@ -441,7 +441,7 @@ b8 add_sampler(SHADER* shader, SHADER_UNIFORM_CONFIG* config) {
         *map = default_map;
         map->texture = texture_system_get_default_texture();
 
-        if (!renderer_texture_map_acquire_resources(&default_map)) {
+        if (!renderer_texture_map_resources_acquire(&default_map)) {
             PRINT_ERROR("Failed to acquire resources for global texture map during shader creation.");
             return false;
         }

@@ -41,7 +41,7 @@ typedef struct MACOS_FILE_WATCH {
     const char *file_path;
     long last_write_time;
 } MACOS_FILE_WATCH;
- 
+
 typedef struct PLATFORM_STATE {
     ApplicationDelegate* app_delegate;
     WindowDelegate* wnd_delegate;
@@ -68,10 +68,10 @@ enum E_MACOS_MODIFIER_KEYS {
 static PLATFORM_STATE* state_ptr;
 
 // Key translation
-E_KEYS translate_keycode(u32 ns_keycode);
+static E_KEYS translate_keycode(u32 ns_keycode);
 // Modifier key handling
-void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags);
-void platform_update_watches(void);
+static void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags);
+static void platform_update_watches(void);
 
 @interface WindowDelegate : NSObject <NSWindowDelegate> {
     PLATFORM_STATE* state;
@@ -255,12 +255,12 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
 
 - (instancetype)initWithState:(PLATFORM_STATE*)init_state {
     self = [super init];
-    
+
     if (self != nil) {
         state = init_state;
         state_ptr->quit_flagged = false;
     }
-    
+
     return self;
 }
 
@@ -443,7 +443,7 @@ b8 platform_pump_messages(void) {
         NSEvent* event;
 
         for (;;) {
-            event = [NSApp 
+            event = [NSApp
                 nextEventMatchingMask:NSEventMaskAny
                 untilDate:[NSDate distantPast]
                 inMode:NSDefaultRunLoopMode
@@ -451,7 +451,7 @@ b8 platform_pump_messages(void) {
 
             if (!event)
                 break;
-            
+
             [NSApp sendEvent:event];
         }
 
@@ -841,7 +841,7 @@ b8 platform_unwatch_file(u32 watch_id) {
     return unregister_watch(watch_id);
 }
 
-void platform_update_watches(void) {
+static void platform_update_watches(void) {
     if (!state_ptr || !state_ptr->watches) {
         return;
     }
@@ -883,7 +883,7 @@ void platform_update_watches(void) {
 }
 
 
-E_KEYS translate_keycode(u32 ns_keycode) {
+static E_KEYS translate_keycode(u32 ns_keycode) {
     // https://boredzo.org/blog/wp-content/uploads/2007/05/IMTx-virtual-keycodes.pdf
     // https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
     switch (ns_keycode) {
@@ -993,7 +993,7 @@ E_KEYS translate_keycode(u32 ns_keycode) {
         case 0x32:
             return KEY_GRAVE;
         case 0x21:
-            return KEY_LBRACKET; 
+            return KEY_LBRACKET;
         case 0x1B:
             return KEY_MINUS;
         case 0x2F:
@@ -1131,17 +1131,17 @@ E_KEYS translate_keycode(u32 ns_keycode) {
 #define MACOS_LALT_MASK (1 << 5)
 #define MACOS_RALT_MASK (1 << 6)
 
-void handle_modifier_key(
-    u32 ns_keycode, 
-    u32 ns_key_mask, 
-    u32 ns_l_keycode, 
-    u32 ns_r_keycode, 
-    u32 k_l_keycode, 
-    u32 k_r_keycode, 
-    u32 modifier_flags, 
-    u32 l_mod, 
-    u32 r_mod, 
-    u32 l_mask, 
+static void handle_modifier_key(
+    u32 ns_keycode,
+    u32 ns_key_mask,
+    u32 ns_l_keycode,
+    u32 ns_r_keycode,
+    u32 k_l_keycode,
+    u32 k_r_keycode,
+    u32 modifier_flags,
+    u32 l_mod,
+    u32 r_mod,
+    u32 l_mask,
     u32 r_mask) {
     if(modifier_flags & ns_key_mask){
         // Check left variant
@@ -1160,7 +1160,7 @@ void handle_modifier_key(
                 // Report the keypress
                 input_process_key(k_r_keycode, true);
             }
-        } 
+        }
     } else {
         if(ns_keycode == ns_l_keycode) {
             if(state_ptr->modifier_key_states & l_mod) {
@@ -1180,63 +1180,63 @@ void handle_modifier_key(
     }
 }
 
-void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags) {
+static void handle_modifier_keys(u32 ns_keycode, u32 modifier_flags) {
     // Shift
     handle_modifier_key(
-        ns_keycode, 
-        NSEventModifierFlagShift, 
-        0x38, 
-        0x3C, 
-        KEY_LSHIFT, 
-        KEY_RSHIFT, 
-        modifier_flags, 
-        MACOS_MODIFIER_KEY_LSHIFT, 
-        MACOS_MODIFIER_KEY_RSHIFT, 
-        MACOS_LSHIFT_MASK, 
+        ns_keycode,
+        NSEventModifierFlagShift,
+        0x38,
+        0x3C,
+        KEY_LSHIFT,
+        KEY_RSHIFT,
+        modifier_flags,
+        MACOS_MODIFIER_KEY_LSHIFT,
+        MACOS_MODIFIER_KEY_RSHIFT,
+        MACOS_LSHIFT_MASK,
         MACOS_RSHIFT_MASK);
 
     PRINT_TRACE("modifier flags keycode: %u", ns_keycode);
 
     // Ctrl
     handle_modifier_key(
-        ns_keycode, 
-        NSEventModifierFlagControl, 
-        0x3B, 
-        0x3E, 
-        KEY_LCONTROL, 
-        KEY_RCONTROL, 
-        modifier_flags, 
-        MACOS_MODIFIER_KEY_LCTRL, 
-        MACOS_MODIFIER_KEY_RCTRL, 
-        MACOS_LCTRL_MASK, 
+        ns_keycode,
+        NSEventModifierFlagControl,
+        0x3B,
+        0x3E,
+        KEY_LCONTROL,
+        KEY_RCONTROL,
+        modifier_flags,
+        MACOS_MODIFIER_KEY_LCTRL,
+        MACOS_MODIFIER_KEY_RCTRL,
+        MACOS_LCTRL_MASK,
         MACOS_RCTRL_MASK);
 
     // Alt/Option
     handle_modifier_key(
-        ns_keycode, 
-        NSEventModifierFlagOption, 
-        0x3A, 
-        0x3D, 
-        KEY_LALT, 
-        KEY_RALT, 
-        modifier_flags, 
-        MACOS_MODIFIER_KEY_LOPTION, 
-        MACOS_MODIFIER_KEY_ROPTION, 
-        MACOS_LALT_MASK, 
+        ns_keycode,
+        NSEventModifierFlagOption,
+        0x3A,
+        0x3D,
+        KEY_LALT,
+        KEY_RALT,
+        modifier_flags,
+        MACOS_MODIFIER_KEY_LOPTION,
+        MACOS_MODIFIER_KEY_ROPTION,
+        MACOS_LALT_MASK,
         MACOS_RALT_MASK);
 
     // Command/Super
     handle_modifier_key(
-        ns_keycode, 
-        NSEventModifierFlagCommand, 
-        0x37, 
-        0x36, 
-        KEY_LSUPER, 
-        KEY_RSUPER, 
-        modifier_flags, 
-        MACOS_MODIFIER_KEY_LCOMMAND, 
-        MACOS_MODIFIER_KEY_RCOMMAND, 
-        MACOS_LCOMMAND_MASK, 
+        ns_keycode,
+        NSEventModifierFlagCommand,
+        0x37,
+        0x36,
+        KEY_LSUPER,
+        KEY_RSUPER,
+        modifier_flags,
+        MACOS_MODIFIER_KEY_LCOMMAND,
+        MACOS_MODIFIER_KEY_RCOMMAND,
+        MACOS_LCOMMAND_MASK,
         MACOS_RCOMMAND_MASK);
 
     // Caps lock - handled a bit differently than other keys.

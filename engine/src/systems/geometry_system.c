@@ -26,9 +26,9 @@ typedef struct GEOMETRY_SYSTEM_STATE {
 
 static GEOMETRY_SYSTEM_STATE* state_ptr = 0;
 
-b8 create_default_geometries(GEOMETRY_SYSTEM_STATE* state);
-b8 create_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY_CONFIG config, GEOMETRY* g);
-void destroy_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY* g);
+static b8 create_default_geometries(GEOMETRY_SYSTEM_STATE* state);
+static b8 create_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY_CONFIG config, GEOMETRY* g);
+static void destroy_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY* g);
 
 b8 geometry_system_init(u64* memory_requirement, void* state, void* config) {
     GEOMETRY_SYSTEM_CONFIG* typed_config = (GEOMETRY_SYSTEM_CONFIG*)config;
@@ -45,14 +45,14 @@ b8 geometry_system_init(u64* memory_requirement, void* state, void* config) {
     if (!state) {
         return true;
     }
-    
+
     state_ptr = state;
     state_ptr->config = *typed_config;
-    
+
     // The array block is after the state. Already allocated, so just set the pointer.
     void* array_block = state + struct_requirement;
     state_ptr->registered_geometries = array_block;
-    
+
     // Invalidate all geometries in the array.
     u32 count = state_ptr->config.max_geometry_count;
     for (u32 i = 0; i < count; ++i) {
@@ -166,16 +166,16 @@ GEOMETRY* geometry_system_get_default_2d(void) {
     return 0;
 }
 
-b8 create_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY_CONFIG config, GEOMETRY* g) {
+static b8 create_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY_CONFIG config, GEOMETRY* g) {
     // Send the geometry off to the renderer to be uploaded to the GPU.
-    if (!renderer_create_geometry(g, config.vertex_size, config.vertex_count, config.vertices, config.index_size, config.index_count, config.indices)) {
+    if (!renderer_geometry_create(g, config.vertex_size, config.vertex_count, config.vertices, config.index_size, config.index_count, config.indices)) {
         // Invalidate the entry.
         state->registered_geometries[g->id].reference_count = 0;
         state->registered_geometries[g->id].auto_release = false;
         g->id = INVALID_ID;
         g->generation = INVALID_ID_U16;
         g->internal_id = INVALID_ID;
-        
+
         return false;
     }
 
@@ -196,8 +196,8 @@ b8 create_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY_CONFIG config, GEOMETR
     return true;
 }
 
-void destroy_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY* g) {
-    renderer_destroy_geometry(g);
+static void destroy_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY* g) {
+    renderer_geometry_destroy(g);
     g->internal_id = INVALID_ID;
     g->generation = INVALID_ID_U16;
     g->id = INVALID_ID;
@@ -211,7 +211,7 @@ void destroy_geometry(GEOMETRY_SYSTEM_STATE* state, GEOMETRY* g) {
     }
 }
 
-b8 create_default_geometries(GEOMETRY_SYSTEM_STATE* state) {
+static b8 create_default_geometries(GEOMETRY_SYSTEM_STATE* state) {
     Vertex3D verts[4];
     yzero_memory(verts, sizeof(Vertex3D) * 4);
 
@@ -241,7 +241,7 @@ b8 create_default_geometries(GEOMETRY_SYSTEM_STATE* state) {
 
     state->default_geometry.internal_id = INVALID_ID;
     // Send the geometry off to the renderer to be uploaded to the GPU.
-    if (!renderer_create_geometry(&state->default_geometry, sizeof(Vertex3D), 4, verts, sizeof(u32), 6, indices)) {
+    if (!renderer_geometry_create(&state->default_geometry, sizeof(Vertex3D), 4, verts, sizeof(u32), 6, indices)) {
         PRINT_ERROR("Failed to create default geometry. Application cannot continue.");
         return false;
     }
@@ -276,7 +276,7 @@ b8 create_default_geometries(GEOMETRY_SYSTEM_STATE* state) {
     u32 indices2d[6] = {2, 1, 0, 3, 0, 1};
 
     // Send the geometry off to the renderer to be uploaded to the GPU.
-    if (!renderer_create_geometry(&state->default_2d_geometry, sizeof(Vertex2D), 4, verts2d, sizeof(u32), 6, indices2d)) {
+    if (!renderer_geometry_create(&state->default_2d_geometry, sizeof(Vertex2D), 4, verts2d, sizeof(u32), 6, indices2d)) {
         PRINT_ERROR("Failed to create default 2d geometry. Application cannot continue.");
         return false;
     }
@@ -561,4 +561,3 @@ GEOMETRY_CONFIG geometry_system_generate_cube_config(f32 width, f32 height, f32 
 
     return config;
 }
-

@@ -2,7 +2,7 @@
  * @file font_system.h=
  * @brief A system responsible for the management of bitmap
  * and system fonts.
- * 
+ *
  */
 #pragma once
 
@@ -61,7 +61,7 @@ struct UI_TEXT;
  * @brief Initializes the font system. As with other systems, this should
  * be called twice; once to get the memory requirement (where memory = 0),
  * and a second time passing allocated memory.
- * 
+ *
  * @param memory_requirement A pointer to hold the memory requirement.
  * @param memory The allocated memory for the system state.
  * @param config The font system config.
@@ -70,25 +70,25 @@ struct UI_TEXT;
 b8 font_system_init(u64* memory_requirement, void* memory, void* config);
 /**
  * @brief Shuts down the font system.
- * 
+ *
  * @param memory The system state memory.
  */
 void font_system_shutdown(void* memory);
 
 /**
  * @brief Loads a system font from the following config.
- * 
+ *
  * @param config A pointer to the config to use for loading.
  * @return True on success; otherwise false.
  */
-b8 font_system_load_system_font(SYSTEM_FONT_CONFIG* config);
+b8 font_system_system_font_load(SYSTEM_FONT_CONFIG* config);
 /**
  * @brief Loads a bitmap font from the following config.
- * 
+ *
  * @param config A pointer to the config to use for loading.
  * @return True on success; otherwise false.
  */
-b8 font_system_load_bitmap_font(BITMAP_FONT_CONFIG* config);
+b8 font_system_bitmap_font_load(BITMAP_FONT_CONFIG* config);
 
 /**
  * @brief Attempts to acquire a font of the given name and assign it to the given UI_TEXT.
@@ -111,7 +111,7 @@ b8 font_system_release(struct UI_TEXT* text);
 /**
  * @brief Verifies the atlas of the provided font contains
  * the characters in text.
- * 
+ *
  * @param font A pointer to the font to be verified.
  * @param text The text containing the characters required.
  * @return True on success; otherwise false.

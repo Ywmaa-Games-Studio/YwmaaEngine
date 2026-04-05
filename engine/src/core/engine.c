@@ -39,8 +39,8 @@ typedef struct ENGINE_STATE_T {
 static ENGINE_STATE_T* engine_state;
 
 // Event handlers
-b8 engine_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context);
-b8 engine_on_resized(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context);
+static b8 engine_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context);
+static b8 engine_on_resized(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context);
 
 b8 engine_create(APPLICATION* game_instance) {
     if (game_instance->engine_state) {
@@ -133,7 +133,7 @@ b8 engine_post_boot(void) {
 b8 web_pause = false;
 #endif
 f64 running_time = 0;
-u8 frame_count = 0;
+//u8 frame_count = 0;
 f64 target_frame_seconds = 1.0f / 60;
 f64 frame_elapsed_time = 0;
 
@@ -182,7 +182,7 @@ b8 render_loop(void) {
 
         // Cleanup the packet.
         for (u32 i = 0; i < packet.view_count; ++i) {
-            packet.views[i].view->on_destroy_packet(packet.views[i].view, &packet.views[i]);
+            packet.views[i].view->on_packet_destroy(packet.views[i].view, &packet.views[i]);
         }
 
     #ifndef YPLATFORM_WEB
@@ -206,7 +206,7 @@ b8 render_loop(void) {
                 #endif
             }
 
-            frame_count++;
+            //frame_count++;
         }
 
         // NOTE: Input update/state copying should always be handled
@@ -321,7 +321,7 @@ const struct FRAME_DATA* engine_frame_data_get(struct APPLICATION* game_instance
     return &((ENGINE_STATE_T*)game_instance->engine_state)->p_frame_data;
 }
 
-b8 engine_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context) {
+static b8 engine_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEXT context) {
     switch (code) {
         case EVENT_CODE_APPLICATION_QUIT: {
             PRINT_INFO("EVENT_CODE_APPLICATION_QUIT recieved, shutting down.\n");
@@ -333,7 +333,7 @@ b8 engine_on_event(u16 code, void* sender, void* listener_instance, EVENT_CONTEX
     return false;
 }
 
-b8 engine_on_resized(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
+static b8 engine_on_resized(u16 code, void* sender, void* listener_inst, EVENT_CONTEXT context) {
     if (code == EVENT_CODE_RESIZED) {
         u16 width = context.data.u16[0];
         u16 height = context.data.u16[1];

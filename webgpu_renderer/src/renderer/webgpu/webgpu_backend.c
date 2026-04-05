@@ -31,7 +31,7 @@
 void webgpu_bind_layout_set_default(WGPUBindGroupLayoutEntry *bindingLayout);
 
 
-b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin);
+static b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin);
 
 WGPUTextureView get_next_surface_texture_view(WEBGPU_CONTEXT* context);
 
@@ -161,14 +161,14 @@ void webgpu_renderer_backend_on_resized(RENDERER_PLUGIN* plugin, u16 width, u16 
     PRINT_INFO("WebGPU renderer backend->resized: w/h/gen: %i/%i/%llu", width, height, context->framebuffer_size_generation);
 }
 
-b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data) {
+b8 webgpu_renderer_backend_frame_begin(RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     wgpuInstanceProcessEvents(context->instance);
     // Check if recreating swap chain and boot out.
     if (context->recreating_swapchain) {
         b8 result = webgpu_device_poll(context);
         if (!result) {
-            PRINT_ERROR("webgpu_renderer_backend_begin_frame wgpuDevicePoll failed");
+            PRINT_ERROR("webgpu_renderer_backend_frame_begin wgpuDevicePoll failed");
             return false;
         }
         PRINT_INFO("Recreating swapchain, booting.");
@@ -180,7 +180,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRA
     if (context->framebuffer_size_generation != context->framebuffer_size_last_generation || context->render_flag_changed) {
         b8 result = webgpu_device_poll(context);
         if (!result) {
-            PRINT_ERROR("webgpu_renderer_backend_begin_frame wgpuDevicePoll failed");
+            PRINT_ERROR("webgpu_renderer_backend_frame_begin wgpuDevicePoll failed");
             return false;
         }
 
@@ -216,7 +216,7 @@ b8 webgpu_renderer_backend_begin_frame(RENDERER_PLUGIN* plugin, const struct FRA
     return true;
 }
 
-b8 webgpu_renderer_backend_end_frame(RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data) {
+b8 webgpu_renderer_backend_frame_end(RENDERER_PLUGIN* plugin, const struct FRAME_DATA* p_frame_data) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
 
     WGPUCommandBufferDescriptor cmd_buffer_descriptor = {0};
@@ -316,10 +316,10 @@ b8 webgpu_renderer_renderpass_end(RENDERER_PLUGIN* plugin, RENDERPASS* pass) {
     return true;
 }
 
-b8 webgpu_renderer_create_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
+b8 webgpu_renderer_geometry_create(RENDERER_PLUGIN* plugin, GEOMETRY* geometry, u32 vertex_size, u32 vertex_count, const void* vertices, u32 index_size, u32 index_count, const void* indices) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     if (!vertex_count || !vertices) {
-        PRINT_ERROR("webgpu_renderer_create_geometry requires vertex data, and none was supplied. vertex_count=%d, vertices=%p", vertex_count, vertices);
+        PRINT_ERROR("webgpu_renderer_geometry_create requires vertex data, and none was supplied. vertex_count=%d, vertices=%p", vertex_count, vertices);
         return false;
     }
 
@@ -350,25 +350,25 @@ b8 webgpu_renderer_create_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometry, 
         }
     }
     if (!internal_data) {
-        PRINT_ERROR("webgpu_renderer_create_geometry failed to find a free index for a new geometry upload. Adjust config to allow for more.");
+        PRINT_ERROR("webgpu_renderer_geometry_create failed to find a free index for a new geometry upload. Adjust config to allow for more.");
         return false;
     }
 
     // Vertex data.
-    //PRINT_DEBUG("webgpu_renderer_create_geometry: vertex_size=%d, vertex_count=%d, vertices=%p ", vertex_size, vertex_count, vertices);
+    //PRINT_DEBUG("webgpu_renderer_geometry_create: vertex_size=%d, vertex_count=%d, vertices=%p ", vertex_size, vertex_count, vertices);
     internal_data->vertex_count = vertex_count;
     internal_data->vertex_element_size = sizeof(Vertex3D);
     u32 total_size = vertex_count * vertex_size;
 
     // Allocate space in the buffer.
     if (!renderer_renderbuffer_allocate(&context->object_vertex_buffer, total_size, &internal_data->vertex_buffer_offset)) {
-        PRINT_ERROR("webgpu_renderer_create_geometry failed to allocate from the vertex buffer!");
+        PRINT_ERROR("webgpu_renderer_geometry_create failed to allocate from the vertex buffer!");
         return false;
     }
 
     // Load the data.
     if (!renderer_renderbuffer_load_range(&context->object_vertex_buffer, internal_data->vertex_buffer_offset, total_size, vertices)) {
-        PRINT_ERROR("webgpu_renderer_create_geometry failed to upload to the vertex buffer!");
+        PRINT_ERROR("webgpu_renderer_geometry_create failed to upload to the vertex buffer!");
         return false;
     }
 
@@ -378,12 +378,12 @@ b8 webgpu_renderer_create_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometry, 
         internal_data->index_element_size = sizeof(u32);
         total_size = index_count * index_size;
         if (!renderer_renderbuffer_allocate(&context->object_index_buffer, total_size, &internal_data->index_buffer_offset)) {
-            PRINT_ERROR("webgpu_renderer_create_geometry failed to allocate from the index buffer!");
+            PRINT_ERROR("webgpu_renderer_geometry_create failed to allocate from the index buffer!");
             return false;
         }
 
         if (!renderer_renderbuffer_load_range(&context->object_index_buffer, internal_data->index_buffer_offset, total_size, indices)) {
-            PRINT_ERROR("webgpu_renderer_create_geometry failed to upload to the index buffer!");
+            PRINT_ERROR("webgpu_renderer_geometry_create failed to upload to the index buffer!");
             return false;
         }
     }
@@ -397,13 +397,13 @@ b8 webgpu_renderer_create_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometry, 
     if (is_reupload) {
         // Free vertex data
         if (!renderer_renderbuffer_free(&context->object_vertex_buffer, old_range.vertex_element_size * old_range.vertex_count, old_range.vertex_buffer_offset)) {
-            PRINT_ERROR("webgpu_renderer_create_geometry free operation failed during reupload of vertex data.");
+            PRINT_ERROR("webgpu_renderer_geometry_create free operation failed during reupload of vertex data.");
             return false;
         }
         // Free index data, if applicable
         if (old_range.index_element_size > 0) {
             if (!renderer_renderbuffer_free(&context->object_index_buffer, old_range.index_element_size * old_range.index_count, old_range.index_buffer_offset)) {
-                PRINT_ERROR("webgpu_renderer_create_geometry free operation failed during reupload of index data.");
+                PRINT_ERROR("webgpu_renderer_geometry_create free operation failed during reupload of index data.");
                 return false;
             }
         }
@@ -412,7 +412,7 @@ b8 webgpu_renderer_create_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometry, 
     return true;
 }
 
-void webgpu_renderer_destroy_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometry) {
+void webgpu_renderer_geometry_destroy(RENDERER_PLUGIN* plugin, GEOMETRY* geometry) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     if (geometry && geometry->internal_id != INVALID_ID) {
         webgpu_device_poll(context);
@@ -420,13 +420,13 @@ void webgpu_renderer_destroy_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometr
 
         // Free vertex data
         if (!renderer_renderbuffer_free(&context->object_vertex_buffer, internal_data->vertex_element_size * internal_data->vertex_count, internal_data->vertex_buffer_offset)) {
-            PRINT_ERROR("webgpu_renderer_destroy_geometry failed to free vertex buffer range.");
+            PRINT_ERROR("webgpu_renderer_geometry_destroy failed to free vertex buffer range.");
         }
 
         // Free index data, if applicable
         if (internal_data->index_element_size > 0) {
             if (!renderer_renderbuffer_free(&context->object_index_buffer, internal_data->index_element_size * internal_data->index_count, internal_data->index_buffer_offset)) {
-                PRINT_ERROR("webgpu_renderer_destroy_geometry failed to free index buffer range.");
+                PRINT_ERROR("webgpu_renderer_geometry_destroy failed to free index buffer range.");
             }
         }
 
@@ -437,7 +437,7 @@ void webgpu_renderer_destroy_geometry(RENDERER_PLUGIN* plugin, GEOMETRY* geometr
     }
 }
 
-void webgpu_renderer_draw_geometry(RENDERER_PLUGIN* plugin, GEOMETRY_RENDER_DATA* data) {
+void webgpu_renderer_geometry_draw(RENDERER_PLUGIN* plugin, GEOMETRY_RENDER_DATA* data) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     // Ignore non-uploaded geometries.
     if (data->geometry && data->geometry->internal_id == INVALID_ID) {
@@ -449,13 +449,13 @@ void webgpu_renderer_draw_geometry(RENDERER_PLUGIN* plugin, GEOMETRY_RENDER_DATA
 
     b8 includes_index_data = buffer_data->index_count > 0;
     if (!webgpu_buffer_draw(plugin, &context->object_vertex_buffer, buffer_data->vertex_buffer_offset, buffer_data->vertex_count, includes_index_data)) {
-        PRINT_ERROR("webgpu_renderer_draw_geometry failed to draw vertex buffer;");
+        PRINT_ERROR("webgpu_renderer_geometry_draw failed to draw vertex buffer;");
         return;
     }
 
     if (includes_index_data) {
         if (!webgpu_buffer_draw(plugin, &context->object_index_buffer, buffer_data->index_buffer_offset, buffer_data->index_count, !includes_index_data)) {
-            PRINT_ERROR("webgpu_renderer_draw_geometry failed to draw index buffer;");
+            PRINT_ERROR("webgpu_renderer_geometry_draw failed to draw index buffer;");
             return;
         }
     }
@@ -1162,7 +1162,7 @@ b8 webgpu_renderer_shader_apply_instance(RENDERER_PLUGIN* plugin, struct SHADER 
     return true;
 }
 
-b8 webgpu_renderer_shader_acquire_instance_resources(RENDERER_PLUGIN* plugin, struct SHADER *s, TEXTURE_MAP** maps, u32 *out_instance_id)
+b8 webgpu_renderer_shader_instance_resources_acquire(RENDERER_PLUGIN* plugin, struct SHADER *s, TEXTURE_MAP** maps, u32 *out_instance_id)
 {
     WEBGPU_SHADER* internal = s->internal_data;
     // TODO: dynamic
@@ -1175,7 +1175,7 @@ b8 webgpu_renderer_shader_acquire_instance_resources(RENDERER_PLUGIN* plugin, st
         }
     }
     if (*out_instance_id == INVALID_ID) {
-        PRINT_ERROR("webgpu_shader_acquire_instance_resources failed to acquire new id");
+        PRINT_ERROR("webgpu_shader_instance_resources_acquire failed to acquire new id");
         return false;
     }
 
@@ -1237,7 +1237,7 @@ b8 webgpu_renderer_shader_acquire_instance_resources(RENDERER_PLUGIN* plugin, st
     return true;
 }
 
-b8 webgpu_renderer_shader_release_instance_resources(RENDERER_PLUGIN* plugin, struct SHADER *s, u32 instance_id)
+b8 webgpu_renderer_shader_instance_resources_release(RENDERER_PLUGIN* plugin, struct SHADER *s, u32 instance_id)
 {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     //WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
@@ -1253,7 +1253,7 @@ b8 webgpu_renderer_shader_release_instance_resources(RENDERER_PLUGIN* plugin, st
     }
     if (s->ubo_stride != 0) {
         if (!renderer_renderbuffer_free(&internal->uniform_buffer, s->ubo_stride, instance_state->offset)) {
-            PRINT_ERROR("webgpu_renderer_shader_release_instance_resources failed to free range from renderbuffer.");
+            PRINT_ERROR("webgpu_renderer_shader_instance_resources_release failed to free range from renderbuffer.");
         }
     }
     instance_state->offset = INVALID_ID;
@@ -1262,7 +1262,7 @@ b8 webgpu_renderer_shader_release_instance_resources(RENDERER_PLUGIN* plugin, st
     return true;
 }
 
-b8 webgpu_renderer_set_uniform(RENDERER_PLUGIN* plugin, struct SHADER *frontend_shader, struct SHADER_UNIFORM *uniform, const void *value)
+b8 webgpu_renderer_uniform_set(RENDERER_PLUGIN* plugin, struct SHADER *frontend_shader, struct SHADER_UNIFORM *uniform, const void *value)
 {
     WEBGPU_SHADER* internal = frontend_shader->internal_data;
     if (uniform->type == SHADER_UNIFORM_TYPE_SAMPLER || uniform->type == SHADER_UNIFORM_TYPE_CUBE_SAMPLER) {
@@ -1589,12 +1589,12 @@ b8 webgpu_renderer_is_multithreaded(RENDERER_PLUGIN* plugin) {
     return context->multithreading_enabled;
 }
 
-b8 webgpu_renderer_flag_enabled(RENDERER_PLUGIN* plugin, RENDERER_CONFIG_FLAGS flag) {
+b8 webgpu_renderer_flag_enabled_get(RENDERER_PLUGIN* plugin, RENDERER_CONFIG_FLAGS flag) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     return (context->flags & flag);
 }
 
-void webgpu_renderer_flag_set_enabled(RENDERER_PLUGIN* plugin, RENDERER_CONFIG_FLAGS flag, b8 enabled) {
+void webgpu_renderer_flag_enabled_set(RENDERER_PLUGIN* plugin, RENDERER_CONFIG_FLAGS flag, b8 enabled) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     context->flags = (enabled ? (context->flags | flag) : (context->flags & ~flag));
     context->render_flag_changed = true;
@@ -1603,7 +1603,7 @@ void webgpu_renderer_flag_set_enabled(RENDERER_PLUGIN* plugin, RENDERER_CONFIG_F
 // NOTE: Begin webgpu buffer.
 
 // Indicates if the provided buffer has host-visible memory.
-b8 webgpu_buffer_is_host_visible(RENDERER_PLUGIN* plugin, WEBGPU_BUFFER* buffer) {
+static b8 webgpu_buffer_is_host_visible(RENDERER_PLUGIN* plugin, WEBGPU_BUFFER* buffer) {
     WGPUBufferUsage usage = wgpuBufferGetUsage(buffer->handle);
     return (usage & (WGPUBufferUsage_MapRead | WGPUBufferUsage_MapWrite));
 }
@@ -1921,7 +1921,7 @@ b8 webgpu_buffer_draw(RENDERER_PLUGIN* plugin, RENDER_BUFFER* buffer, u64 offset
     }
 }
 
-WGPUAddressMode webgpu_convert_repeat_type(const char* axis, E_TEXTURE_REPEAT repeat) {
+static WGPUAddressMode webgpu_convert_repeat_type(const char* axis, E_TEXTURE_REPEAT repeat) {
     switch (repeat) {
         case TEXTURE_REPEAT_REPEAT:
             return WGPUAddressMode_Repeat;
@@ -1935,7 +1935,7 @@ WGPUAddressMode webgpu_convert_repeat_type(const char* axis, E_TEXTURE_REPEAT re
     }
 }
 
-WGPUFilterMode webgpu_convert_filter_type(const char* op, E_TEXTURE_FILTER filter) {
+static WGPUFilterMode webgpu_convert_filter_type(const char* op, E_TEXTURE_FILTER filter) {
     switch (filter) {
         case TEXTURE_FILTER_MODE_NEAREST:
             return WGPUFilterMode_Nearest;
@@ -1947,7 +1947,7 @@ WGPUFilterMode webgpu_convert_filter_type(const char* op, E_TEXTURE_FILTER filte
     }
 }
 
-b8 webgpu_renderer_texture_map_acquire_resources(RENDERER_PLUGIN* plugin, TEXTURE_MAP* map){
+b8 webgpu_renderer_texture_map_resources_acquire(RENDERER_PLUGIN* plugin, TEXTURE_MAP* map){
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     // Create a sampler
     WGPUSamplerDescriptor sampler_desc;
@@ -1974,10 +1974,10 @@ b8 webgpu_renderer_texture_map_acquire_resources(RENDERER_PLUGIN* plugin, TEXTUR
 
     return true;
 }
-void webgpu_renderer_texture_map_release_resources(RENDERER_PLUGIN* plugin, TEXTURE_MAP* map){
+void webgpu_renderer_texture_map_resources_release(RENDERER_PLUGIN* plugin, TEXTURE_MAP* map){
     if (map) {
         if (!map->internal_data){
-            PRINT_WARNING("webgpu_renderer_texture_map_release_resources: map->internal_data is NULL, nothing to release.");
+            PRINT_WARNING("webgpu_renderer_texture_map_resources_release: map->internal_data is NULL, nothing to release.");
             return;
         }
         wgpuSamplerRelease(*(WGPUSampler*)map->internal_data);
@@ -1987,7 +1987,7 @@ void webgpu_renderer_texture_map_release_resources(RENDERER_PLUGIN* plugin, TEXT
 }
 
 
-b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin) {
+static b8 wgpu_recreate_swapchain(RENDERER_PLUGIN* plugin) {
     WEBGPU_CONTEXT* context = (WEBGPU_CONTEXT*)plugin->internal_context;
     // If already being recreated, do not try again.
     if (context->recreating_swapchain) {
@@ -2113,7 +2113,7 @@ WGPUTextureView get_next_surface_texture_view(WEBGPU_CONTEXT* context) {
 
 
 
-WGPUTextureFormat webgpu_channel_count_to_format(u8 channel_count, WGPUTextureFormat default_format) {
+static WGPUTextureFormat webgpu_channel_count_to_format(u8 channel_count, WGPUTextureFormat default_format) {
     switch (channel_count) {
         case 1:
             return WGPUTextureFormat_R8Unorm;

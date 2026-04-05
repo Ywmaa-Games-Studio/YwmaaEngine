@@ -59,17 +59,17 @@ const char* cgltf_error_messages[] = {
     "Unknown error"
 };
 
-b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray, b8 is_binary);
-b8 import_obj_file(FILE_HANDLE* obj_file, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray);
-void process_subobject(Vector3* positions, Vector3* normals, Vector2* tex_coords, MESH_FACE_DATA* faces, GEOMETRY_CONFIG* out_data);
-b8 import_obj_material_library_file(const char* mtl_file_path);
-b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* out_filename);
+static b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray, b8 is_binary);
+static b8 import_obj_file(FILE_HANDLE* obj_file, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray);
+static void process_subobject(Vector3* positions, Vector3* normals, Vector2* tex_coords, MESH_FACE_DATA* faces, GEOMETRY_CONFIG* out_data);
+static b8 import_obj_material_library_file(const char* mtl_file_path);
+static b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* out_filename);
 
-b8 load_y_mesh_file(FILE_HANDLE* y_mesh_file, GEOMETRY_CONFIG** out_geometries_darray);
-b8 write_y_mesh_file(const char* path, const char* name, u32 geometry_count, GEOMETRY_CONFIG* geometries);
-b8 write_y_material_file(const char* directory, MATERIAL_CONFIG* config);
+static b8 load_y_mesh_file(FILE_HANDLE* y_mesh_file, GEOMETRY_CONFIG** out_geometries_darray);
+static b8 write_y_mesh_file(const char* path, const char* name, u32 geometry_count, GEOMETRY_CONFIG* geometries);
+static b8 write_y_material_file(const char* directory, MATERIAL_CONFIG* config);
 
-b8 mesh_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
+static b8 mesh_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params, RESOURCE* out_resource) {
     if (!self || !name || !out_resource) {
         return false;
     }
@@ -169,7 +169,7 @@ b8 mesh_loader_load(struct RESOURCE_LOADER* self, const char* name, void* params
     return true;
 }
 
-void mesh_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
+static void mesh_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
     u32 count = darray_length(resource->data);
     for (u32 i = 0; i < count; ++i) {
         GEOMETRY_CONFIG* config = &((GEOMETRY_CONFIG*)resource->data)[i];
@@ -180,7 +180,7 @@ void mesh_loader_unload(struct RESOURCE_LOADER* self, RESOURCE* resource) {
     resource->data_size = 0;
 }
 
-b8 load_y_mesh_file(FILE_HANDLE* y_mesh_file, GEOMETRY_CONFIG** out_geometries_darray) {
+static b8 load_y_mesh_file(FILE_HANDLE* y_mesh_file, GEOMETRY_CONFIG** out_geometries_darray) {
     // Version
     u64 bytes_read = 0;
     u16 version = 0;
@@ -250,7 +250,7 @@ b8 load_y_mesh_file(FILE_HANDLE* y_mesh_file, GEOMETRY_CONFIG** out_geometries_d
     return true;
 }
 
-b8 write_y_mesh_file(const char* path, const char* name, u32 geometry_count, GEOMETRY_CONFIG* geometries) {
+static b8 write_y_mesh_file(const char* path, const char* name, u32 geometry_count, GEOMETRY_CONFIG* geometries) {
     if (filesystem_exists(path)) {
         PRINT_INFO("File '%s' already exists and will be overwritten.", path);
     }
@@ -321,7 +321,7 @@ b8 write_y_mesh_file(const char* path, const char* name, u32 geometry_count, GEO
  * @param out_geometries_darray A darray of geometries parsed from the file.
  * @return True on success; otherwise false.
  */
-b8 import_obj_file(FILE_HANDLE* obj_file, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray) {
+static b8 import_obj_file(FILE_HANDLE* obj_file, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray) {
     // Positions
     Vector3* positions = darray_reserve(Vector3, 16384);
 
@@ -594,7 +594,7 @@ b8 import_obj_file(FILE_HANDLE* obj_file, const char* out_y_mesh_filename, GEOME
     return write_y_mesh_file(out_y_mesh_filename, name, count, *out_geometries_darray);
 }
 
-b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray, b8 is_binary) {
+static b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_mesh_filename, GEOMETRY_CONFIG** out_geometries_darray, b8 is_binary) {
     // read the file and parse it.
     if (!gltf_file || !out_y_mesh_filename || !out_geometries_darray) {
         PRINT_ERROR("Invalid parameters passed to import_gltf_file.");
@@ -633,7 +633,7 @@ b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_
             return false;
         }
     }
-    
+
     // Use cgltf to parse the file.
     cgltf_options options = {0};
     cgltf_data* data = 0;
@@ -894,7 +894,7 @@ b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_
                 }
             }
         }
-        
+
         // Normal map
         if (material->normal_texture.texture) {
             const cgltf_image* image = material->normal_texture.texture->image;
@@ -929,11 +929,11 @@ b8 import_gltf_file(FILE_HANDLE* gltf_file, const char* path, const char* out_y_
     yfree(file_data);
     PRINT_DEBUG("Successfully imported glTF file '%s' and wrote to '%s'.", path, out_y_mesh_filename);
     filesystem_close(gltf_file);
-    
+
     return true;
 }
 
-void process_subobject(Vector3* positions, Vector3* normals, Vector2* tex_coords, MESH_FACE_DATA* faces, GEOMETRY_CONFIG* out_data) {
+static void process_subobject(Vector3* positions, Vector3* normals, Vector2* tex_coords, MESH_FACE_DATA* faces, GEOMETRY_CONFIG* out_data) {
     out_data->indices = darray_create(u32);
     out_data->vertices = darray_create(Vertex3D);
     b8 extent_set = false;
@@ -1026,7 +1026,7 @@ void process_subobject(Vector3* positions, Vector3* normals, Vector2* tex_coords
 // existing material name would be used, which would visually be wrong and serve as additional
 // reinforcement of the message for material uniqueness.
 // Material configs should not be returned or used here.
-b8 import_obj_material_library_file(const char* mtl_file_path) {
+static b8 import_obj_material_library_file(const char* mtl_file_path) {
     PRINT_DEBUG("Importing obj .mtl file '%s'...", mtl_file_path);
     // Grab the .mtl file, if it exists, and read the material information.
     FILE_HANDLE mtl_file;
@@ -1216,7 +1216,7 @@ b8 import_obj_material_library_file(const char* mtl_file_path) {
  * @param config A pointer to the config to be converted to y_material.
  * @return True on success; otherwise false.
  */
-b8 write_y_material_file(const char* mtl_file_path, MATERIAL_CONFIG* config) {
+static b8 write_y_material_file(const char* mtl_file_path, MATERIAL_CONFIG* config) {
     // NOTE: The .obj file this came from (and resulting .mtl file) sit in the
     // models directory. This moves up a level and back into the materials folder.
     // TODO: Read from config and get an absolute path for output.
@@ -1263,7 +1263,7 @@ b8 write_y_material_file(const char* mtl_file_path, MATERIAL_CONFIG* config) {
     return true;
 }
 
-b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* out_filename) {
+static b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* out_filename) {
     if (!image || !base_path || !out_filename) {
         return false;
     }
@@ -1298,14 +1298,14 @@ b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* o
             PRINT_ERROR("Buffer data not loaded for texture: %s", texture_name);
             return false;
         }
-        
+
         // Use cgltf_buffer_view_data to get the correct data pointer
         const u8* data = cgltf_buffer_view_data(image->buffer_view);
         if (!data) {
             PRINT_ERROR("Failed to get buffer view data for texture: %s", texture_name);
             return false;
         }
-        
+
         u64 size = image->buffer_view->size;
 
         // Create the file
@@ -1332,7 +1332,7 @@ b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* o
     if (image->uri) {
         char source_path[512];
         string_format(source_path, "%s", image->uri);
-        
+
         // If it's a relative path, make it relative to the gltf file
         // Check if it's not an absolute path or URL
         b8 is_relative = true;
@@ -1348,7 +1348,7 @@ b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* o
                 }
             }
         }
-        
+
         if (is_relative) {
             char gltf_dir[512];
             string_directory_from_path(gltf_dir, base_path);
@@ -1370,7 +1370,7 @@ b8 extract_gltf_texture(const cgltf_image* image, const char* base_path, char* o
 
         u64 file_size;
         filesystem_size(&source_file, &file_size);
-        
+
         u8* buffer = yallocate(file_size, MEMORY_TAG_ARRAY);
         u64 bytes_read = 0;
         if (!filesystem_read_all_bytes(&source_file, buffer, &bytes_read) || bytes_read != file_size) {

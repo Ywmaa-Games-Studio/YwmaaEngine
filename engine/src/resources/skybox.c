@@ -45,7 +45,7 @@ b8 skybox_load(Skybox* sb) {
     }
 
     sb->cubemap.texture = texture_system_acquire_cube(sb->config.cubemap_name, true);
-    if (!renderer_texture_map_acquire_resources(&sb->cubemap)) {
+    if (!renderer_texture_map_resources_acquire(&sb->cubemap)) {
         PRINT_ERROR("Unable to acquire resources for cube map texture.");
         return false;
     }
@@ -55,7 +55,7 @@ b8 skybox_load(Skybox* sb) {
 
     SHADER* skybox_shader = shader_system_get("shader.builtin.skybox");  // TODO: allow configurable shader.
     TEXTURE_MAP* maps[1] = {&sb->cubemap};
-    if (!renderer_shader_acquire_instance_resources(skybox_shader, maps, &sb->instance_id)) {
+    if (!renderer_shader_instance_resources_acquire(skybox_shader, maps, &sb->instance_id)) {
         PRINT_ERROR("Unable to acquire shader resources for skybox texture.");
         return false;
     }
@@ -70,9 +70,9 @@ b8 skybox_unload(Skybox* sb) {
     }
 
     SHADER* skybox_shader = shader_system_get("shader.builtin.skybox");  // TODO: allow configurable shader.
-    renderer_shader_release_instance_resources(skybox_shader, sb->instance_id);
+    renderer_shader_instance_resources_release(skybox_shader, sb->instance_id);
     sb->instance_id = INVALID_ID;
-    renderer_texture_map_release_resources(&sb->cubemap);
+    renderer_texture_map_resources_release(&sb->cubemap);
 
     sb->render_frame_number = INVALID_ID_U64;
 

@@ -769,8 +769,8 @@ b8 platform_unwatch_file(u32 watch_id) {
     return false;
 }
 
-static void platform_update_watches(void) {
+// static void platform_update_watches(void) {
 
-}
+// }
 
 #endif // defined(YPLATFORM_WEB)
